@@ -1,0 +1,24 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/flutter/ephemeral/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+# Local environment
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.iml
+.DS_Store
+*.log
+# Application lockfiles should be committed once generated.
