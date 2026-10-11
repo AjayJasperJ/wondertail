@@ -17,16 +17,16 @@ class WondertailApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Wondertail · Little Drift',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xff477467),
-        surface: const Color(0xfffffcf4),
-      ),
-      fontFamily: 'sans-serif',
-    ),
-    home: GameScreen(saves: saves, loaded: loaded),
-  );
+        title: 'Wondertail · Little Drift',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xff477467),
+            surface: const Color(0xfffffcf4),
+          ),
+          fontFamily: 'sans-serif',
+        ),
+        home: GameScreen(saves: saves, loaded: loaded),
+      );
 }

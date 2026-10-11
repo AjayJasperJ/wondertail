@@ -51,10 +51,9 @@ class SaveRepository {
       }
       return LoadResult(
         WorldState(),
-        notice:
-            damaged
-                ? 'Your save could not be read. A fresh Little Drift is ready.'
-                : null,
+        notice: damaged
+            ? 'Your save could not be read. A fresh Little Drift is ready.'
+            : null,
       );
     } catch (_) {
       return LoadResult(

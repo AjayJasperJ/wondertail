@@ -91,15 +91,14 @@ void main() {
   );
 
   test('invalid data and incompatible save versions are rejected', () {
-    for (final patch
-        in <String, Object>{
-          'schemaVersion': 50,
-          'generatorVersion': 50,
-          'x': 'bad',
-          'seed': 2.5,
-          'cloudRescued': 'yes',
-          'bridgeGrown': true,
-        }.entries) {
+    for (final patch in <String, Object>{
+      'schemaVersion': 50,
+      'generatorVersion': 50,
+      'x': 'bad',
+      'seed': 2.5,
+      'cloudRescued': 'yes',
+      'bridgeGrown': true,
+    }.entries) {
       final json = WorldState().toJson()..[patch.key] = patch.value;
       expect(() => WorldState.decode(jsonEncode(json)), throwsFormatException);
     }

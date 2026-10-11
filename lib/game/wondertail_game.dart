@@ -193,18 +193,15 @@ class WondertailGame extends FlameGame {
   }
 
   void _path(Canvas canvas) {
-    final trail =
-        Path()
-          ..moveTo(370, 485)
-          ..quadraticBezierTo(510, 510, 540, 340);
-    final toGrove =
-        Path()
-          ..moveTo(480, 465)
-          ..quadraticBezierTo(580, 490, 640, 590);
-    final toBridge =
-        Path()
-          ..moveTo(555, 420)
-          ..quadraticBezierTo(675, 410, 795, 350);
+    final trail = Path()
+      ..moveTo(370, 485)
+      ..quadraticBezierTo(510, 510, 540, 340);
+    final toGrove = Path()
+      ..moveTo(480, 465)
+      ..quadraticBezierTo(580, 490, 640, 590);
+    final toBridge = Path()
+      ..moveTo(555, 420)
+      ..quadraticBezierTo(675, 410, 795, 350);
     for (final path in [trail, toGrove, toBridge]) {
       canvas.drawPath(
         path,
@@ -304,15 +301,14 @@ class WondertailGame extends FlameGame {
       _paint(const Color(0xffb0be95)),
     );
     if (!state.cloudRescued) {
-      final crystal =
-          Path()
-            ..moveTo(0, -73)
-            ..lineTo(32, -42)
-            ..lineTo(28, 2)
-            ..lineTo(0, 15)
-            ..lineTo(-30, -2)
-            ..lineTo(-29, -45)
-            ..close();
+      final crystal = Path()
+        ..moveTo(0, -73)
+        ..lineTo(32, -42)
+        ..lineTo(28, 2)
+        ..lineTo(0, 15)
+        ..lineTo(-30, -2)
+        ..lineTo(-29, -45)
+        ..close();
       canvas.drawPath(crystal, _paint(const Color(0xffa9d7ce)));
       _cloud(canvas, const Offset(0, -27), 0.48, const Color(0xfff7fff6));
       canvas.drawPath(
@@ -369,16 +365,16 @@ class WondertailGame extends FlameGame {
       const Rect.fromLTWH(783, 345, 24, 12),
       _paint(const Color(0xff807d53)),
     );
-    if (state.seedCollected && !state.bridgeGrown)
+    if (state.seedCollected && !state.bridgeGrown) {
       _sparkle(canvas, Offset(795, 324 + math.sin(_time * 3) * 3), 9);
+    }
     _label(canvas, const Offset(789, 392), 'THE SEED HOLLOW');
   }
 
   void _bridge(Canvas canvas) {
-    final path =
-        Path()
-          ..moveTo(795, 350)
-          ..lineTo(975, 280);
+    final path = Path()
+      ..moveTo(795, 350)
+      ..lineTo(975, 280);
     canvas.drawPath(
       path,
       _paint(const Color(0xff879c66))
@@ -599,6 +595,7 @@ class WondertailGame extends FlameGame {
         text: text,
         style: const TextStyle(
           color: Color(0xff64785c),
+          fontFamily: 'sans-serif',
           fontSize: 10,
           letterSpacing: 1.2,
           fontWeight: FontWeight.w600,

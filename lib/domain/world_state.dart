@@ -33,34 +33,34 @@ class WorldState {
   int get pocketSeeds => seedCollected && !bridgeGrown ? 1 : 0;
 
   List<String> get journal => [
-    'You arrived at Little Drift with a backpack and a curious compass.',
-    if (studiedCrystal)
-      'The crystal hums when you listen. Something gentle is inside.',
-    if (cloudRescued)
-      'You opened the crystal. Pip the cloud is free and calls you a friend.',
-    if (groveGrown)
-      'You helped Pip, so Pip’s rain brought the sleepy grove back to life.',
-    if (seedCollected) 'The grateful grove gave you one bright seed.',
-    if (bridgeGrown)
-      'Your seed grew a living bridge. A new island is within reach!',
-    if (lookoutReached)
-      'You and Pip reached the Lantern Lookout. Little Drift remembers you.',
-  ];
+        'You arrived at Little Drift with a backpack and a curious compass.',
+        if (studiedCrystal)
+          'The crystal hums when you listen. Something gentle is inside.',
+        if (cloudRescued)
+          'You opened the crystal. Pip the cloud is free and calls you a friend.',
+        if (groveGrown)
+          'You helped Pip, so Pip’s rain brought the sleepy grove back to life.',
+        if (seedCollected) 'The grateful grove gave you one bright seed.',
+        if (bridgeGrown)
+          'Your seed grew a living bridge. A new island is within reach!',
+        if (lookoutReached)
+          'You and Pip reached the Lantern Lookout. Little Drift remembers you.',
+      ];
 
   Map<String, Object> toJson() => {
-    'schemaVersion': schemaVersion,
-    'generatorVersion': generatorVersion,
-    'seed': seed,
-    'x': x,
-    'y': y,
-    'studiedCrystal': studiedCrystal,
-    'cloudRescued': cloudRescued,
-    'rainSeconds': rainSeconds,
-    'groveGrown': groveGrown,
-    'seedCollected': seedCollected,
-    'bridgeGrown': bridgeGrown,
-    'lookoutReached': lookoutReached,
-  };
+        'schemaVersion': schemaVersion,
+        'generatorVersion': generatorVersion,
+        'seed': seed,
+        'x': x,
+        'y': y,
+        'studiedCrystal': studiedCrystal,
+        'cloudRescued': cloudRescued,
+        'rainSeconds': rainSeconds,
+        'groveGrown': groveGrown,
+        'seedCollected': seedCollected,
+        'bridgeGrown': bridgeGrown,
+        'lookoutReached': lookoutReached,
+      };
 
   String encode() => jsonEncode(toJson());
 
@@ -143,7 +143,8 @@ class IslandMap {
     double cy,
     double rx,
     double ry,
-  ) => math.pow((x - cx) / rx, 2) + math.pow((y - cy) / ry, 2) <= 1;
+  ) =>
+      math.pow((x - cx) / rx, 2) + math.pow((y - cy) / ry, 2) <= 1;
 
   static bool _ground(double x, double y, bool hasBridge) {
     if (_ellipse(x, y, 475, 480, 375, 285) ||

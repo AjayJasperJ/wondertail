@@ -93,30 +93,30 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
         _held.contains(a) || _held.contains(b);
     _game.inputX =
         ((has(LogicalKeyboardKey.arrowRight, LogicalKeyboardKey.keyD) ||
-                _touchHeld.contains(1))
-            ? 1
-            : 0) -
-        ((has(LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.keyA) ||
-                    _touchHeld.contains(3))
+                    _touchHeld.contains(1))
                 ? 1
-                : 0)
-            .toDouble();
+                : 0) -
+            ((has(LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.keyA) ||
+                        _touchHeld.contains(3))
+                    ? 1
+                    : 0)
+                .toDouble();
     _game.inputY =
         ((has(LogicalKeyboardKey.arrowDown, LogicalKeyboardKey.keyS) ||
-                _touchHeld.contains(2))
-            ? 1
-            : 0) -
-        ((has(LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.keyW) ||
-                    _touchHeld.contains(0))
+                    _touchHeld.contains(2))
                 ? 1
-                : 0)
-            .toDouble();
+                : 0) -
+            ((has(LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.keyW) ||
+                        _touchHeld.contains(0))
+                    ? 1
+                    : 0)
+                .toDouble();
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (_dialogOpen) return KeyEventResult.ignored;
     final key = event.logicalKey;
-    const movement = {
+    final movement = {
       LogicalKeyboardKey.arrowUp,
       LogicalKeyboardKey.arrowDown,
       LogicalKeyboardKey.arrowLeft,
@@ -172,52 +172,44 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     String? action;
     switch (encounter) {
       case Encounter.cloud:
-        title =
-            _world.cloudRescued
-                ? 'Pip, your cloud friend'
-                : 'A cloud in a crystal';
-        body =
-            _world.cloudRescued
-                ? '“Thank you for listening. Wherever you wander, I’ll come too!”'
-                : _world.studiedCrystal
+        title = _world.cloudRescued
+            ? 'Pip, your cloud friend'
+            : 'A cloud in a crystal';
+        body = _world.cloudRescued
+            ? '“Thank you for listening. Wherever you wander, I’ll come too!”'
+            : _world.studiedCrystal
                 ? 'The crystal is an old cloud shelter. Its door is stuck! A gentle push will let the little cloud out.'
                 : 'A little cloud taps on the glass. “Hello? I can hear the trees dreaming of rain.”';
         action = _world.cloudRescued ? null : 'Open the crystal';
       case Encounter.grove:
         title = _world.groveGrown ? 'The grateful grove' : 'The sleepy grove';
-        body =
-            !_world.cloudRescued
-                ? 'The tiny trees are thirsty. Your compass points toward someone who could help.'
-                : !_world.groveGrown
+        body = !_world.cloudRescued
+            ? 'The tiny trees are thirsty. Your compass points toward someone who could help.'
+            : !_world.groveGrown
                 ? 'Pip is watering the roots. Give the little trees a moment to wake up.'
                 : _world.seedCollected
-                ? 'Leaves rustle a happy hello. The grove remembers the rain you brought.'
-                : 'Because you freed Pip, rain reached the roots. The trees grew a bright seed just for you!';
-        action =
-            _world.groveGrown && !_world.seedCollected
-                ? 'Take the bright seed'
-                : null;
+                    ? 'Leaves rustle a happy hello. The grove remembers the rain you brought.'
+                    : 'Because you freed Pip, rain reached the roots. The trees grew a bright seed just for you!';
+        action = _world.groveGrown && !_world.seedCollected
+            ? 'Take the bright seed'
+            : null;
       case Encounter.bridge:
         title = 'A seed-sized hollow';
-        body =
-            _world.bridgeGrown
-                ? 'Your seed became a living bridge. You can walk across it to the lantern!'
-                : _world.seedCollected
+        body = _world.bridgeGrown
+            ? 'Your seed became a living bridge. You can walk across it to the lantern!'
+            : _world.seedCollected
                 ? 'Your bright seed wiggles in your backpack. This sunny hollow looks like a good home.'
                 : 'There is a tiny hollow in the soil. Maybe a seed from a happy grove could grow here.';
-        action =
-            _world.seedCollected && !_world.bridgeGrown
-                ? 'Plant my seed'
-                : null;
+        action = _world.seedCollected && !_world.bridgeGrown
+            ? 'Plant my seed'
+            : null;
       case Encounter.lookout:
-        title =
-            _world.lookoutReached
-                ? 'Little Drift remembers'
-                : 'You made a new path!';
-        body =
-            _world.lookoutReached
-                ? 'Pip, the grove, and your bridge are still here. Wander back any time. This is the end of the first little adventure.'
-                : 'One small kindness became rain, a grove, a seed, and a bridge. Pip settles beside you. “Where shall we wander next?”';
+        title = _world.lookoutReached
+            ? 'Little Drift remembers'
+            : 'You made a new path!';
+        body = _world.lookoutReached
+            ? 'Pip, the grove, and your bridge are still here. Wander back any time. This is the end of the first little adventure.'
+            : 'One small kindness became rain, a grove, a seed, and a bridge. Pip settles beside you. “Where shall we wander next?”';
         action = _world.lookoutReached ? null : 'Remember this adventure';
     }
     final choice = await _pauseFor<String>(
@@ -345,14 +337,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final nearby = WorldRules.nearby(_world);
     final actionLabel = switch (nearby) {
       Encounter.cloud => _world.cloudRescued ? 'Talk to Pip' : 'Meet the cloud',
-      Encounter.grove =>
-        _world.groveGrown && !_world.seedCollected
-            ? 'Collect a seed'
-            : 'Visit the grove',
-      Encounter.bridge =>
-        _world.seedCollected && !_world.bridgeGrown
-            ? 'Plant your seed'
-            : 'Look closer',
+      Encounter.grove => _world.groveGrown && !_world.seedCollected
+          ? 'Collect a seed'
+          : 'Visit the grove',
+      Encounter.bridge => _world.seedCollected && !_world.bridgeGrown
+          ? 'Plant your seed'
+          : 'Look closer',
       Encounter.lookout => 'Enjoy the view',
       null => 'Follow your compass',
     };
@@ -594,30 +584,32 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   Widget _directionPad() => SizedBox(
-    width: 138,
-    height: 138,
-    child: Stack(
-      children: [
-        Positioned(
-          left: 47,
-          top: 47,
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              color: Color(0x55fffdf4),
-              shape: BoxShape.circle,
+        width: 138,
+        height: 138,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 47,
+              top: 47,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: Color(0x55fffdf4),
+                  shape: BoxShape.circle,
+                ),
+                child:
+                    const Icon(Icons.circle, size: 9, color: Color(0xff809576)),
+              ),
             ),
-            child: const Icon(Icons.circle, size: 9, color: Color(0xff809576)),
-          ),
+            _directionButton(0, 47, 0, Icons.keyboard_arrow_up, 'Move up'),
+            _directionButton(
+                1, 94, 47, Icons.keyboard_arrow_right, 'Move right'),
+            _directionButton(2, 47, 94, Icons.keyboard_arrow_down, 'Move down'),
+            _directionButton(3, 0, 47, Icons.keyboard_arrow_left, 'Move left'),
+          ],
         ),
-        _directionButton(0, 47, 0, Icons.keyboard_arrow_up, 'Move up'),
-        _directionButton(1, 94, 47, Icons.keyboard_arrow_right, 'Move right'),
-        _directionButton(2, 47, 94, Icons.keyboard_arrow_down, 'Move down'),
-        _directionButton(3, 0, 47, Icons.keyboard_arrow_left, 'Move left'),
-      ],
-    ),
-  );
+      );
 
   Widget _directionButton(
     int direction,
@@ -625,58 +617,57 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     double top,
     IconData icon,
     String label,
-  ) => Positioned(
-    left: left,
-    top: top,
-    child: Semantics(
-      label: label,
-      button: true,
-      onTap: () {
-        if (_dialogOpen) return;
-        final dx =
-            direction == 1
+  ) =>
+      Positioned(
+        left: left,
+        top: top,
+        child: Semantics(
+          label: label,
+          button: true,
+          onTap: () {
+            if (_dialogOpen) return;
+            final dx = direction == 1
                 ? 1.0
                 : direction == 3
-                ? -1.0
-                : 0.0;
-        final dy =
-            direction == 2
+                    ? -1.0
+                    : 0.0;
+            final dy = direction == 2
                 ? 1.0
                 : direction == 0
-                ? -1.0
-                : 0.0;
-        for (var i = 0; i < 5; i++) {
-          WorldRules.move(_world, dx, dy, 0.05);
-        }
-        _worldChanged();
-      },
-      child: Listener(
-        onPointerDown: (_) {
-          if (!_dialogOpen) {
-            _keyboard.requestFocus();
-            _touchHeld.add(direction);
-            _syncInput();
-          }
-        },
-        onPointerUp: (_) {
-          _touchHeld.remove(direction);
-          _syncInput();
-        },
-        onPointerCancel: (_) {
-          _touchHeld.remove(direction);
-          _syncInput();
-        },
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xeefffdf4),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0x99ffffff)),
+                    ? -1.0
+                    : 0.0;
+            for (var i = 0; i < 5; i++) {
+              WorldRules.move(_world, dx, dy, 0.05);
+            }
+            _worldChanged();
+          },
+          child: Listener(
+            onPointerDown: (_) {
+              if (!_dialogOpen) {
+                _keyboard.requestFocus();
+                _touchHeld.add(direction);
+                _syncInput();
+              }
+            },
+            onPointerUp: (_) {
+              _touchHeld.remove(direction);
+              _syncInput();
+            },
+            onPointerCancel: (_) {
+              _touchHeld.remove(direction);
+              _syncInput();
+            },
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xeefffdf4),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0x99ffffff)),
+              ),
+              child: Icon(icon, color: const Color(0xff577462), size: 29),
+            ),
           ),
-          child: Icon(icon, color: const Color(0xff577462), size: 29),
         ),
-      ),
-    ),
-  );
+      );
 }
