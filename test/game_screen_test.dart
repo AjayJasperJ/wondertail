@@ -47,6 +47,15 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Back to the island'));
     await tester.pump(const Duration(milliseconds: 300));
+    tester.view.physicalSize = const Size(320, 640);
+    await tester.pump();
+    final moveRight = tester.getRect(find.byIcon(Icons.keyboard_arrow_right));
+    final action = tester.getRect(find.ancestor(
+      of: find.text('Follow your compass'),
+      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
+    ));
+    expect(moveRight.overlaps(action), isFalse);
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 

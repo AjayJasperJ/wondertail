@@ -502,7 +502,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                             ),
                             const SizedBox(height: 9),
                             SizedBox(
-                              width: 170,
+                              width: math.min(
+                                  170, MediaQuery.sizeOf(context).width - 180),
                               child: FilledButton.icon(
                                 onPressed: nearby == null ? null : _interact,
                                 style: FilledButton.styleFrom(
@@ -564,14 +565,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-                      const Text(
-                        'Every kindness opens a path.',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontStyle: FontStyle.italic,
-                          color: Color(0xff718369),
+                      if (MediaQuery.sizeOf(context).width >= 380)
+                        const Text(
+                          'Every kindness opens a path.',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                            color: Color(0xff718369),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
