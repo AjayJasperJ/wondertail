@@ -1,0 +1,10 @@
+{
+  "name": "Wondertail · Little Drift",
+  "short_name": "Wondertail",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fffaf1",
+  "theme_color": "#fffaf1",
+  "description": "A small island adventure where every kindness opens a path.",
+  "orientation": "any"
+}

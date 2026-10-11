@@ -4,10 +4,10 @@ Planning estimate, not a delivery guarantee. Artwork, device coverage and playte
 
 ## Week 1 — Core gameplay
 
-- [ ] Bootstrap Flutter and Flame
-- [ ] Add character movement and camera
-- [ ] Add collision handling
-- [ ] Build one hand-designed island
+- [x] Bootstrap Flutter and Flame (web target)
+- [x] Add character movement and player-following view
+- [x] Add collision handling
+- [x] Build one hand-designed island
 - [ ] Verify movement on a physical device
 
 ## Week 2 — World generation and persistence
@@ -15,15 +15,15 @@ Planning estimate, not a delivery guarantee. Artwork, device coverage and playte
 - [ ] Implement deterministic island generation
 - [ ] Add biome definitions and portals
 - [ ] Bound active island/chunk memory
-- [ ] Implement offline save/load and save versions
+- [x] Implement local save/load and save versions (prototype snapshots)
 - [ ] Verify revisits and restart recovery
 
 ## Week 3 — Adventure engine
 
-- [ ] Add NPC dialogue and choices
+- [x] Add NPC dialogue and choices for the cloud encounter
 - [ ] Implement event prerequisites and repetition rules
-- [ ] Add persistent, idempotent consequences
-- [ ] Complete the cloud → rain → forest → route chain
+- [x] Add persistent, idempotent consequences for the first adventure
+- [x] Complete the cloud → rain → grove → bridge chain
 
 ## Week 4 — Playable prototype
 
@@ -34,5 +34,7 @@ Planning estimate, not a delivery guarantee. Artwork, device coverage and playte
 - [ ] Fix confusion, save failures and performance issues
 
 ## Deferred decisions
+
+Checked items mean implemented in the first slice, not accepted on physical devices. General event authoring, procedural expansion, and production-grade persistence remain future work.
 
 Target age range; primary platform and minimum device; visual style; final state-management/persistence packages; distribution license; accessibility and parental settings appropriate to release scope.

@@ -34,3 +34,7 @@ One hand-designed island, one cloud creature and one complete consequence chain:
 ## Quality gate
 
 Playtest the first 15 minutes before expanding content. Record where players become confused, whether they understand consequences and whether they voluntarily explore the next opportunity. Do not claim replayability until observed.
+
+## Implementation checkpoint — Little Drift
+
+The first authored consequence chain is now implemented in Flutter/Flame: one player, cloud rescue, timed rain, grove growth, one seed, bridge planting, and a reachable lookout. It includes local snapshots and a journal. The broader checkboxes above remain planned; this is not three biomes, procedural expansion, or a validated 15-minute session. Automated checks cover rules, save behavior, map reachability and UI basics. Target-device movement, offline reinstall/reload behavior and child playtesting still require hands-on acceptance.
