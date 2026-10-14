@@ -1,608 +1,745 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flame/game.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/world_state.dart';
 
-/// A deliberately small canvas renderer on Flame's lifecycle/game loop.
-/// The authored map and its collision rules live in the pure Dart domain layer.
+class IslandPalette {
+  const IslandPalette(this.sky, this.horizon, this.grass, this.light, this.leaf,
+      this.accent, this.ink);
+  final Color sky, horizon, grass, light, leaf, accent, ink;
+  static IslandPalette forBiome(Biome biome) => switch (biome) {
+        Biome.meadow => const IslandPalette(
+            Color(0xffb6dcd5),
+            Color(0xffedf0d3),
+            Color(0xff94bd85),
+            Color(0xffb2d49b),
+            Color(0xff468d70),
+            Color(0xffffdc86),
+            Color(0xff466850)),
+        Biome.twilight => const IslandPalette(
+            Color(0xff414b78),
+            Color(0xffb6adc3),
+            Color(0xff969db8),
+            Color(0xffb9bad0),
+            Color(0xff77749e),
+            Color(0xffffdba7),
+            Color(0xff505574)),
+        Biome.coral => const IslandPalette(
+            Color(0xffa2cfda),
+            Color(0xfff4debd),
+            Color(0xffdcb88d),
+            Color(0xffefd0a6),
+            Color(0xffc98382),
+            Color(0xffb5eee0),
+            Color(0xff8c625d)),
+      };
+}
+
+class _Spark {
+  _Spark(this.x, this.y, this.vx, this.vy, this.life, this.color);
+  double x, y, vx, vy, life;
+  final Color color;
+}
+
+/// One cached static scene; only character, companion, pickups and small effects
+/// animate. Flutter HUD notifiers change on events/contact, never per frame.
 class WondertailGame extends FlameGame {
   WondertailGame({required this.state, required this.onWorldChanged});
   final WorldState state;
-  final VoidCallback onWorldChanged;
-  double inputX = 0;
-  double inputY = 0;
+  final void Function(String message) onWorldChanged;
+  final ValueNotifier<int> revision = ValueNotifier(0);
+  final ValueNotifier<Encounter?> interaction = ValueNotifier(null);
+  final ValueNotifier<double> compassAngle = ValueNotifier(0);
+  double inputX = 0, inputY = 0;
+  bool sprint = false;
   bool controlsEnabled = true;
-  double _time = 0;
-  double _notifyTime = 0;
-  late final List<(double, double)> _flowers = IslandMap.flowers(state.seed);
+  bool movedSinceSave = false;
+  bool calmMotion = false;
+  int terrainBuildCount = 0;
+  int hudUpdateCount = 0;
+  ui.Picture? _terrain;
+  int _terrainKey = -1;
+  double _time = 0, _compassTime = 0, _arrivalFlash = 1;
+  late double _cameraX = state.x;
+  late double _cameraY = state.y;
+  final List<_Spark> _sparks = [];
+  Paint? _skyPaint;
+  double _skyWidth = 0, _skyHeight = 0;
 
   void clearInput() {
     inputX = 0;
     inputY = 0;
+    sprint = false;
   }
 
-  @override
-  Color backgroundColor() => const Color(0xffd8eae2);
+  void refresh({bool arrival = false}) {
+    revision.value++;
+    interaction.value = WorldRules.nearby(state);
+    if (arrival) {
+      _cameraX = state.x;
+      _cameraY = state.y;
+      _arrivalFlash = 1;
+      _skyPaint = null;
+      _sparks.clear();
+    }
+  }
+
+  void burst(Point2 point, Color color) {
+    if (calmMotion) return;
+    for (var i = 0; i < 14 && _sparks.length < 42; i++) {
+      final angle = i * math.pi * 2 / 14;
+      _sparks.add(_Spark(point.x, point.y - 15, math.cos(angle) * 60,
+          math.sin(angle) * 60 - 30, 0.8, color));
+    }
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
-    final step = dt.clamp(0.0, 0.05);
+    final step = dt.clamp(0.0, 0.15);
     _time += step;
+    _arrivalFlash = math.max(0, _arrivalFlash - step * 1.4);
+    for (var i = _sparks.length - 1; i >= 0; i--) {
+      final p = _sparks[i];
+      p.life -= step;
+      if (p.life <= 0) {
+        _sparks.removeAt(i);
+        continue;
+      }
+      p.x += p.vx * step;
+      p.y += p.vy * step;
+      p.vy += step * 45;
+    }
     if (!controlsEnabled) return;
-    final moved = WorldRules.move(state, inputX, inputY, step);
-    final changed = WorldRules.advanceRain(state, step);
-    _notifyTime += step;
-    if (changed || (moved && _notifyTime >= 0.1)) {
-      _notifyTime = 0;
-      onWorldChanged();
+    if (WorldRules.move(state, inputX, inputY, step, sprint: sprint))
+      movedSinceSave = true;
+    final smoothing = calmMotion ? 1.0 : 1 - math.exp(-12 * step);
+    _cameraX += (state.x - _cameraX) * smoothing;
+    _cameraY += (state.y - _cameraY) * smoothing;
+    if (WorldRules.advance(state, step)) {
+      refresh();
+      burst(state.map.wonder, const Color(0xffffe59c));
+      onWorldChanged('Pip’s rain woke the trees. Find three glowing sunseeds!');
+    }
+    final collected = WorldRules.collect(state);
+    if (collected.isNotEmpty) {
+      for (final index in collected) {
+        burst(state.map.collectibles[index], const Color(0xffffeaa2));
+      }
+      refresh();
+      onWorldChanged(state.progress.count == 3
+          ? 'All three found! Your compass knows where to go.'
+          : '+1 ${state.map.collectibleName} · ${state.progress.count}/3');
+    }
+    final nearby = WorldRules.nearby(state);
+    if (interaction.value != nearby) {
+      interaction.value = nearby;
+      hudUpdateCount++;
+    }
+    _compassTime += step;
+    if (_compassTime >= 0.12) {
+      _compassTime = 0;
+      final target = WorldRules.target(state);
+      final angle =
+          math.atan2(target.y - state.y, target.x - state.x) + math.pi / 2;
+      if ((angle - compassAngle.value).abs() > 0.04) {
+        compassAngle.value = angle;
+        hudUpdateCount++;
+      }
     }
   }
+
+  @override
+  Color backgroundColor() => const Color(0xffb6dcd5);
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
     if (size.x <= 0 || size.y <= 0) return;
-    final screen = Rect.fromLTWH(0, 0, size.x, size.y);
-    canvas.drawRect(
-      screen,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xffd2e7e1), Color(0xfff4eed6)],
-        ).createShader(screen),
-    );
-    for (var i = 0; i < 7; i++) {
-      final x = (i * 233.0 + _time * 5) % (size.x + 180) - 90;
-      final y = 55.0 + (i * 113) % math.max(120, size.y.toInt());
-      _cloud(
-        canvas,
-        Offset(x, y),
-        0.7 + (i % 3) * 0.2,
-        const Color(0x66ffffff),
-        face: false,
-      );
+    final palette = IslandPalette.forBiome(state.map.biome);
+    if (_skyPaint == null || _skyWidth != size.x || _skyHeight != size.y) {
+      _skyWidth = size.x;
+      _skyHeight = size.y;
+      _skyPaint = Paint()
+        ..shader = LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [palette.sky, palette.horizon])
+            .createShader(Rect.fromLTWH(0, 0, size.x, size.y));
     }
-    final zoom = size.x < 600 ? 0.90 : 1.12;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y), _skyPaint!);
+    for (var i = 0; i < 5; i++) {
+      final x =
+          (i * 271.0 + (calmMotion ? 0 : _time * 4)) % (size.x + 220) - 110;
+      _cloud(canvas, Offset(x, 65 + (i * 131) % math.max(100, size.y.toInt())),
+          1.4, const Color(0x22ffffff),
+          face: false);
+    }
+    final zoom = size.x < 600 ? 0.78 : 1.0;
     canvas.save();
-    canvas.translate(size.x / 2, size.y * 0.50);
+    canvas.translate(size.x / 2, size.y * 0.52);
     canvas.scale(zoom);
-    canvas.translate(-state.x, -state.y);
-    _island(canvas, const Rect.fromLTWH(100, 195, 750, 570), false);
-    _island(canvas, const Rect.fromLTWH(925, 120, 310, 260), true);
-    if (state.bridgeGrown) _bridge(canvas);
-    _path(canvas);
-    for (var i = 0; i < _flowers.length; i++) {
-      final (x, y) = _flowers[i];
-      canvas.drawLine(
-        Offset(x, y),
-        Offset(x + 1, y - 6),
-        _paint(const Color(0xff7b9d66))..strokeWidth = 2,
-      );
-      canvas.drawCircle(
-        Offset(x + 1, y - 7),
-        2.6,
-        _paint(i % 3 == 0 ? const Color(0xffffe8a5) : const Color(0xfff5fcdf)),
-      );
+    canvas.translate(-_cameraX, -_cameraY);
+    final key = state.islandIndex * 32 +
+        state.progress.stage * 8 +
+        (state.map.adventure == Adventure.garden
+            ? state.progress.collected
+            : 0);
+    if (_terrainKey != key || _terrain == null) {
+      _terrain?.dispose();
+      final recorder = ui.PictureRecorder();
+      _drawTerrain(Canvas(recorder), palette);
+      _terrain = recorder.endRecording();
+      _terrainKey = key;
+      terrainBuildCount++;
     }
-    _pond(canvas);
-    for (final (x, y, radius) in IslandMap.rocks) {
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(x, y + 5),
-          width: radius * 2.3,
-          height: radius * 1.7,
-        ),
-        _paint(const Color(0x2271835e)),
-      );
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(x, y - 4),
-          width: radius * 2,
-          height: radius * 1.6,
-        ),
-        _paint(const Color(0xff9da994)),
-      );
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(x - 7, y - 12),
-          width: radius,
-          height: radius * 0.5,
-        ),
-        _paint(const Color(0xffc0cab1)),
-      );
-    }
-    _tree(canvas, 225, 455, const Color(0xff79996b), 1.0);
-    _tree(canvas, 440, 255, const Color(0xff91aa72), 0.8);
-    _tree(canvas, 590, 710, const Color(0xff87a06b), 0.9);
-    _grove(canvas);
-    _crystal(canvas);
-    _seedHollow(canvas);
-    _lookout(canvas);
-    final nearby = WorldRules.nearby(state);
+    canvas.drawPicture(_terrain!);
+    _drawPickups(canvas, palette);
+    _drawFriend(canvas, palette);
+    if (state.progress.complete) _gateGlow(canvas, palette);
+    final nearby = interaction.value;
     if (nearby != null) {
-      final mark = switch (nearby) {
-        Encounter.cloud => IslandMap.cloud,
-        Encounter.grove => IslandMap.grove,
-        Encounter.bridge => IslandMap.bridge,
-        Encounter.lookout => IslandMap.lookout,
+      final point = switch (nearby) {
+        Encounter.friend => state.map.friend,
+        Encounter.wonder => state.map.wonder,
+        Encounter.gate => state.map.gate,
+        _ => state.map.collectibles[WorldRules.bedIndex(nearby)!]
       };
       canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(mark.x, mark.y + 12),
-          width: 95,
-          height: 42,
-        ),
-        _paint(const Color(0xbbfff7bf))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
+          Rect.fromCenter(
+              center: Offset(point.x, point.y + 5), width: 93, height: 39),
+          _paint(const Color(0xbbfff3b8))
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.2);
     }
     _player(canvas);
-    if (state.cloudRescued) {
-      final rain = !state.groveGrown;
-      final x = rain ? IslandMap.grove.x : state.x + 43;
-      final y = rain ? IslandMap.grove.y - 110 : state.y - 56;
-      _cloud(
-        canvas,
-        Offset(x, y + math.sin(_time * 2) * 4),
-        0.72,
-        const Color(0xfffbfff5),
-      );
-      if (rain) {
-        for (var i = 0; i < 24; i++) {
-          final rx = x - 55 + (i * 29 % 110);
-          final ry = y + 20 + (i * 31 + _time * 170) % 100;
-          canvas.drawLine(
-            Offset(rx, ry),
-            Offset(rx - 3, ry + 10),
-            _paint(const Color(0xaa70ada9))..strokeWidth = 2,
-          );
-        }
-      }
+    for (final p in _sparks) {
+      canvas.drawCircle(Offset(p.x, p.y), 3 * (p.life / 0.8), _paint(p.color));
     }
     canvas.restore();
+    if (_arrivalFlash > 0)
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.x, size.y),
+          _paint(Color.fromRGBO(245, 241, 219, _arrivalFlash * 0.45)));
   }
 
   Paint _paint(Color color) => Paint()..color = color;
-
-  void _island(Canvas canvas, Rect oval, bool small) {
-    canvas.drawOval(
-      oval.shift(const Offset(10, 55)),
-      _paint(const Color(0x14708881)),
-    );
-    canvas.drawOval(
-      oval.shift(const Offset(0, 25)),
-      _paint(const Color(0xff958d72)),
-    );
-    canvas.drawOval(
-      oval.shift(const Offset(0, 13)),
-      _paint(const Color(0xffbaa77c)),
-    );
-    canvas.drawOval(
-      oval,
-      _paint(small ? const Color(0xffbdd0a0) : const Color(0xffbfd29c)),
-    );
-    canvas.drawOval(
-      oval.deflate(13),
-      _paint(small ? const Color(0xffcedbb0) : const Color(0xffcfdbac)),
-    );
-  }
-
-  void _path(Canvas canvas) {
-    final trail = Path()
-      ..moveTo(370, 485)
-      ..quadraticBezierTo(510, 510, 540, 340);
-    final toGrove = Path()
-      ..moveTo(480, 465)
-      ..quadraticBezierTo(580, 490, 640, 590);
-    final toBridge = Path()
-      ..moveTo(555, 420)
-      ..quadraticBezierTo(675, 410, 795, 350);
-    for (final path in [trail, toGrove, toBridge]) {
-      canvas.drawPath(
-        path,
-        _paint(const Color(0xffe2d9af))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 28
-          ..strokeCap = StrokeCap.round,
-      );
+  Path _islandPath(double rx, double ry, double drop) {
+    final path = Path();
+    for (var i = 0; i <= 80; i++) {
+      final angle = i * math.pi * 2 / 80;
+      final wobble = math.sin(angle * 7) * 4 + math.cos(angle * 5) * 3;
+      final x = 640 + math.cos(angle) * (rx + wobble);
+      final y = 480 + drop + math.sin(angle) * (ry + wobble);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
+    return path..close();
   }
 
-  void _pond(Canvas canvas) {
-    canvas.drawOval(
-      const Rect.fromLTWH(245, 566, 130, 88),
-      _paint(const Color(0xffa8b78a)),
-    );
-    canvas.drawOval(
-      const Rect.fromLTWH(256, 575, 108, 68),
-      _paint(const Color(0xff8abdb8)),
-    );
-    canvas.drawArc(
-      const Rect.fromLTWH(274, 590, 65, 29),
-      0,
-      math.pi,
-      false,
-      _paint(const Color(0xffc4e0cb))
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-    canvas.drawOval(
-      const Rect.fromLTWH(265, 605, 22, 12),
-      _paint(const Color(0xff759e6f)),
-    );
+  void _drawTerrain(Canvas canvas, IslandPalette p) {
+    canvas.drawOval(const Rect.fromLTWH(219, 252, 870, 680),
+        _paint(const Color(0x14708881)));
+    canvas.drawPath(_islandPath(444, 330, 49), _paint(const Color(0xff8c8b86)));
+    canvas.drawPath(_islandPath(444, 330, 32), _paint(const Color(0xffc2ad90)));
+    canvas.drawPath(_islandPath(444, 330, 14), _paint(const Color(0xffe0cba3)));
+    canvas.drawPath(_islandPath(440, 330, 0), _paint(p.grass));
+    canvas.drawPath(_islandPath(426, 316, -3), _paint(p.light));
+    for (final target in [
+      state.map.friend,
+      state.map.wonder,
+      state.map.gate,
+      ...state.map.collectibles
+    ]) {
+      final trail = Path()
+        ..moveTo(610, 475)
+        ..quadraticBezierTo((610 + target.x) / 2 + 25, (475 + target.y) / 2,
+            target.x, target.y);
+      canvas.drawPath(
+          trail,
+          _paint(const Color(0x88fff1c2))
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 21
+            ..strokeCap = StrokeCap.round);
+    }
+    for (var i = 0; i < state.map.flowers.length; i++) {
+      final point = state.map.flowers[i];
+      final color = i % 4 == 0 ? p.accent : const Color(0xffeff5d3);
+      canvas.drawLine(Offset(point.x, point.y),
+          Offset(point.x + 1, point.y - 6), _paint(p.leaf)..strokeWidth = 1.4);
+      canvas.drawCircle(
+          Offset(point.x + 1, point.y - 8), i % 4 == 0 ? 3 : 2, _paint(color));
+      if (i % 9 == 0)
+        canvas.drawCircle(
+            Offset(point.x + 5, point.y - 5), 2, _paint(p.accent));
+    }
+    for (final obstacle in state.map.obstacles) {
+      final point = obstacle.center;
+      final radius = obstacle.radius;
+      if (obstacle.pond) {
+        canvas.drawCircle(Offset(point.x, point.y), radius + 6,
+            _paint(const Color(0xff86a990)));
+        canvas.drawCircle(
+            Offset(point.x, point.y), radius, _paint(const Color(0xff69adb5)));
+        canvas.drawArc(
+            Rect.fromCircle(
+                center: Offset(point.x - 4, point.y - 5),
+                radius: radius * 0.65),
+            0.2,
+            2.2,
+            false,
+            _paint(const Color(0xffb0ded6))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3);
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(point.x - 14, point.y + 10),
+                width: 21,
+                height: 12),
+            _paint(const Color(0xff7baf72)));
+      } else {
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(point.x + 3, point.y + 8),
+                width: radius * 2.3,
+                height: radius * 1.7),
+            _paint(const Color(0x22716e68)));
+        canvas.drawCircle(Offset(point.x, point.y - 5), radius,
+            _paint(const Color(0xff99a5a2)));
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(point.x - 4, point.y - radius * 0.55),
+                width: radius * 1.4,
+                height: radius * 0.7),
+            _paint(const Color(0xffc0cbc2)));
+        canvas.drawCircle(Offset(point.x + radius * 0.45, point.y - 3),
+            radius * 0.38, _paint(p.leaf));
+      }
+    }
+    for (var i = 0; i < state.map.trees.length; i++) {
+      final tree = state.map.trees[i];
+      _tree(canvas, tree.x, tree.y, p.leaf, 0.65 + (i % 4) * 0.1, p.accent,
+          blossom: state.progress.complete);
+    }
+    _wonder(canvas, p);
+    _gate(canvas, p);
+    for (var i = 0; i < 3; i++) {
+      final point = state.map.collectibles[i];
+      if (state.map.adventure == Adventure.garden) {
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(point.x, point.y), width: 59, height: 38),
+            _paint(const Color(0xffb19170)));
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(point.x, point.y - 2), width: 47, height: 29),
+            _paint(const Color(0xff907b61)));
+        if ((state.progress.collected & (1 << i)) != 0)
+          _tree(canvas, point.x, point.y, p.leaf, 0.68, p.accent,
+              blossom: true);
+      } else if (state.map.adventure == Adventure.lantern) {
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(point.x, point.y + 3), width: 46, height: 30),
+            _paint(const Color(0xffb3adbf)));
+        _label(canvas, Offset(point.x, point.y + 24), '${i + 1}', p.ink);
+      }
+    }
+    _label(canvas, Offset(state.map.friend.x, state.map.friend.y + 36),
+        state.map.friendName.toUpperCase(), p.ink);
+    _label(canvas, Offset(state.map.wonder.x, state.map.wonder.y + 60),
+        state.map.wonderName.toUpperCase(), p.ink);
+    _label(
+        canvas,
+        Offset(state.map.gate.x, state.map.gate.y + 45),
+        state.progress.complete ? 'THE NEXT ADVENTURE' : 'A SLEEPING SKYWAY',
+        p.ink);
+    // The arrival campsite remains a visual anchor when revisiting.
+    final tent = Path()
+      ..moveTo(325, 566)
+      ..lineTo(351, 518)
+      ..lineTo(379, 566)
+      ..close();
+    canvas.drawPath(tent, _paint(const Color(0xffedbc76)));
+    canvas.drawPath(
+        Path()
+          ..moveTo(339, 566)
+          ..lineTo(351, 537)
+          ..lineTo(364, 566)
+          ..close(),
+        _paint(const Color(0xff967658)));
+    canvas.drawLine(const Offset(325, 566), const Offset(379, 566),
+        _paint(const Color(0xff9c795c))..strokeWidth = 3);
   }
 
-  void _tree(Canvas canvas, double x, double y, Color color, double scale) {
+  void _tree(Canvas canvas, double x, double y, Color color, double scale,
+      Color blossomColor,
+      {bool blossom = false}) {
     canvas.save();
     canvas.translate(x, y);
     canvas.scale(scale);
     canvas.drawOval(
-      const Rect.fromLTWH(-32, -4, 64, 20),
-      _paint(const Color(0x22728e60)),
-    );
+        const Rect.fromLTWH(-33, -4, 66, 20), _paint(const Color(0x22728e60)));
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-5, -48, 10, 55),
-        const Radius.circular(4),
-      ),
-      _paint(const Color(0xffa58c69)),
-    );
-    canvas.drawCircle(const Offset(-15, -47), 27, _paint(color));
-    canvas.drawCircle(const Offset(15, -48), 30, _paint(color));
-    canvas.drawCircle(const Offset(0, -69), 31, _paint(color));
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-5, -49, 10, 55), const Radius.circular(4)),
+        _paint(const Color(0xff937858)));
+    canvas.drawCircle(const Offset(-15, -49), 27, _paint(color));
+    canvas.drawCircle(const Offset(16, -49), 30, _paint(color));
+    canvas.drawCircle(const Offset(0, -72), 32, _paint(color));
     canvas.drawCircle(
-      const Offset(-8, -76),
-      18,
-      _paint(const Color(0x229bce8a)),
-    );
+        const Offset(-10, -82), 18, _paint(const Color(0x227effab)));
+    if (blossom) {
+      for (final point in [
+        const Offset(-20, -57),
+        const Offset(13, -74),
+        const Offset(28, -43),
+        const Offset(-6, -91)
+      ]) {
+        canvas.drawCircle(point, 5, _paint(blossomColor));
+        canvas.drawCircle(point, 2, _paint(const Color(0xfffff2d4)));
+      }
+    }
     canvas.restore();
   }
 
-  void _grove(Canvas canvas) {
-    final grown = state.groveGrown;
-    for (final (x, y) in [(605.0, 605.0), (686.0, 591.0), (655.0, 641.0)]) {
-      if (grown) {
-        _tree(canvas, x, y, const Color(0xff77a876), 0.65);
-      } else {
-        canvas.drawLine(
-          Offset(x, y),
-          Offset(x, y - 34),
-          _paint(const Color(0xffa89777))
-            ..strokeWidth = 5
-            ..strokeCap = StrokeCap.round,
-        );
-        canvas.drawLine(
-          Offset(x, y - 16),
-          Offset(x - 12, y - 28),
-          _paint(const Color(0xffa89777))
-            ..strokeWidth = 4
-            ..strokeCap = StrokeCap.round,
-        );
-      }
-    }
-    if (grown && !state.seedCollected) _seed(canvas, const Offset(640, 563), 1);
-    _label(
-      canvas,
-      Offset(640, 667),
-      grown ? 'THE GRATEFUL GROVE' : 'THE SLEEPY GROVE',
-    );
-  }
-
-  void _crystal(Canvas canvas) {
+  void _wonder(Canvas canvas, IslandPalette p) {
+    final point = state.map.wonder;
+    final awake = state.progress.stage >= 2 || state.progress.complete;
     canvas.save();
-    canvas.translate(540, 340);
+    canvas.translate(point.x, point.y);
     canvas.drawOval(
-      const Rect.fromLTWH(-39, -4, 78, 28),
-      _paint(const Color(0xffb0be95)),
-    );
-    if (!state.cloudRescued) {
-      final crystal = Path()
-        ..moveTo(0, -73)
-        ..lineTo(32, -42)
-        ..lineTo(28, 2)
-        ..lineTo(0, 15)
-        ..lineTo(-30, -2)
-        ..lineTo(-29, -45)
-        ..close();
-      canvas.drawPath(crystal, _paint(const Color(0xffa9d7ce)));
-      _cloud(canvas, const Offset(0, -27), 0.48, const Color(0xfff7fff6));
-      canvas.drawPath(
-        crystal,
-        _paint(const Color(0xfff3fff0))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3,
-      );
-      canvas.drawLine(
-        const Offset(0, -73),
-        const Offset(-4, -6),
-        _paint(const Color(0x88ffffff))..strokeWidth = 2,
-      );
-      _sparkle(canvas, Offset(43, -55 + math.sin(_time * 2) * 4), 6);
+        const Rect.fromLTWH(-50, -9, 100, 41), _paint(const Color(0xffa49e7e)));
+    canvas.drawOval(
+        const Rect.fromLTWH(-43, -13, 86, 34), _paint(const Color(0xffc6c09c)));
+    if (state.map.adventure == Adventure.lantern) {
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              const Rect.fromLTWH(-7, -89, 14, 92), const Radius.circular(4)),
+          _paint(const Color(0xff847b91)));
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(const Rect.fromLTWH(-28, -117, 56, 51),
+              const Radius.circular(15)),
+          _paint(state.progress.complete
+              ? const Color(0xffffe799)
+              : const Color(0xffbbb4c4)));
+      canvas.drawLine(const Offset(-32, -115), const Offset(32, -115),
+          _paint(const Color(0xff806c87))..strokeWidth = 6);
+      canvas.drawLine(const Offset(-32, -68), const Offset(32, -68),
+          _paint(const Color(0xff806c87))..strokeWidth = 6);
+      if (state.progress.complete) {
+        for (var i = 0; i < 6; i++) {
+          _star(
+              canvas,
+              Offset(math.cos(i * 1.05) * 55, -90 + math.sin(i * 1.05) * 42),
+              4,
+              p.accent);
+        }
+      }
+    } else if (awake) {
+      _tree(canvas, -23, 5, p.leaf, 0.86, p.accent, blossom: true);
+      _tree(canvas, 30, 10, p.leaf, 0.64, p.accent, blossom: true);
+      canvas.drawOval(const Rect.fromLTWH(-12, 12, 24, 16),
+          _paint(const Color(0xffd59b62)));
     } else {
-      for (var i = 0; i < 5; i++) {
-        canvas.drawCircle(
-          Offset(-25.0 + i * 12, (i % 2) * 7.0),
-          5,
-          _paint(const Color(0xffb0ded0)),
-        );
+      for (final x in [-22.0, 19.0]) {
+        canvas.drawLine(
+            Offset(x, 4),
+            Offset(x, -48),
+            _paint(const Color(0xffab8e77))
+              ..strokeWidth = 6
+              ..strokeCap = StrokeCap.round);
+        canvas.drawLine(
+            Offset(x, -22),
+            Offset(x - 16, -36),
+            _paint(const Color(0xffab8e77))
+              ..strokeWidth = 5
+              ..strokeCap = StrokeCap.round);
       }
     }
-    _label(
-      canvas,
-      const Offset(0, 38),
-      state.cloudRescued ? 'A NEW FRIEND' : 'A LITTLE MYSTERY',
-    );
     canvas.restore();
   }
 
-  void _seed(Canvas canvas, Offset point, double scale) {
-    canvas.drawCircle(point, 18 * scale, _paint(const Color(0x55fff5b4)));
+  void _gate(Canvas canvas, IslandPalette p) {
+    final point = state.map.gate;
+    canvas.save();
+    canvas.translate(point.x, point.y);
     canvas.drawOval(
-      Rect.fromCenter(center: point, width: 12 * scale, height: 19 * scale),
-      _paint(const Color(0xffe7b957)),
-    );
+        const Rect.fromLTWH(-56, -4, 112, 33), _paint(const Color(0xff9da890)));
     canvas.drawOval(
-      Rect.fromCenter(
-        center: point + Offset(7 * scale, -10 * scale),
-        width: 13 * scale,
-        height: 7 * scale,
-      ),
-      _paint(const Color(0xff65965c)),
-    );
-  }
-
-  void _seedHollow(Canvas canvas) {
-    canvas.drawOval(
-      const Rect.fromLTWH(774, 339, 42, 25),
-      _paint(const Color(0xffa88d63)),
-    );
-    canvas.drawOval(
-      const Rect.fromLTWH(783, 345, 24, 12),
-      _paint(const Color(0xff807d53)),
-    );
-    if (state.seedCollected && !state.bridgeGrown) {
-      _sparkle(canvas, Offset(795, 324 + math.sin(_time * 3) * 3), 9);
-    }
-    _label(canvas, const Offset(789, 392), 'THE SEED HOLLOW');
-  }
-
-  void _bridge(Canvas canvas) {
-    final path = Path()
-      ..moveTo(795, 350)
-      ..lineTo(975, 280);
+        const Rect.fromLTWH(-47, -9, 94, 27), _paint(const Color(0xffe6d4ad)));
+    final arch = Path()
+      ..moveTo(-35, 1)
+      ..lineTo(-35, -57)
+      ..cubicTo(-35, -112, 35, -112, 35, -57)
+      ..lineTo(35, 1);
     canvas.drawPath(
-      path,
-      _paint(const Color(0xff879c66))
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 69
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawPath(
-      path,
-      _paint(const Color(0xffb0c989))
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 54
-        ..strokeCap = StrokeCap.round,
-    );
-    for (var i = 0; i < 12; i++) {
-      final x = 800.0 + i * 15;
-      final y = 348.0 - i * 5.85;
-      canvas.drawLine(
-        Offset(x - 6, y - 18),
-        Offset(x + 8, y + 18),
-        _paint(const Color(0xffd5dfa6))
-          ..strokeWidth = 5
-          ..strokeCap = StrokeCap.round,
-      );
+        arch,
+        _paint(state.progress.complete ? p.leaf : const Color(0xffa1a394))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 16
+          ..strokeCap = StrokeCap.round);
+    for (var i = 0; i < 5; i++) {
       canvas.drawOval(
-        Rect.fromCenter(center: Offset(x, y - 29), width: 20, height: 11),
-        _paint(const Color(0xff76a273)),
-      );
+          Rect.fromCenter(
+              center: Offset(i.isEven ? -36 : 36, -i * 16.0),
+              width: 22,
+              height: 12),
+          _paint(p.leaf));
+    }
+    _star(canvas, const Offset(0, -101), 9,
+        state.progress.complete ? p.accent : const Color(0xffcfceae));
+    canvas.restore();
+  }
+
+  void _gateGlow(Canvas canvas, IslandPalette p) {
+    final point = state.map.gate;
+    final rect = Rect.fromCenter(
+        center: Offset(point.x, point.y - 42), width: 57, height: 88);
+    canvas.drawOval(rect, _paint(const Color(0x7783e7dc)));
+    for (var i = 0; i < 7; i++) {
+      final t = calmMotion ? i / 7 : (i / 7 + _time * 0.17) % 1;
+      _star(
+          canvas,
+          Offset(point.x + math.sin(i * 5 + t * 4) * 18, point.y - t * 80),
+          3,
+          const Color(0xfffff3bc));
     }
   }
 
-  void _lookout(Canvas canvas) {
-    _tree(canvas, 1170, 265, const Color(0xff8fac77), 0.8);
-    canvas.drawOval(
-      const Rect.fromLTWH(1035, 222, 70, 31),
-      _paint(const Color(0xffadb58b)),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(1066, 176, 8, 63),
-        const Radius.circular(3),
-      ),
-      _paint(const Color(0xffa58b64)),
-    );
-    canvas.drawCircle(
-      const Offset(1070, 172),
-      24,
-      _paint(const Color(0x55fff3aa)),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(1057, 153, 26, 33),
-        const Radius.circular(8),
-      ),
-      _paint(const Color(0xffffe9a0)),
-    );
-    canvas.drawLine(
-      const Offset(1057, 156),
-      const Offset(1083, 156),
-      _paint(const Color(0xffb18b59))..strokeWidth = 3,
-    );
-    _label(canvas, const Offset(1070, 277), 'LANTERN LOOKOUT');
-    if (state.lookoutReached) {
-      for (var i = 0; i < 8; i++) {
-        _sparkle(
-          canvas,
-          Offset(
-            1070 + math.cos(i * 0.8 + _time * 0.3) * 62,
-            195 + math.sin(i * 0.8 + _time * 0.3) * 55,
-          ),
-          3,
-        );
+  void _drawPickups(Canvas canvas, IslandPalette p) {
+    if (!WorldRules.itemsActive(state)) return;
+    for (var i = 0; i < 3; i++) {
+      if ((state.progress.collected & (1 << i)) != 0) continue;
+      final point = state.map.collectibles[i];
+      final bob = calmMotion ? 0.0 : math.sin(_time * 2.8 + i) * 4;
+      canvas.drawOval(
+          Rect.fromCenter(
+              center: Offset(point.x, point.y + 3), width: 24, height: 10),
+          _paint(const Color(0x33837661)));
+      final active =
+          state.map.adventure != Adventure.lantern || i == state.progress.count;
+      canvas.drawCircle(Offset(point.x, point.y - 15 + bob), active ? 23 : 15,
+          _paint(active ? const Color(0x88fff3b4) : const Color(0x228a99b6)));
+      if (state.map.adventure == Adventure.garden) {
+        _star(canvas, Offset(point.x, point.y - 22 + bob), 9,
+            const Color(0xffffe9ad));
+      } else {
+        _star(canvas, Offset(point.x, point.y - 17 + bob), 12,
+            const Color(0xffffe68b));
+        canvas.drawCircle(Offset(point.x, point.y - 17 + bob), 4,
+            _paint(const Color(0xfffffff0)));
       }
+    }
+  }
+
+  void _drawFriend(Canvas canvas, IslandPalette p) {
+    final map = state.map;
+    if (map.adventure == Adventure.rain) {
+      if (state.progress.stage == 0) {
+        final point = map.friend;
+        final crystal = Path()
+          ..moveTo(point.x, point.y - 85)
+          ..lineTo(point.x + 36, point.y - 51)
+          ..lineTo(point.x + 29, point.y + 5)
+          ..lineTo(point.x, point.y + 16)
+          ..lineTo(point.x - 30, point.y + 1)
+          ..lineTo(point.x - 35, point.y - 51)
+          ..close();
+        canvas.drawPath(crystal, _paint(const Color(0xaa9bdcd1)));
+        _cloud(canvas, Offset(point.x, point.y - 31), 0.5,
+            const Color(0xfff8fff2));
+        canvas.drawPath(
+            crystal,
+            _paint(const Color(0xfff6fff1))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3);
+        _star(canvas, Offset(point.x + 44, point.y - 56), 6, p.accent);
+      } else {
+        final rain = state.progress.stage == 1;
+        final x = rain ? map.wonder.x : state.x + 45;
+        final y = rain ? map.wonder.y - 104 : state.y - 57;
+        _cloud(
+            canvas,
+            Offset(x, y + (calmMotion ? 0 : math.sin(_time * 2) * 3)),
+            0.7,
+            const Color(0xfffcfff4));
+        if (rain) {
+          for (var i = 0; i < 15; i++) {
+            final rx = x - 45 + i * 29 % 90;
+            final ry = y + 18 + (i * 17 + _time * 150) % 100;
+            canvas.drawLine(Offset(rx, ry), Offset(rx - 3, ry + 10),
+                _paint(const Color(0xaa529fbd))..strokeWidth = 2);
+          }
+        }
+      }
+    } else {
+      final point = state.progress.stage > 0
+          ? Point2(state.x + 40, state.y - 18)
+          : map.friend;
+      canvas.save();
+      canvas.translate(point.x, point.y);
+      if (map.adventure == Adventure.lantern) {
+        final wing = calmMotion ? 1.0 : 0.8 + math.sin(_time * 8).abs() * 0.2;
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(-15 * wing, -25), width: 35 * wing, height: 36),
+            _paint(const Color(0xfff5dcae)));
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(15 * wing, -25), width: 35 * wing, height: 36),
+            _paint(const Color(0xffe9bfd6)));
+        canvas.drawOval(const Rect.fromLTWH(-8, -42, 16, 39),
+            _paint(const Color(0xff8f788e)));
+        canvas.drawCircle(
+            const Offset(0, -29), 10, _paint(const Color(0xfffcdfad)));
+        _face(canvas, const Offset(0, -30), 0.65);
+      } else {
+        canvas.drawOval(const Rect.fromLTWH(-25, -2, 50, 16),
+            _paint(const Color(0x33738c63)));
+        for (final x in [-16.0, 15.0]) {
+          canvas.drawOval(
+              Rect.fromCenter(center: Offset(x, -3), width: 14, height: 15),
+              _paint(const Color(0xff7fac88)));
+        }
+        canvas.drawOval(const Rect.fromLTWH(-25, -35, 48, 36),
+            _paint(const Color(0xff91aa70)));
+        canvas.drawOval(const Rect.fromLTWH(-18, -34, 32, 26),
+            _paint(const Color(0xffc0ce81)));
+        canvas.drawCircle(
+            const Offset(23, -18), 13, _paint(const Color(0xffa4c894)));
+        _face(canvas, const Offset(25, -20), 0.55);
+        if (state.progress.complete)
+          _star(canvas, const Offset(-3, -43), 9, const Color(0xffffd58f));
+      }
+      canvas.restore();
     }
   }
 
   void _player(Canvas canvas) {
-    final moving = inputX != 0 || inputY != 0;
-    final bounce =
-        moving ? math.sin(_time * 14) * 1.7 : math.sin(_time * 2) * 0.6;
+    final moving = (inputX != 0 || inputY != 0) && controlsEnabled;
+    final bounce = moving && !calmMotion ? math.sin(_time * 15) * 2 : 0.0;
     canvas.save();
     canvas.translate(state.x, state.y);
     canvas.drawOval(
-      const Rect.fromLTWH(-14, -4, 28, 11),
-      _paint(const Color(0x33728965)),
-    );
+        const Rect.fromLTWH(-16, -3, 32, 12), _paint(const Color(0x33718965)));
     canvas.translate(0, bounce);
-    final step = moving ? math.sin(_time * 14) * 2.5 : 0.0;
+    final step = moving && !calmMotion ? math.sin(_time * 15) * 3 : 0.0;
+    for (final (x, y) in [(-10.0, step), (3.0, -step)]) {
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromLTWH(x, -9 + y, 8, 13), const Radius.circular(3)),
+          _paint(const Color(0xff59616a)));
+    }
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(-9, -7 + step, 7, 12),
-        const Radius.circular(3),
-      ),
-      _paint(const Color(0xff655b4d)),
-    );
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-16, -35, 32, 30), const Radius.circular(11)),
+        _paint(const Color(0xffdc9264)));
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(2, -7 - step, 7, 12),
-        const Radius.circular(3),
-      ),
-      _paint(const Color(0xff655b4d)),
-    );
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-20, -31, 12, 24), const Radius.circular(5)),
+        _paint(const Color(0xffa57b55)));
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-15, -32, 30, 28),
-        const Radius.circular(10),
-      ),
-      _paint(const Color(0xffca805d)),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-19, -29, 10, 20),
-        const Radius.circular(4),
-      ),
-      _paint(const Color(0xffae925b)),
-    );
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-19, -31, 10, 7), const Radius.circular(3)),
+        _paint(const Color(0xffddb57a)));
     canvas.drawCircle(
-      const Offset(0, -39),
-      13,
-      _paint(const Color(0xffe8ba90)),
-    );
-    canvas.drawArc(
-      const Rect.fromLTWH(-14, -54, 28, 28),
-      math.pi,
-      math.pi,
-      true,
-      _paint(const Color(0xff725a43)),
-    );
+        const Offset(0, -42), 14, _paint(const Color(0xffedc29e)));
+    canvas.drawArc(const Rect.fromLTWH(-14, -59, 28, 28), math.pi, math.pi,
+        true, _paint(const Color(0xff685451)));
     canvas.drawOval(
-      const Rect.fromLTWH(-20, -53, 40, 12),
-      _paint(const Color(0xffe4c579)),
-    );
+        const Rect.fromLTWH(-24, -59, 48, 14), _paint(const Color(0xffeed390)));
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(-13, -67, 26, 20),
-        const Radius.circular(9),
-      ),
-      _paint(const Color(0xffecd495)),
-    );
+        RRect.fromRectAndRadius(
+            const Rect.fromLTWH(-15, -74, 30, 22), const Radius.circular(10)),
+        _paint(const Color(0xfff4dd9d)));
+    canvas.drawLine(const Offset(-14, -55), const Offset(14, -55),
+        _paint(const Color(0xffb98c61))..strokeWidth = 4);
     canvas.drawCircle(
-      Offset(inputX < 0 ? -6 : 5, -38),
-      1.6,
-      _paint(const Color(0xff514d41)),
-    );
-    canvas.drawCircle(const Offset(9, -18), 4, _paint(const Color(0xfff8dfa0)));
+        Offset(inputX < 0 ? -6 : 6, -42), 1.8, _paint(const Color(0xff4c5357)));
+    canvas.drawCircle(
+        const Offset(10, -22), 4, _paint(const Color(0xffffed9d)));
+    canvas.drawLine(const Offset(9, -8), const Offset(18, -7),
+        _paint(const Color(0xfff4d793))..strokeWidth = 4);
     canvas.restore();
   }
 
-  void _cloud(
-    Canvas canvas,
-    Offset point,
-    double scale,
-    Color color, {
-    bool face = true,
-  }) {
+  void _cloud(Canvas canvas, Offset point, double scale, Color color,
+      {bool face = true}) {
     canvas.save();
     canvas.translate(point.dx, point.dy);
     canvas.scale(scale);
-    final paint = _paint(color);
-    canvas.drawOval(const Rect.fromLTWH(-42, -7, 84, 34), paint);
-    canvas.drawCircle(const Offset(-22, -5), 22, paint);
-    canvas.drawCircle(const Offset(2, -17), 28, paint);
-    canvas.drawCircle(const Offset(25, -2), 20, paint);
-    if (face) {
-      canvas.drawCircle(
-        const Offset(-9, 3),
-        2.4,
-        _paint(const Color(0xff58746b)),
-      );
-      canvas.drawCircle(
-        const Offset(9, 3),
-        2.4,
-        _paint(const Color(0xff58746b)),
-      );
-      canvas.drawArc(
-        const Rect.fromLTWH(-5, 5, 10, 8),
-        0,
-        math.pi,
-        false,
-        _paint(const Color(0xff58746b))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.7,
-      );
-      canvas.drawCircle(
-        const Offset(-17, 10),
-        4,
-        _paint(const Color(0xffefd0b7)),
-      );
-      canvas.drawCircle(
-        const Offset(17, 10),
-        4,
-        _paint(const Color(0xffefd0b7)),
-      );
-    }
+    canvas.drawOval(const Rect.fromLTWH(-42, -7, 84, 34), _paint(color));
+    canvas.drawCircle(const Offset(-22, -5), 22, _paint(color));
+    canvas.drawCircle(const Offset(2, -17), 28, _paint(color));
+    canvas.drawCircle(const Offset(25, -2), 20, _paint(color));
+    if (face) _face(canvas, const Offset(0, 3), 1);
     canvas.restore();
   }
 
-  void _sparkle(Canvas canvas, Offset point, double radius) {
-    canvas.drawLine(
-      point - Offset(radius, 0),
-      point + Offset(radius, 0),
-      _paint(const Color(0xfffff6bd))
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawLine(
-      point - Offset(0, radius),
-      point + Offset(0, radius),
-      _paint(const Color(0xfffff6bd))
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round,
-    );
+  void _face(Canvas canvas, Offset point, double scale) {
+    for (final dx in [-9.0, 9.0]) {
+      canvas.drawCircle(point + Offset(dx * scale, 0), 2.2 * scale,
+          _paint(const Color(0xff526c6d)));
+    }
+    canvas.drawArc(
+        Rect.fromCenter(
+            center: point + Offset(0, 5 * scale),
+            width: 10 * scale,
+            height: 8 * scale),
+        0,
+        math.pi,
+        false,
+        _paint(const Color(0xff526c6d))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6);
+    for (final dx in [-16.0, 16.0]) {
+      canvas.drawCircle(point + Offset(dx * scale, 7 * scale), 3.4 * scale,
+          _paint(const Color(0xffedc4bb)));
+    }
   }
 
-  void _label(Canvas canvas, Offset point, String text) {
+  void _star(Canvas canvas, Offset point, double radius, Color color) {
+    final path = Path();
+    for (var i = 0; i < 8; i++) {
+      final angle = i * math.pi / 4 - math.pi / 2;
+      final r = i.isEven ? radius : radius * 0.38;
+      final x = point.dx + math.cos(angle) * r,
+          y = point.dy + math.sin(angle) * r;
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(path..close(), _paint(color));
+  }
+
+  void _label(Canvas canvas, Offset point, String text, Color color) {
     final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: const TextStyle(
-          color: Color(0xff64785c),
-          fontFamily: 'sans-serif',
-          fontSize: 10,
-          letterSpacing: 1.2,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
+        text: TextSpan(
+            text: text,
+            style: TextStyle(
+                color: color,
+                fontFamily: 'sans-serif',
+                fontSize: 10,
+                letterSpacing: 1.3,
+                fontWeight: FontWeight.w700)),
+        textDirection: TextDirection.ltr)
+      ..layout();
     painter.paint(canvas, point - Offset(painter.width / 2, 0));
+  }
+
+  @override
+  void onRemove() {
+    _terrain?.dispose();
+    _terrain = null;
+    super.onRemove();
   }
 }

@@ -1,53 +1,64 @@
 # WONDERTAIL
 
-A little adventure where the world remembers your kindness.
+A little adventure where every kindness opens another path.
 
-**First playable slice: Little Drift.** Explore an original code-drawn floating island, meet Pip the cloud, restore a grove with rain, plant its seed, and cross your living bridge to Lantern Lookout. This is a short authored prototype, not yet the planned 15-minute MVP.
+**Version 0.2: the endless trail.** Roam a floating island, help its creature, change its landscape, and step through a skyway to a newly generated island. Your trail book lets you return to earlier islands and their remembered changes.
 
 ## Play locally
 
-Install Flutter **3.29.3** (the CI/tested SDK; Dart 3.7.2), then:
+Use Flutter **3.29.3** / Dart **3.7.2** (the pinned CI SDK):
 
 ```sh
 flutter pub get
 flutter run -d chrome
 ```
 
-Move with **WASD**, **arrow keys**, or the on-screen direction buttons. Walk near a landmark and press **E**, **Space**, or the action button. Open the journal with **J** or its book button. Your compass points toward the next part of the adventure. Listening to the crystal is optional and never blocks rescue.
+Drag the on-screen **analog stick**, or use **WASD / arrow keys**. Hold **Shift** to run. Walk near a creature, planting bed or landmark and press **E / Space**, or tap the action button. The golden compass points to the next useful place. **J** opens your trail book; **Escape** closes a card. The book also offers a calmer animation mode.
 
-The included web target is ready to run. To create native mobile platform wrappers with your own organization/signing setup:
+The web target is included. Android/iOS wrappers, signing and physical-device testing remain separate work:
 
 ```sh
 flutter create --platforms=android,ios --org com.example --project-name wondertail .
 flutter run
 ```
 
-Review generated platform files before committing them. Android/iOS wrappers and device testing are not included in this first slice.
+## Three kinds of wonder
 
-## What's implemented
+| Adventure | What you do | What changes |
+| --- | --- | --- |
+| A cloud’s promise | Free Pip, follow the rain, explore for three sunseeds, then bring them to the grove | Trees wake, Pip accompanies you, and a living skyway opens |
+| The scattered stars | Follow numbered stepping lights in order, return their song to Luma, then kindle the lantern | The beacon shines, Luma joins you, and a star path opens |
+| A garden for a wanderer | Meet Moss, fill a watering can at the garden, then explicitly plant three seed beds | Each planted bed grows immediately; the completed garden opens a skyway |
 
-- One authored island and a small destination connected by a growable bridge.
-- Player-following view, touch/keyboard movement, normalized diagonal speed, shore/rock/pond collisions.
-- Complete **rescue → rain → grove → seed → bridge → lookout** consequence chain.
-- Optional curiosity choice, cloud companion, animated rain, compass, backpack count, persistent journal.
-- Versioned local save snapshots, serialized writes, backup recovery, two-second movement autosaves, immediate quest saves, lifecycle save attempts, and visible write-error feedback.
-- Pure Dart rules/map separated from Flame rendering and Flutter UI; deterministic seed-based decorations.
+There is **no authored final island**. A deterministic generator creates the next island on demand, varying biome, name, landmark arrangement, obstacles and decoration. Three biomes mix with the three adventure types. This is an ongoing remix of **finite authored mechanics**, not an unlimited supply of unique stories or an AI story generator. Only one island is active at a time.
 
-All art is drawn in code. No external asset, AI, account, ad, backend, or gameplay network request is required. No audio is included yet.
+## What changed in 0.2
 
-## Saves and offline behavior
+- Continuous analog movement with substeps, collision-normal sliding, gentle head-on obstacle assistance and smooth shoreline projection.
+- Illustrated terrain, biome palettes, companions, collectible effects, planting changes and animated skyways.
+- In-game parchment encounter cards, trail book and ribbon messages; no modal Flutter dialogs or snackbars.
+- A cached static island drawing, event-driven HUD updates and a bounded effect pool. Movement no longer rebuilds the whole Flutter screen.
+- Separate island-memory saves and a constant-size position/travel checkpoint; movement autosaves do not rewrite the full explored trail.
 
-Progress lives on the current device/browser using `SharedPreferencesAsync`. Clearing app/browser data removes saves; private browsing may discard them. A valid previous snapshot can recover a corrupt current save. `shared_preferences` is suitable for this small prototype but does **not** guarantee durable transactional storage or persistence after an abrupt power loss. A database-backed production save system remains future work. At most the recent unsaved movement can be lost during a normal interruption; abrupt storage failure can lose more.
+These changes address known sources of friction and rendering work. They do **not** establish that every device now runs smoothly; actual mobile frame-time measurements and hands-on playtesting are still required. See the [playtest checklist](docs/PLAYTEST_CHECKLIST.md).
 
-Native gameplay is designed to work offline once installed. Web needs an initial load; deploy a self-contained build with:
+## Saves, migration and offline play
+
+Progress stays on this device/browser using `SharedPreferencesAsync`. Version 1 saves migrate into Little Drift: cloud rescue, listening, grove/seed and bridge completion are retained; the player starts at the redesigned arrival point. A completed old bridge unlocks the next island. Old save keys are retained.
+
+Each island has its own compact memory and backup. The active checkpoint is saved on progress changes, every three seconds while moving, and on app lifecycle changes when possible. Travel checkpoints the old island before loading the new one. Earlier islands reload their saved changes when revisited.
+
+Shared preferences offers **best-effort local persistence**, not durable transactional storage or a power-loss guarantee. Clearing browser/app data removes saves. Private browsing, quotas or storage failure can prevent persistence. Only active map memory and rendering are bounded; saved memories grow with the number of visited islands.
+
+Gameplay has no backend or network dependency. For a self-contained web build:
 
 ```sh
 flutter build web --release --no-web-resources-cdn
 ```
 
-Serve `build/web` over HTTP(S). Offline reload depends on the browser retaining the generated service-worker cache and has not been device-tested. Do not claim a fresh, uncached web visit works without a network connection.
+Serve `build/web` over HTTP(S). Web needs an initial load. Offline reload depends on the browser retaining its cache and requires browser/device testing. Native gameplay is designed to work offline once installed. No accounts, ads, runtime AI, external art or audio are included.
 
-## Checks
+## Validation
 
 ```sh
 dart format --output=none --set-exit-if-changed lib test
@@ -56,21 +67,15 @@ flutter test
 flutter build web --release --no-web-resources-cdn
 ```
 
-Tests cover quest ordering/idempotency, rain continuation after reload, save recovery and write races, deterministic decoration, collision boundaries, bridge/landmark reachability, and basic phone UI/keyboard/dialog behavior. CI runs the same commands. Real-device playtesting, browser reload persistence, accessibility, frame-time profiling, and the planned 15-minute session remain acceptance work.
+CI runs these gates and uploads `wondertail-web` for seven days after a successful build. Regression tests exercise repeated island generation/completion, map reachability, collision sliding, frame-rate-independent movement, ordered lights, planting, migration, revisits, recovery after failed writes, constant-size checkpoint work, joystick release/cancel, narrow/landscape UI and cached-render/HUD behavior. Automated tests cannot establish fun or real-device smoothness.
 
-## Project files
+## Code and design
 
-- `lib/domain/`: authoritative world state, authored map and event rules
-- `lib/game/`: Flame canvas renderer and movement loop
-- `lib/data/`: local save repository and storage adapter
-- `lib/ui/`: Flutter controls, dialogue and journal
-- `test/`: rules, persistence and UI tests
-- [Game design](docs/GAME_DESIGN.md)
-- [MVP scope](docs/MVP.md)
-- [Architecture and tradeoffs](docs/ARCHITECTURE.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Visual references](docs/REFERENCES.md)
-- [Contribution workflow](CONTRIBUTING.md)
+- `lib/domain/`: seeded maps, island progress, quest rules and collision geometry
+- `lib/game/`: Flame loop, cached terrain, characters and effects
+- `lib/data/`: checkpoint and island-memory storage
+- `lib/ui/`: game-themed HUD, controls, encounter cards and trail book
+- [Design](docs/GAME_DESIGN.md) · [MVP](docs/MVP.md) · [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md)
 
 Canonical private repository: https://github.com/AjayJasperJ/wondertail
 

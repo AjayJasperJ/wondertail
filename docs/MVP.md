@@ -38,3 +38,9 @@ Playtest the first 15 minutes before expanding content. Record where players bec
 ## Implementation checkpoint — Little Drift
 
 The first authored consequence chain is now implemented in Flutter/Flame: one player, cloud rescue, timed rain, grove growth, one seed, bridge planting, and a reachable lookout. It includes local snapshots and a journal. The broader checkboxes above remain planned; this is not three biomes, procedural expansion, or a validated 15-minute session. Automated checks cover rules, save behavior, map reachability and UI basics. Target-device movement, offline reinstall/reload behavior and child playtesting still require hands-on acceptance.
+
+## Revision 0.2 — ongoing generated trail
+
+The finite endpoint is replaced by deterministic on-demand islands with no authored final index. Three biome palettes combine with three authored mechanics: cloud/rain exploration, an ordered light trail, and watering/planting beds. Completed wonders unlock another island; the trail book supports revisits with saved local consequences. This is finite authored content recombined across generated maps, not ten event families or unlimited unique stories.
+
+The revision also replaces direction buttons with analog movement and normal/tangent sliding, removes modal Flutter dialogues/snackbars in favor of in-game cards, and caches static terrain with scoped HUD updates. Only one map is active. Per-island memories separate historical saves from movement checkpoints. The wider MVP still needs more authored events, device profiling, robust production persistence and child playtesting. See [PLAYTEST_CHECKLIST.md](PLAYTEST_CHECKLIST.md).

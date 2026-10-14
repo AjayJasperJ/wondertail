@@ -1,197 +1,262 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wondertail/domain/world_state.dart';
 
-void moveTo(WorldState world, Landmark mark) {
-  world.x = mark.x;
-  world.y = mark.y;
+void stand(WorldState world, Point2 point) {
+  world.x = point.x;
+  world.y = point.y;
+}
+
+void finish(WorldState world) {
+  final map = world.map;
+  if (map.adventure == Adventure.lantern) {
+    for (final point in map.collectibles) {
+      stand(world, point);
+      WorldRules.collect(world);
+    }
+  }
+  stand(world, map.friend);
+  WorldRules.act(world, Encounter.friend);
+  if (map.adventure == Adventure.rain) WorldRules.advance(world, 2.4);
+  if (map.adventure == Adventure.garden) {
+    stand(world, map.wonder);
+    WorldRules.act(world, Encounter.wonder);
+    for (var i = 0; i < 3; i++) {
+      stand(world, map.collectibles[i]);
+      WorldRules.act(world, Encounter.values[i + 3]);
+    }
+  } else {
+    for (final point in map.collectibles) {
+      stand(world, point);
+      WorldRules.collect(world);
+    }
+    stand(world, map.wonder);
+    WorldRules.act(world, Encounter.wonder);
+  }
 }
 
 void main() {
-  test(
-    'complete consequence chain is ordered and each reward happens once',
-    () {
-      final world = WorldState();
-      moveTo(world, IslandMap.bridge);
-      expect(WorldRules.act(world, Encounter.bridge), isFalse);
-      moveTo(world, IslandMap.grove);
-      expect(WorldRules.act(world, Encounter.grove), isFalse);
-      moveTo(world, IslandMap.cloud);
-      expect(WorldRules.study(world), isTrue);
-      expect(WorldRules.study(world), isFalse);
-      expect(WorldRules.act(world, Encounter.cloud), isTrue);
-      expect(WorldRules.act(world, Encounter.cloud), isFalse);
-      expect(WorldRules.advanceRain(world, 3), isFalse);
-      expect(world.groveGrown, isFalse);
-      expect(WorldRules.advanceRain(world, 1), isTrue);
-      expect(WorldRules.advanceRain(world, 10), isFalse);
-      moveTo(world, IslandMap.grove);
-      expect(WorldRules.act(world, Encounter.grove), isTrue);
-      expect(world.pocketSeeds, 1);
-      expect(WorldRules.act(world, Encounter.grove), isFalse);
-      moveTo(world, IslandMap.bridge);
-      expect(WorldRules.act(world, Encounter.bridge), isTrue);
-      expect(world.pocketSeeds, 0);
-      expect(WorldRules.act(world, Encounter.bridge), isFalse);
-      moveTo(world, IslandMap.lookout);
-      expect(WorldRules.act(world, Encounter.lookout), isTrue);
-      expect(WorldRules.act(world, Encounter.lookout), isFalse);
-      expect(world.journal, hasLength(7));
-      expect(world.kindnessCount, 2);
-    },
-  );
-
-  test('rescuing without studying remains possible', () {
-    final world = WorldState(x: 540, y: 340);
-    expect(WorldRules.act(world, Encounter.cloud), isTrue);
-    expect(world.studiedCrystal, isFalse);
-  });
-
-  test('remote interactions are rejected', () {
+  test('the trail keeps generating and completing different adventures', () {
     final world = WorldState();
-    expect(WorldRules.act(world, Encounter.cloud), isFalse);
-    expect(WorldRules.study(world), isFalse);
-    expect(WorldRules.nearby(world), isNull);
-  });
-
-  test('saved rain resumes and cannot reward twice', () {
-    final world = WorldState(x: 540, y: 340);
-    WorldRules.act(world, Encounter.cloud);
-    WorldRules.advanceRain(world, 2.5);
-    final restored = WorldState.decode(world.encode());
-    expect(restored.rainSeconds, 2.5);
-    expect(WorldRules.advanceRain(restored, 1.5), isTrue);
-    final again = WorldState.decode(restored.encode());
-    expect(WorldRules.advanceRain(again, 1.5), isFalse);
-    expect(
-      again.journal.where((entry) => entry.contains('back to life')),
-      hasLength(1),
-    );
-  });
-
-  test(
-    'save round-trip preserves position, seed and completed consequences',
-    () {
-      final world = WorldState(
-        seed: 91,
-        x: 1070,
-        y: 235,
-        studiedCrystal: true,
-        cloudRescued: true,
-        rainSeconds: 4,
-        groveGrown: true,
-        seedCollected: true,
-        bridgeGrown: true,
-        lookoutReached: true,
-      );
-      expect(WorldState.decode(world.encode()).toJson(), world.toJson());
-    },
-  );
-
-  test('invalid data and incompatible save versions are rejected', () {
-    for (final patch in <String, Object>{
-      'schemaVersion': 50,
-      'generatorVersion': 50,
-      'x': 'bad',
-      'seed': 2.5,
-      'cloudRescued': 'yes',
-      'bridgeGrown': true,
-    }.entries) {
-      final json = WorldState().toJson()..[patch.key] = patch.value;
-      expect(() => WorldState.decode(jsonEncode(json)), throwsFormatException);
+    final memories = <int, IslandProgress>{};
+    final combinations = <String>{};
+    for (var index = 0; index < 40; index++) {
+      expect(world.islandIndex, index);
+      combinations.add('${world.map.biome}/${world.map.adventure}');
+      finish(world);
+      expect(world.progress.complete, isTrue, reason: 'Island $index');
+      expect(world.highestUnlocked, index + 1);
+      memories[index] = world.progress;
+      expect(world.travel(index + 1, IslandProgress()), isTrue);
     }
-    expect(() => WorldState.decode('not json'), throwsFormatException);
-    expect(() => WorldState.decode('[]'), throwsFormatException);
-  });
-
-  test('unsafe saved position returns to the arrival point', () {
-    final world = WorldState(x: -999, y: 9999);
-    final restored = WorldState.decode(world.encode());
-    expect((restored.x, restored.y), (370, 485));
-  });
-
-  test('diagonal movement has the same speed and frame spikes are bounded', () {
-    final a = WorldState();
-    final b = WorldState();
-    WorldRules.move(a, 1, 0, 0.05);
-    WorldRules.move(b, 1, 1, 0.05);
-    double travelled(WorldState w) =>
-        math.sqrt(math.pow(w.x - 370, 2) + math.pow(w.y - 485, 2));
-    expect(travelled(a), closeTo(travelled(b), 0.00001));
-    final spike = WorldState();
-    WorldRules.move(spike, 1, 0, 12);
-    expect(travelled(spike), closeTo(7.5, 0.00001));
-  });
-
-  test('shore, pond and rock collisions stop the player', () {
-    expect(IslandMap.canStand(0, 0, false), isFalse);
-    expect(IslandMap.canStand(310, 610, false), isFalse);
-    expect(IslandMap.canStand(440, 555, false), isFalse);
-    final world = WorldState(x: 475, y: 555);
-    WorldRules.move(world, -1, 0, 0.05);
-    expect(world.x, 475);
+    expect(combinations, hasLength(9));
+    expect(world.travel(3, memories[3]!), isTrue);
+    expect(world.progress.complete, isTrue);
+    expect(world.highestUnlocked, 40);
+    expect(world.travel(41, IslandProgress()), isFalse);
   });
 
   test(
-    'bridge is blocked before planting and traversable along its full length',
-    () {
-      expect(IslandMap.canStand(885, 315, false), isFalse);
-      for (var i = 0; i <= 100; i++) {
-        final t = i / 100;
-        expect(
-          IslandMap.canStand(795 + t * 180, 350 - t * 70, true),
-          isTrue,
-          reason: 'bridge step $i',
-        );
-      }
-    },
-  );
+      'generation is deterministic and changes positions, obstacles and colors',
+      () {
+    final a = IslandMap.generate(123, 19),
+        b = IslandMap.generate(123, 19),
+        c = IslandMap.generate(123, 20);
+    expect(a.name, b.name);
+    expect(a.collectibles.map((p) => (p.x, p.y)),
+        b.collectibles.map((p) => (p.x, p.y)));
+    expect(a.obstacles.map((o) => (o.center.x, o.center.y, o.radius)),
+        b.obstacles.map((o) => (o.center.x, o.center.y, o.radius)));
+    expect((a.friend.x, a.friend.y), isNot((c.friend.x, c.friend.y)));
+  });
 
-  test('all quest landmarks are reachable through valid movement', () {
-    // Breadth-first search of a 10-unit navigation grid proves the authored
-    // level has a continuous route, including both bridge landings.
-    for (final hasBridge in [false, true]) {
-      final queue = <(int, int)>[(370, 480)];
+  test('generated landmarks and planting beds have continuous paths', () {
+    for (var index = 0; index < 24; index++) {
+      final map = IslandMap.generate(4271, index);
+      final queue = <(int, int)>[(370, 545)];
       final seen = <(int, int)>{queue.first};
       for (var cursor = 0; cursor < queue.length; cursor++) {
-        final (x, y) = queue[cursor];
-        for (final (dx, dy) in [(10, 0), (-10, 0), (0, 10), (0, -10)]) {
-          final next = (x + dx, y + dy);
+        final point = queue[cursor];
+        for (final (dx, dy) in [(20, 0), (-20, 0), (0, 20), (0, -20)]) {
+          final next = (point.$1 + dx, point.$2 + dy);
           if (!seen.contains(next) &&
-              IslandMap.canStand(
-                next.$1.toDouble(),
-                next.$2.toDouble(),
-                hasBridge,
-              )) {
+              map.canStand(Point2(next.$1.toDouble(), next.$2.toDouble()))) {
             seen.add(next);
             queue.add(next);
           }
         }
       }
-      for (final mark in [
-        IslandMap.cloud,
-        IslandMap.grove,
-        IslandMap.bridge,
-        if (hasBridge) IslandMap.lookout,
+      for (final landmark in [
+        map.friend,
+        map.wonder,
+        map.gate,
+        ...map.collectibles
       ]) {
         expect(
-          seen.any(
-            (p) =>
-                IslandMap.distance(p.$1.toDouble(), p.$2.toDouble(), mark) < 30,
-          ),
-          isTrue,
-          reason: mark.title,
-        );
+            seen.any((p) =>
+                Point2(p.$1.toDouble(), p.$2.toDouble()).distanceTo(landmark) <
+                27),
+            isTrue,
+            reason: 'Island $index landmark');
       }
-      if (!hasBridge) expect(seen.any((p) => p.$1 > 930), isFalse);
     }
   });
 
-  test('decoration is deterministic for a seed and varies across seeds', () {
-    expect(IslandMap.flowers(42), IslandMap.flowers(42));
-    expect(IslandMap.flowers(42), isNot(IslandMap.flowers(43)));
-    expect(IslandMap.flowers(42), isNotEmpty);
+  test('head-on rocks slide smoothly instead of locking either axis', () {
+    for (final direction in [-1.0, 1.0]) {
+      final world = WorldState();
+      final obstacle = world.map.obstacles.last;
+      stand(
+          world,
+          Point2(obstacle.center.x - direction * (obstacle.radius + 18),
+              obstacle.center.y));
+      for (var frame = 0; frame < 100; frame++) {
+        WorldRules.move(world, direction, 0, 1 / 60);
+        expect(world.map.canStand(world.position), isTrue,
+            reason: 'Frame $frame');
+      }
+      expect((world.x - obstacle.center.x) * direction,
+          greaterThan(obstacle.radius));
+    }
+  });
+
+  test('shoreline diagonal input slides and backing away works immediately',
+      () {
+    final world = WorldState();
+    world.map.obstacles.clear();
+    stand(world, const Point2(1067, 480));
+    for (var i = 0; i < 80; i++) {
+      WorldRules.move(world, 1, 1, 1 / 60);
+      expect(world.map.canStand(world.position), isTrue);
+    }
+    expect(world.y, greaterThan(590));
+    final before = world.position;
+    WorldRules.move(world, -1, -1, 0.1);
+    expect(world.position.distanceTo(before), greaterThan(15));
+  });
+
+  test('30 and 60 fps travel equal distances with normalized analog input', () {
+    final a = WorldState(), b = WorldState(), slow = WorldState();
+    for (final w in [a, b, slow]) {
+      w.map.obstacles.clear();
+      stand(w, IslandMap.center);
+    }
+    for (var i = 0; i < 60; i++) {
+      WorldRules.move(a, 1, 1, 1 / 60);
+    }
+    for (var i = 0; i < 30; i++) {
+      WorldRules.move(b, 1, 1, 1 / 30);
+      WorldRules.move(slow, 0.5, 0, 1 / 30);
+    }
+    expect(a.position.distanceTo(b.position), lessThan(0.01));
+    expect(slow.position.distanceTo(IslandMap.center), closeTo(102.5, 0.01));
+  });
+
+  test('a long stalled frame cannot tunnel through a blocker', () {
+    final world = WorldState();
+    final rock = world.map.obstacles.first;
+    stand(world, Point2(rock.center.x - rock.radius - 15, rock.center.y));
+    final before = world.position;
+    WorldRules.move(world, 1, 0, 5);
+    expect(world.map.canStand(world.position), isTrue);
+    expect(world.position.distanceTo(before), lessThan(45));
+  });
+
+  test('lantern lights must be followed in order without punishing mistakes',
+      () {
+    final world =
+        WorldState(islandIndex: 1, highestUnlocked: 1, highestVisited: 1);
+    while (world.map.adventure != Adventure.lantern) {
+      world.highestUnlocked++;
+      world.travel(world.islandIndex + 1, IslandProgress());
+    }
+    stand(world, world.map.collectibles[2]);
+    expect(WorldRules.collect(world), isEmpty);
+    stand(world, world.map.collectibles[0]);
+    expect(WorldRules.collect(world), [0]);
+    stand(world, world.map.collectibles[2]);
+    expect(WorldRules.collect(world), isEmpty);
+    expect(world.progress.count, 1);
+    stand(world, world.map.collectibles[1]);
+    expect(WorldRules.collect(world), [1]);
+    stand(world, world.map.collectibles[2]);
+    expect(WorldRules.collect(world), [2]);
+  });
+
+  test('garden requires water and explicit planting; walking does not collect',
+      () {
+    final world =
+        WorldState(islandIndex: 2, highestUnlocked: 2, highestVisited: 2);
+    while (world.map.adventure != Adventure.garden) {
+      world.highestUnlocked++;
+      world.travel(world.islandIndex + 1, IslandProgress());
+    }
+    stand(world, world.map.collectibles.first);
+    expect(WorldRules.act(world, Encounter.bedOne), isFalse);
+    stand(world, world.map.friend);
+    expect(WorldRules.act(world, Encounter.friend), isTrue);
+    stand(world, world.map.wonder);
+    expect(WorldRules.act(world, Encounter.wonder), isTrue);
+    stand(world, world.map.collectibles.first);
+    expect(WorldRules.collect(world), isEmpty);
+    expect(WorldRules.act(world, Encounter.bedOne), isTrue);
+    expect(world.progress.count, 1);
+    expect(WorldRules.act(world, Encounter.bedOne), isFalse);
+  });
+
+  test('rain resumes from a checkpoint and completed rewards are idempotent',
+      () {
+    final world = WorldState();
+    stand(world, world.map.friend);
+    WorldRules.act(world, Encounter.friend);
+    WorldRules.advance(world, 1.2);
+    final restored = WorldState.decode(world.encode());
+    expect(WorldRules.advance(restored, 1.2), isTrue);
+    finish(restored);
+    final count = restored.highestUnlocked;
+    expect(WorldRules.act(restored, Encounter.wonder), isFalse);
+    expect(restored.highestUnlocked, count);
+    expect(WorldState.decode(restored.encode()).toJson(), restored.toJson());
+  });
+
+  test('v1 cloud and completed bridge memories migrate without losing progress',
+      () {
+    final legacy = {
+      'schemaVersion': 1,
+      'generatorVersion': 1,
+      'seed': 4271,
+      'x': 1070,
+      'y': 235,
+      'studiedCrystal': true,
+      'cloudRescued': true,
+      'rainSeconds': 4,
+      'groveGrown': true,
+      'seedCollected': true,
+      'bridgeGrown': true,
+      'lookoutReached': true
+    };
+    final world = WorldState.decode(jsonEncode(legacy));
+    expect(world.map.adventure, Adventure.rain);
+    expect(world.progress.complete, isTrue);
+    expect(world.progress.listened, isTrue);
+    expect(world.highestUnlocked, 1);
+    expect(world.map.canStand(world.position), isTrue);
+  });
+
+  test('corrupt or future saves are rejected and unsafe positions reset', () {
+    final json = WorldState().toJson();
+    expect(() => WorldState.decode(jsonEncode({...json, 'schemaVersion': 9})),
+        throwsFormatException);
+    expect(() => WorldState.decode(jsonEncode({...json, 'islandIndex': 9})),
+        throwsFormatException);
+    expect(
+        () => WorldState.decode(jsonEncode({
+              ...json,
+              'progress': {'stage': 99}
+            })),
+        throwsFormatException);
+    final restored = WorldState.decode(jsonEncode({...json, 'x': -500}));
+    expect(restored.x, restored.map.arrival.x);
   });
 }

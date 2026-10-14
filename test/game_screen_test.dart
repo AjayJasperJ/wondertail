@@ -1,12 +1,16 @@
+import 'dart:ui' as ui;
+
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wondertail/data/save_repository.dart';
 import 'package:wondertail/domain/world_state.dart';
+import 'package:wondertail/game/wondertail_game.dart';
 import 'package:wondertail/main.dart';
 
 class _Store implements SaveStore {
-  final Map<String, String> data = {};
+  final data = <String, String>{};
   @override
   Future<String?> read(String key) async => data[key];
   @override
@@ -15,72 +19,128 @@ class _Store implements SaveStore {
   }
 }
 
+Future<void> frames(WidgetTester tester, [int count = 12]) async {
+  for (var i = 0; i < count; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+}
+
 void main() {
-  testWidgets('phone layout, keyboard movement and journal pause work', (
-    tester,
-  ) async {
+  testWidgets('analog drag walks, release stops, themed journal pauses input',
+      (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final world = WorldState();
-    await tester.pumpWidget(
-      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Little Drift'), findsOneWidget);
-    expect(find.text('Follow your compass'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(WondertailApp(
+        saves: SaveRepository(_Store()), loaded: LoadResult(world)));
+    await frames(tester);
+    final joystick = find.bySemanticsLabel('Movement joystick. Drag to walk.');
+    final center = tester.getCenter(joystick);
+    final gesture = await tester.startGesture(center + const Offset(40, 0));
+    await frames(tester, 20);
+    expect(world.x, greaterThan(world.map.arrival.x + 25));
+    await gesture.up();
+    final cancelled = await tester.startGesture(center + const Offset(0, -35));
+    await frames(tester, 5);
+    await cancelled.cancel();
+    final cancelledY = world.y;
+    await frames(tester, 5);
+    expect(world.y, cancelledY);
+    final stopped = world.x;
+    await frames(tester, 10);
+    expect(world.x, stopped);
+    await tester.tap(find.byTooltip('Your trail and journal'));
+    await frames(tester);
+    expect(find.text('Your endless trail'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyD);
-    for (var i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
-    }
+    await frames(tester);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyD);
-    expect(world.x, greaterThan(370));
-    await tester.tap(find.byTooltip('Your journal (J)'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Your little book of wonders'), findsOneWidget);
-    final x = world.x;
-    await tester.pump(const Duration(seconds: 1));
-    expect(world.x, x);
-    expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Back to the island'));
-    await tester.pump(const Duration(milliseconds: 300));
+    expect(world.x, stopped);
+    await tester.tap(find.byTooltip('Close journal'));
+    await frames(tester);
     tester.view.physicalSize = const Size(320, 640);
     await tester.pump();
-    final moveRight = tester.getRect(find.byIcon(Icons.keyboard_arrow_right));
-    final action = tester.getRect(find.ancestor(
-      of: find.text('Follow your compass'),
-      matching: find.byWidgetPredicate((widget) => widget is FilledButton),
-    ));
-    expect(moveRight.overlaps(action), isFalse);
+    expect(tester.takeException(), isNull);
+    expect(
+        tester
+            .getRect(joystick)
+            .overlaps(tester.getRect(find.text('Follow the compass'))),
+        isFalse);
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Your trail and journal'));
+    await frames(tester);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byTooltip('Close journal'));
+    await frames(tester);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('cloud choices use an in-game card and preserve movement focus',
+      (tester) async {
+    final world = WorldState();
+    world.x = world.map.friend.x;
+    world.y = world.map.friend.y;
+    await tester.pumpWidget(WondertailApp(
+        saves: SaveRepository(_Store()), loaded: LoadResult(world)));
+    await frames(tester);
+    await tester.tap(find.text('Meet Pip'));
+    await frames(tester);
+    expect(find.text('Pip, the lost cloud'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+    await tester.tap(find.text('Open the crystal'));
+    await frames(tester);
+    expect(world.progress.stage, 1);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyD);
+    final before = world.x;
+    await frames(tester);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyD);
+    expect(world.x, greaterThan(before));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
-
-  testWidgets('cloud encounter allows curiosity followed by rescue', (
-    tester,
-  ) async {
-    final world = WorldState(x: 540, y: 340);
-    await tester.pumpWidget(
-      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('Meet the cloud'));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Listen first'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(world.studiedCrystal, isTrue);
-    expect(world.cloudRescued, isFalse);
-    await tester.tap(find.text('Meet the cloud'));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.text('Open the crystal'));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(world.cloudRescued, isTrue);
-    expect(find.text('Talk to Pip'), findsOneWidget);
+  testWidgets('skyway opens a generated island and journal can revisit',
+      (tester) async {
+    final world = WorldState(
+        highestUnlocked: 1, progress: IslandProgress(stage: 3, collected: 7));
+    world.x = world.map.gate.x;
+    world.y = world.map.gate.y;
+    await tester.pumpWidget(WondertailApp(
+        saves: SaveRepository(_Store()), loaded: LoadResult(world)));
+    await frames(tester);
+    await tester.tap(find.text('Next adventure'));
+    await frames(tester);
+    await tester.tap(find.text('Sail to island 2'));
+    await frames(tester);
+    expect(world.islandIndex, 1);
+    expect(world.progress.stage, 0);
+    await tester.tap(find.byTooltip('Your trail and journal'));
+    await frames(tester);
+    await tester.tap(find.bySemanticsLabel('Visit island 1'));
+    await frames(tester);
+    expect(world.islandIndex, 0);
+    expect(world.progress.complete, isTrue);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
+  });
+  test('static drawing and HUD updates remain bounded during movement', () {
+    final world = WorldState();
+    final game = WondertailGame(state: world, onWorldChanged: (_) {});
+    game.onGameResize(Vector2(390, 844));
+    game.inputX = 1;
+    for (var i = 0; i < 120; i++) {
+      game.update(1 / 60);
+      final recorder = ui.PictureRecorder();
+      game.render(Canvas(recorder));
+      recorder.endRecording().dispose();
+    }
+    expect(game.terrainBuildCount, 1);
+    expect(game.hudUpdateCount, lessThan(30));
+    expect(game.revision.value, 0);
+    game.onRemove();
   });
 }

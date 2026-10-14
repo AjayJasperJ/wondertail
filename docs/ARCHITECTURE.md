@@ -1,32 +1,38 @@
 # Technical architecture
 
-## First playable implementation
+## Version 0.2
 
 | Boundary | Implementation |
 | --- | --- |
-| Real-time presentation | Flame 1.30.1 game loop with original Flutter Canvas art |
-| Screens and controls | Flutter widgets; local State ownership |
-| Authoritative state | Pure Dart `WorldState`, schema 1, generator 1 |
-| Authored rules | `WorldRules` validates proximity and prerequisites; one-time flags make events idempotent |
-| Map and movement | Hand-authored ellipses, footprint checks, rock/pond blockers and an unlocked bridge corridor |
-| Seeded content | Stable integer generator places cosmetic flowers; terrain is authored |
-| Persistence | SharedPreferencesAsync 2.5.3, versioned JSON snapshot and previous-good backup |
-| Audio | Deferred |
+| Domain | Pure Dart `WorldState`, `IslandProgress`, `IslandMap`, `WorldRules` |
+| Generation | Schema/generator version 2; stable integer PRNG; seed plus island index |
+| Movement | Analog vector; normalized keyboard diagonals; bounded simulation substeps; circular obstacle contact normals/tangents; ellipse shore projection |
+| Real-time drawing | Flame 1.30.1; original Canvas art; one cached `ui.Picture` for static terrain |
+| UI | Flutter; scoped value notifiers for contact, compass, progress and save status; themed in-game cards |
+| Storage | SharedPreferencesAsync 2.5.3; header checkpoint plus separate island-memory keys and recovery copies |
 
-`lib/game/` presents and animates; `lib/domain/` owns state, eligibility, geometry and consequences; `lib/data/` serializes and stores; `lib/ui/` owns Flutter screens. No Provider/Riverpod dependency is needed for one small state owner. Gameplay has no network dependency.
+## Generated trail and authored mechanics
 
-The view follows the player by translating the canvas. Collision geometry is pure Dart and shared by movement validation and tests. This deliberately avoids a component/tile-map architecture until content justifies it. Two small maps stay loaded; procedural expansion and unloading are not implemented.
+Island zero remains the cloud/rain adventure so old saves have a meaningful migration. Later islands combine biome selection, a repeating adventure rotation and seeded map variations. Landmark arrangements, obstacles, decoration and names are deterministic. The three authored mechanics are cloud rescue/rain/exploration, a numbered light sequence, and filling a can then planting three beds. The player can keep generating a next island; this does not mean unlimited unique authored mechanics.
 
-## Consequences
+The world holds only the active map and its `IslandProgress`. A header records seed, current index, highest unlocked/visited indices and position. Restoring a wonder unlocks the next index. Returning through the paged trail book loads that island’s memory before replacing the active map. Generated scenery is reconstructed; progress bits, choices and timer state persist separately.
 
-The cloud can be studied or freed immediately. Rescue starts four seconds of active gameplay rain; the timer is saved and resumes after reload. Rain restores the grove; collecting its one seed allows planting at the edge; planting unlocks a traversable bridge; the lookout records completion. Repeated interactions do not duplicate inventory or journal entries. Dialogue pauses movement and the rain timer. Losing app focus clears input and pauses the engine.
+## Movement and rendering costs
 
-State changes occur synchronously before their save is requested. Snapshot writes are serialized and capture JSON before entering the queue, so a delayed old write cannot overwrite newer progress. Each save writes the previous known-valid snapshot to a backup key before replacing the current key. A corrupt snapshot or inconsistent prerequisite chain is rejected; invalid positions reset to the arrival point. New schema/generator versions require explicit migration; none is needed for this first version.
+Movement subdivides an elapsed frame into steps no longer than 1/90 second, consuming up to 150ms after a stall. Obstacle penetration is projected along the contact normal, and tangential input is retained. A small deterministic assist moves the player around a nearly head-on obstacle. Shoreline projection permits sliding along the ellipse. Landmark spacing avoids unavoidable blockers. Tests verify traversability and collision regressions; they are not a substitute for tactile device playtesting.
 
-## Prototype storage limitations
+The renderer retains one static `ui.Picture` until the island, quest stage or planted-bed state changes. Terrain, path, tree, obstacle and label work is recorded once. Character, companion, pickups and at most 42 effect particles remain dynamic. Camera translation follows the player; compass updates are throttled. Contact/progress changes notify their HUD listeners. The game loop does not call screen-wide `setState` as the player walks. The analog knob rebuilds only its own widget during drag. Calm motion reduces animation, particles and camera easing.
 
-`shared_preferences` is not a durable transactional database. This two-key scheme offers best-effort recovery, not an atomic multi-key commit or a power-loss guarantee. Native/browser process termination may prevent a lifecycle save from finishing. Movement autosaves every two seconds, quest changes save immediately, and errors remain visible with retry. Storage quotas and browser clearing/private modes can remove progress. Production SQLite (or another durable cross-platform store) remains a separate decision.
+One active island, one terrain picture and a bounded particle list keep active rendering resources bounded. Retained save keys still grow with exploration. Device frame times, battery use and browser behavior require profiling; no universal FPS guarantee is made.
 
-## Next architecture work
+## Save protocol and recovery
 
-Profile and playtest this authored loop before adding islands. A future generator needs stable island IDs, versioned terrain rules, deltas, migration/materialization of older islands, active chunk budgets, and bounded archives. Future authored events need explicit IDs, prerequisites, effects, repeat limits and fallback discoveries. Preserve the present separation so those systems do not live in rendering components.
+The save repository snapshots the small header and active island memory before queuing a write. It writes island progress only when the active island or its memory changed, then writes the header. Movement-only checkpoints rewrite no prior island memories. Writes are serialized so delayed older requests cannot win over newer snapshots. Each key has a previous-good recovery copy; corrupt primary island data is not copied over a valid backup.
+
+Version 1 data is explicitly mapped to the redesigned first island. Rescued cloud, learned story, awakened grove, collected seed and completed bridge progress are retained. The arrival position resets because the map changed. The old v1 keys are left in place. Unsupported schema/generator versions are rejected rather than interpreted as current terrain.
+
+Shared preferences is **not a transactional database**. Independent key writes cannot promise atomic commits across power loss, and a lifecycle save can be interrupted. Browser quotas and data clearing can remove saves. Production durability, storage budgets and archival/migration policy remain future work.
+
+## Validation boundary
+
+Unit tests cover repeatable generation, multiple adventure completions, reachable landmarks, anti-snag collision behavior, timing, prerequisite/idempotency rules, migration and snapshot recovery. Widget tests cover small screens, landscape, raw pointer release/cancel, themed cards and travel/revisit. A structural rendering test checks terrain caching and bounded HUD notifications. Physical mobile profiling, real browser reload/offline checks and engagement playtests remain open.
