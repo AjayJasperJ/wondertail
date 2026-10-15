@@ -875,6 +875,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                   index <= math.min(_world.highestVisited, _atlasPage + 7);
                   index++)
                 Semantics(
+                  key: ValueKey('visit-island-$index'),
+                  container: true,
                   button: true,
                   label: 'Visit island ${index + 1}',
                   child: GestureDetector(
@@ -1113,6 +1115,8 @@ class _AnalogStickState extends State<_AnalogStick> {
 
   @override
   Widget build(BuildContext context) => Semantics(
+        key: const ValueKey('movement-joystick'),
+        container: true,
         label: 'Movement joystick. Drag to walk.',
         child: Listener(
           onPointerDown: (event) {

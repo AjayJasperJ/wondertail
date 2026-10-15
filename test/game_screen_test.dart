@@ -26,17 +26,19 @@ Future<void> frames(WidgetTester tester, [int count = 12]) async {
 }
 
 void main() {
-  testWidgets('analog drag walks, release stops, themed journal pauses input',
-      (tester) async {
+  testWidgets('analog drag walks, release stops, themed journal pauses input', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final world = WorldState();
-    await tester.pumpWidget(WondertailApp(
-        saves: SaveRepository(_Store()), loaded: LoadResult(world)));
+    await tester.pumpWidget(
+      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
+    );
     await frames(tester);
-    final joystick = find.bySemanticsLabel('Movement joystick. Drag to walk.');
+    final joystick = find.byKey(const ValueKey('movement-joystick'));
     final center = tester.getCenter(joystick);
     final gesture = await tester.startGesture(center + const Offset(40, 0));
     await frames(tester, 20);
@@ -66,10 +68,11 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(
-        tester
-            .getRect(joystick)
-            .overlaps(tester.getRect(find.text('Follow the compass'))),
-        isFalse);
+      tester
+          .getRect(joystick)
+          .overlaps(tester.getRect(find.text('Follow the compass'))),
+      isFalse,
+    );
     tester.view.physicalSize = const Size(844, 390);
     await tester.pump();
     expect(tester.takeException(), isNull);
@@ -80,13 +83,15 @@ void main() {
     await frames(tester);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('cloud choices use an in-game card and preserve movement focus',
-      (tester) async {
+  testWidgets('cloud choices use an in-game card and preserve movement focus', (
+    tester,
+  ) async {
     final world = WorldState();
     world.x = world.map.friend.x;
     world.y = world.map.friend.y;
-    await tester.pumpWidget(WondertailApp(
-        saves: SaveRepository(_Store()), loaded: LoadResult(world)));
+    await tester.pumpWidget(
+      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
+    );
     await frames(tester);
     await tester.tap(find.text('Meet Pip'));
     await frames(tester);
@@ -103,14 +108,18 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('skyway opens a generated island and journal can revisit',
-      (tester) async {
+  testWidgets('skyway opens a generated island and journal can revisit', (
+    tester,
+  ) async {
     final world = WorldState(
-        highestUnlocked: 1, progress: IslandProgress(stage: 3, collected: 7));
+      highestUnlocked: 1,
+      progress: IslandProgress(stage: 3, collected: 7),
+    );
     world.x = world.map.gate.x;
     world.y = world.map.gate.y;
-    await tester.pumpWidget(WondertailApp(
-        saves: SaveRepository(_Store()), loaded: LoadResult(world)));
+    await tester.pumpWidget(
+      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
+    );
     await frames(tester);
     await tester.tap(find.text('Next adventure'));
     await frames(tester);
@@ -120,7 +129,7 @@ void main() {
     expect(world.progress.stage, 0);
     await tester.tap(find.byTooltip('Your trail and journal'));
     await frames(tester);
-    await tester.tap(find.bySemanticsLabel('Visit island 1'));
+    await tester.tap(find.byKey(const ValueKey('visit-island-0')));
     await frames(tester);
     expect(world.islandIndex, 0);
     expect(world.progress.complete, isTrue);
