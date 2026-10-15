@@ -80,3 +80,20 @@ CI runs these gates and uploads `wondertail-web` for seven days after a successf
 Canonical private repository: https://github.com/AjayJasperJ/wondertail
 
 Distribution licensing is undecided; no open-source license is granted by this repository. Third-party reference images are not bundled or licensed game assets.
+
+## Android APK
+
+Download **wondertail-android-apk** from the latest successful GitHub Actions run,
+extract the ZIP, and open **Wondertail-0.2.0-android.apk** on your Android phone.
+Allow installation from your browser or file manager if Android asks.
+This is a release-mode test build signed with the Android debug key, not a
+Play Store release. CI machines may generate different debug keys; a later
+build may require uninstalling the old app, which removes its local save.
+Keep important playtest saves in mind before uninstalling.
+
+Build locally with Flutter 3.29.3, Java 17 and the Android SDK:
+```sh
+flutter pub get
+flutter build apk --release
+```
+Application ID: `com.ajayjasperj.wondertail`.
