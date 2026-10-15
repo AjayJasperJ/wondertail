@@ -458,12 +458,16 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                         ),
                                                 ),
                                               ),
-                                            const Spacer(),
-                                            Text(
-                                              '${_world.kindnessCount} islands restored',
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                color: Color(0xff7d8d7b),
+                                            Expanded(
+                                              child: Text(
+                                                '${_world.kindnessCount} islands restored',
+                                                textAlign: TextAlign.right,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 10,
+                                                  color: Color(0xff7d8d7b),
+                                                ),
                                               ),
                                             ),
                                           ],
