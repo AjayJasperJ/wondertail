@@ -19,11 +19,12 @@ enum Adventure { rain, lantern, garden }
 enum Encounter { friend, wonder, gate, bedOne, bedTwo, bedThree }
 
 class IslandProgress {
-  IslandProgress(
-      {this.stage = 0,
-      this.collected = 0,
-      this.listened = false,
-      this.rainTime = 0});
+  IslandProgress({
+    this.stage = 0,
+    this.collected = 0,
+    this.listened = false,
+    this.rainTime = 0,
+  });
   int stage;
   int collected;
   bool listened;
@@ -35,7 +36,7 @@ class IslandProgress {
         'stage': stage,
         'collected': collected,
         'listened': listened,
-        'rainTime': rainTime
+        'rainTime': rainTime,
       };
   factory IslandProgress.fromJson(Map<String, dynamic> json) {
     final stage = json['stage'];
@@ -55,25 +56,26 @@ class IslandProgress {
       throw const FormatException('Invalid island memory.');
     }
     return IslandProgress(
-        stage: stage,
-        collected: collected,
-        listened: json['listened'] as bool,
-        rainTime: time.toDouble());
+      stage: stage,
+      collected: collected,
+      listened: json['listened'] as bool,
+      rainTime: time.toDouble(),
+    );
   }
 }
 
 /// Only the active island is kept in memory. SaveRepository loads earlier
 /// island memories on travel; header autosaves stay constant in size.
 class WorldState {
-  WorldState(
-      {this.seed = 4271,
-      this.islandIndex = 0,
-      this.highestUnlocked = 0,
-      this.highestVisited = 0,
-      double? x,
-      double? y,
-      IslandProgress? progress})
-      : progress = progress ?? IslandProgress() {
+  WorldState({
+    this.seed = 4271,
+    this.islandIndex = 0,
+    this.highestUnlocked = 0,
+    this.highestVisited = 0,
+    double? x,
+    double? y,
+    IslandProgress? progress,
+  }) : progress = progress ?? IslandProgress() {
     map = IslandMap.generate(seed, islandIndex);
     this.x = x ?? map.arrival.x;
     this.y = y ?? map.arrival.y;
@@ -92,8 +94,9 @@ class WorldState {
   int get kindnessCount => highestUnlocked;
 
   bool travel(int index, IslandProgress memory) {
-    if (index < 0 || index > highestUnlocked || index == islandIndex)
+    if (index < 0 || index > highestUnlocked || index == islandIndex) {
       return false;
+    }
     islandIndex = index;
     highestVisited = math.max(highestVisited, index);
     map = IslandMap.generate(seed, index);
@@ -113,14 +116,17 @@ class WorldState {
         'x': x,
         'y': y,
       };
-  Map<String, Object> toJson() =>
-      {...headerJson(), 'progress': progress.toJson()};
+  Map<String, Object> toJson() => {
+        ...headerJson(),
+        'progress': progress.toJson(),
+      };
   String encode() => jsonEncode(toJson());
 
   factory WorldState.decode(String raw) {
     final json = jsonDecode(raw);
-    if (json is! Map<String, dynamic>)
+    if (json is! Map<String, dynamic>) {
       throw const FormatException('Invalid save.');
+    }
     if (json['schemaVersion'] == 1) return WorldState._fromLegacy(json);
     if (json['schemaVersion'] != schemaVersion ||
         json['generatorVersion'] != generatorVersion) {
@@ -130,30 +136,34 @@ class WorldState {
       'seed',
       'islandIndex',
       'highestUnlocked',
-      'highestVisited'
+      'highestVisited',
     ]) {
-      if (json[key] is! int || (json[key] as int) < 0)
+      if (json[key] is! int || (json[key] as int) < 0) {
         throw FormatException('Invalid $key.');
+      }
     }
     for (final key in ['x', 'y']) {
-      if (json[key] is! num || !(json[key] as num).isFinite)
+      if (json[key] is! num || !(json[key] as num).isFinite) {
         throw FormatException('Invalid $key.');
+      }
     }
     if (json['islandIndex'] > json['highestVisited'] ||
         json['highestVisited'] > json['highestUnlocked']) {
       throw const FormatException('Invalid island trail.');
     }
     final progress = json['progress'];
-    if (progress is! Map<String, dynamic>)
+    if (progress is! Map<String, dynamic>) {
       throw const FormatException('Missing island memory.');
+    }
     final world = WorldState(
-        seed: json['seed'],
-        islandIndex: json['islandIndex'],
-        highestUnlocked: json['highestUnlocked'],
-        highestVisited: json['highestVisited'],
-        x: (json['x'] as num).toDouble(),
-        y: (json['y'] as num).toDouble(),
-        progress: IslandProgress.fromJson(progress));
+      seed: json['seed'],
+      islandIndex: json['islandIndex'],
+      highestUnlocked: json['highestUnlocked'],
+      highestVisited: json['highestVisited'],
+      x: (json['x'] as num).toDouble(),
+      y: (json['y'] as num).toDouble(),
+      progress: IslandProgress.fromJson(progress),
+    );
     if (!world.map.canStand(world.position)) {
       world.x = world.map.arrival.x;
       world.y = world.map.arrival.y;
@@ -162,39 +172,43 @@ class WorldState {
   }
 
   factory WorldState._fromLegacy(Map<String, dynamic> json) {
-    if (json['generatorVersion'] != 1 || json['seed'] is! int)
+    if (json['generatorVersion'] != 1 || json['seed'] is! int) {
       throw const FormatException('Invalid old save.');
+    }
     for (final key in [
       'studiedCrystal',
       'cloudRescued',
       'groveGrown',
       'seedCollected',
       'bridgeGrown',
-      'lookoutReached'
+      'lookoutReached',
     ]) {
-      if (json[key] is! bool)
+      if (json[key] is! bool) {
         throw const FormatException('Invalid old progress.');
+      }
     }
     if ((json['groveGrown'] && !json['cloudRescued']) ||
         (json['seedCollected'] && !json['groveGrown']) ||
-        (json['bridgeGrown'] && !json['seedCollected']))
+        (json['bridgeGrown'] && !json['seedCollected'])) {
       throw const FormatException('Invalid old progress.');
+    }
     final done = json['bridgeGrown'] == true;
     return WorldState(
-        seed: json['seed'],
-        highestUnlocked: done ? 1 : 0,
-        progress: IslandProgress(
-          stage: done
-              ? 3
-              : json['groveGrown'] == true
-                  ? 2
-                  : json['cloudRescued'] == true
-                      ? 1
-                      : 0,
-          collected: json['seedCollected'] == true ? 7 : 0,
-          listened: json['studiedCrystal'] == true,
-          rainTime: json['groveGrown'] == true ? 2.4 : 0,
-        ));
+      seed: json['seed'],
+      highestUnlocked: done ? 1 : 0,
+      progress: IslandProgress(
+        stage: done
+            ? 3
+            : json['groveGrown'] == true
+                ? 2
+                : json['cloudRescued'] == true
+                    ? 1
+                    : 0,
+        collected: json['seedCollected'] == true ? 7 : 0,
+        listened: json['studiedCrystal'] == true,
+        rainTime: json['groveGrown'] == true ? 2.4 : 0,
+      ),
+    );
   }
 
   List<String> get journal => [
@@ -227,18 +241,19 @@ class Obstacle {
 }
 
 class IslandMap {
-  IslandMap._(
-      {required this.index,
-      required this.name,
-      required this.biome,
-      required this.adventure,
-      required this.friend,
-      required this.wonder,
-      required this.gate,
-      required this.collectibles,
-      required this.obstacles,
-      required this.flowers,
-      required this.trees});
+  IslandMap._({
+    required this.index,
+    required this.name,
+    required this.biome,
+    required this.adventure,
+    required this.friend,
+    required this.wonder,
+    required this.gate,
+    required this.collectibles,
+    required this.obstacles,
+    required this.flowers,
+    required this.trees,
+  });
   final int index;
   final String name;
   final Biome biome;
@@ -267,8 +282,9 @@ class IslandMap {
         Adventure.values[index == 0 ? 0 : (index + index ~/ 3 + phase) % 3];
     final rotation = index == 0 ? 0.0 : (random.nextDouble() - 0.5) * 0.85;
     Point2 rotate(double x, double y) => Point2(
-        center.x + x * math.cos(rotation) - y * math.sin(rotation),
-        center.y + (x * math.sin(rotation) + y * math.cos(rotation)) * 0.8);
+          center.x + x * math.cos(rotation) - y * math.sin(rotation),
+          center.y + (x * math.sin(rotation) + y * math.cos(rotation)) * 0.8,
+        );
     final friend = rotate(-65, -110);
     final wonder = rotate(100, 120);
     final gate = rotate(310, -50);
@@ -277,22 +293,31 @@ class IslandMap {
     final obstacles = <Obstacle>[];
     for (var i = 0; i < 80 && obstacles.length < 5; i++) {
       final point = Point2(
-          350 + random.nextDouble() * 590, 265 + random.nextDouble() * 420);
+        350 + random.nextDouble() * 590,
+        265 + random.nextDouble() * 420,
+      );
       final radius = obstacles.isEmpty ? 40.0 : 19.0 + random.nextInt(12);
       if (landmarks.any((mark) => mark.distanceTo(point) < radius + 94) ||
-          obstacles.any((rock) =>
-              rock.center.distanceTo(point) < rock.radius + radius + 65))
+          obstacles.any(
+            (rock) => rock.center.distanceTo(point) < rock.radius + radius + 65,
+          )) {
         continue;
+      }
       obstacles.add(Obstacle(point, radius, pond: obstacles.isEmpty));
     }
     final flowers = List.generate(
-        90,
-        (_) => Point2(
-            300 + random.nextDouble() * 680, 255 + random.nextDouble() * 450));
+      90,
+      (_) => Point2(
+        300 + random.nextDouble() * 680,
+        255 + random.nextDouble() * 450,
+      ),
+    );
     final trees = List.generate(14, (i) {
       final angle = (i / 14) * math.pi * 2 + random.nextDouble() * 0.1;
       return Point2(
-          center.x + math.cos(angle) * 392, center.y + math.sin(angle) * 277);
+        center.x + math.cos(angle) * 392,
+        center.y + math.sin(angle) * 277,
+      );
     });
     const prefixes = [
       'Wistful',
@@ -304,7 +329,7 @@ class IslandMap {
       'Willow',
       'Silver',
       'Clover',
-      'Moon'
+      'Moon',
     ];
     const suffixes = [
       'Hollow',
@@ -314,39 +339,40 @@ class IslandMap {
       'Reach',
       'Harbor',
       'Glen',
-      'Garden'
+      'Garden',
     ];
     final name = index == 0
         ? 'Little Drift'
         : '${prefixes[random.nextInt(prefixes.length)]} ${suffixes[random.nextInt(suffixes.length)]}';
     return IslandMap._(
-        index: index,
-        name: name,
-        biome: biome,
-        adventure: adventure,
-        friend: friend,
-        wonder: wonder,
-        gate: gate,
-        collectibles: items,
-        obstacles: obstacles,
-        flowers: flowers,
-        trees: trees);
+      index: index,
+      name: name,
+      biome: biome,
+      adventure: adventure,
+      friend: friend,
+      wonder: wonder,
+      gate: gate,
+      collectibles: items,
+      obstacles: obstacles,
+      flowers: flowers,
+      trees: trees,
+    );
   }
 
   String get friendName => switch (adventure) {
         Adventure.rain => 'Pip',
         Adventure.lantern => 'Luma',
-        Adventure.garden => 'Moss'
+        Adventure.garden => 'Moss',
       };
   String get collectibleName => switch (adventure) {
         Adventure.rain => 'sunseeds',
         Adventure.lantern => 'trail lights',
-        Adventure.garden => 'garden beds'
+        Adventure.garden => 'garden beds',
       };
   String get title => switch (adventure) {
         Adventure.rain => 'A cloud’s promise',
         Adventure.lantern => 'The scattered stars',
-        Adventure.garden => 'A garden for a wanderer'
+        Adventure.garden => 'A garden for a wanderer',
       };
   String get story => switch (adventure) {
         Adventure.rain =>
@@ -367,22 +393,26 @@ class IslandMap {
   String get wonderName => switch (adventure) {
         Adventure.rain => 'The seed grove',
         Adventure.lantern => 'The star lantern',
-        Adventure.garden => 'The wandering garden'
+        Adventure.garden => 'The wandering garden',
       };
 
   bool canStand(Point2 point) {
     final nx = (point.x - center.x) / (radiusX - playerRadius);
     final ny = (point.y - center.y) / (radiusY - playerRadius);
     if (nx * nx + ny * ny > 1.000001) return false;
-    return !obstacles.any((rock) =>
-        point.distanceTo(rock.center) < rock.radius + playerRadius - 0.05);
+    return !obstacles.any(
+      (rock) =>
+          point.distanceTo(rock.center) < rock.radius + playerRadius - 0.05,
+    );
   }
 
   Point2 _insideShore(Point2 point) {
     final dx = point.x - center.x;
     final dy = point.y - center.y;
-    final ellipse = math.sqrt(dx * dx / math.pow(radiusX - playerRadius, 2) +
-        dy * dy / math.pow(radiusY - playerRadius, 2));
+    final ellipse = math.sqrt(
+      dx * dx / math.pow(radiusX - playerRadius, 2) +
+          dy * dy / math.pow(radiusY - playerRadius, 2),
+    );
     if (ellipse <= 1) return point;
     return Point2(center.x + dx / ellipse, center.y + dy / ellipse);
   }
@@ -427,8 +457,9 @@ class WorldRules {
         if (p.count < 3) return 'Find sunseeds · ${p.count}/3';
         return 'Bring your sunseeds to the grove';
       case Adventure.lantern:
-        if (p.count < 3)
+        if (p.count < 3) {
           return 'Follow the lights in order · next: ${p.count + 1}';
+        }
         if (p.stage == 0) return 'Bring the lights back to Luma';
         return 'Kindle the star lantern';
       case Adventure.garden:
@@ -469,8 +500,9 @@ class WorldRules {
     if (world.map.adventure == Adventure.garden && world.progress.stage == 2) {
       for (var i = 0; i < 3; i++) {
         if ((world.progress.collected & (1 << i)) == 0 &&
-            world.position.distanceTo(world.map.collectibles[i]) < 70)
+            world.position.distanceTo(world.map.collectibles[i]) < 70) {
           return Encounter.values[3 + i];
+        }
       }
     }
     final position = world.position;
@@ -484,8 +516,9 @@ class WorldRules {
       encounter.index >= 3 ? encounter.index - 3 : null;
 
   static bool listen(WorldState world) {
-    if (nearby(world) != Encounter.friend || world.progress.listened)
+    if (nearby(world) != Encounter.friend || world.progress.listened) {
       return false;
+    }
     world.progress.listened = true;
     return true;
   }
@@ -506,8 +539,10 @@ class WorldRules {
       p.collected |= 1 << bed;
       if (p.count == 3) {
         p.stage = 3;
-        world.highestUnlocked =
-            math.max(world.highestUnlocked, world.islandIndex + 1);
+        world.highestUnlocked = math.max(
+          world.highestUnlocked,
+          world.islandIndex + 1,
+        );
       }
       return true;
     }
@@ -523,8 +558,10 @@ class WorldRules {
         p.count == 3) {
       if (world.map.adventure == Adventure.rain && p.stage < 2) return false;
       p.stage = 3;
-      world.highestUnlocked =
-          math.max(world.highestUnlocked, world.islandIndex + 1);
+      world.highestUnlocked = math.max(
+        world.highestUnlocked,
+        world.islandIndex + 1,
+      );
       return true;
     }
     return false;
@@ -534,11 +571,15 @@ class WorldRules {
   static List<int> collect(WorldState world) {
     if (world.map.adventure == Adventure.garden ||
         !itemsActive(world) ||
-        world.progress.count == 3) return const [];
+        world.progress.count == 3) {
+      return const [];
+    }
     List<int> collected = const [];
     for (var i = 0; i < 3; i++) {
-      if (world.map.adventure == Adventure.lantern && i != world.progress.count)
+      if (world.map.adventure == Adventure.lantern &&
+          i != world.progress.count) {
         continue;
+      }
       if ((world.progress.collected & (1 << i)) == 0 &&
           world.position.distanceTo(world.map.collectibles[i]) < 34) {
         world.progress.collected |= 1 << i;
@@ -557,10 +598,16 @@ class WorldRules {
     return true;
   }
 
-  static bool move(WorldState world, double dx, double dy, double seconds,
-      {bool sprint = false}) {
-    if (!dx.isFinite || !dy.isFinite || !seconds.isFinite || seconds <= 0)
+  static bool move(
+    WorldState world,
+    double dx,
+    double dy,
+    double seconds, {
+    bool sprint = false,
+  }) {
+    if (!dx.isFinite || !dy.isFinite || !seconds.isFinite || seconds <= 0) {
       return false;
+    }
     final length = math.sqrt(dx * dx + dy * dy);
     if (length < 0.001) return false;
     final duration = seconds.clamp(0.0, 0.15);

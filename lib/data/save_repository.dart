@@ -60,16 +60,20 @@ class SaveRepository {
         if (raw == null) continue;
         try {
           final json = jsonDecode(raw);
-          if (json is! Map<String, dynamic> || json['islandIndex'] is! int)
+          if (json is! Map<String, dynamic> || json['islandIndex'] is! int) {
             throw const FormatException('Invalid checkpoint.');
+          }
           final memory = await loadIsland(json['islandIndex'] as int);
           final state = WorldState.decode(
-              jsonEncode({...json, 'progress': memory.toJson()}));
+            jsonEncode({...json, 'progress': memory.toJson()}),
+          );
           _lastGoodHeader = raw;
-          return LoadResult(state,
-              notice: damaged
-                  ? 'Your trail was recovered from its last checkpoint.'
-                  : null);
+          return LoadResult(
+            state,
+            notice: damaged
+                ? 'Your trail was recovered from its last checkpoint.'
+                : null,
+          );
         } on FormatException {
           damaged = true;
         }
@@ -78,21 +82,26 @@ class SaveRepository {
         final raw = await store.read(key);
         if (raw == null) continue;
         try {
-          return LoadResult(WorldState.decode(raw),
-              notice:
-                  'Little Drift remembers you. A whole sky of islands is waiting!');
+          return LoadResult(
+            WorldState.decode(raw),
+            notice:
+                'Little Drift remembers you. A whole sky of islands is waiting!',
+          );
         } on FormatException {
           damaged = true;
         }
       }
-      return LoadResult(WorldState(),
-          notice: damaged
-              ? 'That memory could not be read. A new trail is ready.'
-              : null);
+      return LoadResult(
+        WorldState(),
+        notice: damaged
+            ? 'That memory could not be read. A new trail is ready.'
+            : null,
+      );
     } catch (_) {
-      return LoadResult(WorldState(),
-          notice:
-              'This device cannot save yet. Your adventure can still begin.');
+      return LoadResult(
+        WorldState(),
+        notice: 'This device cannot save yet. Your adventure can still begin.',
+      );
     }
   }
 
@@ -111,14 +120,17 @@ class SaveRepository {
               IslandProgress.fromJson(json);
               await store.write('$key.backup', previous);
             }
-          } on FormatException {/* Preserve an existing valid recovery slot. */}
+          } on FormatException {
+            /* Preserve an existing valid recovery slot. */
+          }
         }
         await store.write(key, memory);
         _cachedIndex = index;
         _cachedProgress = memory;
       }
-      if (_lastGoodHeader != null)
+      if (_lastGoodHeader != null) {
         await store.write(backupKey, _lastGoodHeader!);
+      }
       await store.write(currentKey, header);
       _lastGoodHeader = header;
     });
