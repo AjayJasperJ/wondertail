@@ -29,7 +29,7 @@ void main() {
   testWidgets('analog drag walks, release stops, themed journal pauses input', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(844, 390);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -56,6 +56,9 @@ void main() {
     await tester.tap(find.byTooltip('Your trail and journal'));
     await frames(tester);
     expect(find.text('Your endless trail'), findsOneWidget);
+    final panel = tester.getRect(find.byKey(const ValueKey('adventure-panel')));
+    expect(panel.width, lessThan(844 * 0.5));
+    expect(panel.height, lessThan(390 * 0.8));
     expect(find.byType(AlertDialog), findsNothing);
     expect(find.byType(SnackBar), findsNothing);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyD);
@@ -64,7 +67,7 @@ void main() {
     expect(world.x, stopped);
     await tester.tap(find.byTooltip('Close journal'));
     await frames(tester);
-    tester.view.physicalSize = const Size(320, 640);
+    tester.view.physicalSize = const Size(640, 360);
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(
@@ -138,6 +141,7 @@ void main() {
   });
   test('static drawing and HUD updates remain bounded during movement', () {
     final world = WorldState();
+    world.progress.coins = 4095;
     final game = WondertailGame(state: world, onWorldChanged: (_) {});
     game.onGameResize(Vector2(390, 844));
     game.inputX = 1;

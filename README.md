@@ -84,7 +84,7 @@ Distribution licensing is undecided; no open-source license is granted by this r
 ## Android APK
 
 Download **wondertail-android-apk** from the latest successful GitHub Actions run,
-extract the ZIP, and open **Wondertail-0.2.0-android.apk** on your Android phone.
+extract the ZIP, and open **Wondertail-0.3.0-android.apk** on your Android phone.
 Allow installation from your browser or file manager if Android asks.
 This is a release-mode test build signed with the Android debug key, not a
 Play Store release. CI machines may generate different debug keys; a later
@@ -97,3 +97,22 @@ flutter pub get
 flutter build apk --release
 ```
 Application ID: `com.ajayjasperj.wondertail`.
+
+## 0.3 landscape adventure pass
+
+Android uses landscape orientation and immersive play. The HUD shows one current
+objective; a glowing world marker and collision-aware trails lead to landmarks.
+Encounter and journal cards occupy less than half the landscape screen width.
+Meadow crowns, twilight pines, coral trees, mushrooms, layered paths, distant
+islets and a waterfall add distinct environmental detail.
+
+Twelve optional sky coins per island persist with its memory; completing the
+collection equips a golden scarf on that island. The skyway previews the actual
+next island's name and activity. Three authored task types still repeat; this
+update does not claim unlimited unique stories.
+
+Android synthesizes original offline music and proximity, coin, task and
+completion cues. Music begins on movement, can be muted using the HUD button,
+and stops on app background/audio-focus loss. Web is currently silent.
+The audio toggle is session-only. Real-device audio and frame pacing still
+need playtesting.

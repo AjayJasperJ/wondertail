@@ -24,7 +24,10 @@ class IslandProgress {
     this.collected = 0,
     this.listened = false,
     this.rainTime = 0,
+    this.coins = 0,
   });
+  int coins;
+  int get coinCount => coins.toRadixString(2).replaceAll('0', '').length;
   int stage;
   int collected;
   bool listened;
@@ -37,8 +40,13 @@ class IslandProgress {
         'collected': collected,
         'listened': listened,
         'rainTime': rainTime,
+        'coins': coins,
       };
   factory IslandProgress.fromJson(Map<String, dynamic> json) {
+    final coins = json['coins'] ?? 0;
+    if (coins is! int || coins < 0 || coins > 4095) {
+      throw const FormatException('Invalid coin memory.');
+    }
     final stage = json['stage'];
     final collected = json['collected'];
     final time = json['rainTime'];
@@ -56,6 +64,7 @@ class IslandProgress {
       throw const FormatException('Invalid island memory.');
     }
     return IslandProgress(
+      coins: coins,
       stage: stage,
       collected: collected,
       listened: json['listened'] as bool,
@@ -396,6 +405,49 @@ class IslandMap {
         Adventure.garden => 'The wandering garden',
       };
 
+  // Cached routes use the same collision map as movement.
+  late final List<List<Point2>> trails = [
+    for (final target in [friend, wonder, gate, ...collectibles])
+      route(arrival, target),
+  ];
+  late final List<Point2> coins = [
+    for (final trail in trails)
+      for (final fraction in [0.4, 0.72])
+        trail[(fraction * (trail.length - 1)).round()],
+  ];
+
+  List<Point2> route(Point2 from, Point2 to) {
+    const step = 20.0;
+    int key(int x, int y) => y * 64 + x;
+    Point2 point(int k) => Point2((k % 64) * step, (k ~/ 64) * step);
+    final start = key((from.x / step).round(), (from.y / step).round());
+    final end = key((to.x / step).round(), (to.y / step).round());
+    final queue = <int>[start];
+    final parent = <int, int>{start: start};
+    for (var cursor = 0; cursor < queue.length; cursor++) {
+      final current = queue[cursor];
+      if (current == end) break;
+      for (final offset in [-1, 1, -64, 64]) {
+        final next = current + offset;
+        if (next < 0 || next >= 64 * 48 || parent.containsKey(next)) continue;
+        if (!canStand(point(next))) continue;
+        // Leave a little space around rocks for the visible path.
+        if (obstacles.any(
+            (o) => point(next).distanceTo(o.center) < o.radius + 24)) continue;
+        parent[next] = current;
+        queue.add(next);
+      }
+    }
+    if (!parent.containsKey(end)) return [from, to];
+    final reversed = <Point2>[to];
+    var cursor = end;
+    while (cursor != start) {
+      reversed.add(point(cursor));
+      cursor = parent[cursor]!;
+    }
+    return [from, ...reversed.reversed];
+  }
+
   bool canStand(Point2 point) {
     final nx = (point.x - center.x) / (radiusX - playerRadius);
     final ny = (point.y - center.y) / (radiusY - playerRadius);
@@ -447,6 +499,18 @@ class IslandMap {
 }
 
 class WorldRules {
+  static int collectCoins(WorldState world) {
+    var count = 0;
+    for (var i = 0; i < world.map.coins.length; i++) {
+      if ((world.progress.coins & (1 << i)) == 0 &&
+          world.position.distanceTo(world.map.coins[i]) < 28) {
+        world.progress.coins |= 1 << i;
+        count++;
+      }
+    }
+    return count;
+  }
+
   static String objective(WorldState world) {
     final p = world.progress;
     if (p.complete) return 'The skyway is open — another island awaits';

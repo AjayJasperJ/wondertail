@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../data/save_repository.dart';
 import '../domain/world_state.dart';
 import '../game/wondertail_game.dart';
+import '../game/game_audio.dart';
 
 const _ink = Color(0xff344f55);
 const _paper = Color(0xfffff7df);
@@ -24,6 +25,8 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   late final WorldState _world = widget.loaded.state;
   late final WondertailGame _game;
+  final _audio = GameAudio();
+  bool _muted = false;
   final FocusNode _keyboard = FocusNode();
   final _stickKey = GlobalKey<_AnalogStickState>();
   final Set<LogicalKeyboardKey> _held = {};
@@ -42,7 +45,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _game = WondertailGame(state: _world, onWorldChanged: _changed);
+    _game = WondertailGame(
+        state: _world, onWorldChanged: _changed, onSound: _audio.cue);
     _autosave = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_game.movedSinceSave || _retrySave) unawaited(_save());
     });
@@ -57,6 +61,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _changed(String message) {
+    if (!message.contains('coin') && !message.contains('scarf')) {
+      _audio.cue(_world.progress.complete ? 'complete' : 'task');
+    }
     _showRibbon(message);
     unawaited(_save());
   }
@@ -103,6 +110,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             ? 1.0
             : 0.0) -
         (has(LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.keyW) ? 1.0 : 0.0);
+    if (dx != 0 || dy != 0 || _touchX != 0 || _touchY != 0) {
+      _audio.start(_world.map.adventure.index);
+    }
     _game.inputX = dx == 0 ? _touchX : dx;
     _game.inputY = dy == 0 ? _touchY : dy;
     _game.sprint = _held.contains(LogicalKeyboardKey.shiftLeft) ||
@@ -156,11 +166,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed) {
       _clearInput();
       _game.controlsEnabled = false;
+      _audio.pause();
       _game.pauseEngine();
       unawaited(_save());
     } else {
       _game.controlsEnabled = _panel == null && !_travelling;
       _game.resumeEngine();
+      _audio.start(_world.map.adventure.index);
     }
   }
 
@@ -221,6 +233,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       if (_world.travel(index, memory)) {
         _game.refresh(arrival: true);
+        _audio.start(_world.map.adventure.index);
+        _audio.cue('complete');
         await _save();
       }
       if (!mounted) return;
@@ -286,6 +300,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _ribbonTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(widget.saves.save(_world).catchError((Object _) {}));
+    _audio.pause();
     _keyboard.dispose();
     _saveStatus.dispose();
     _ribbon.dispose();
@@ -326,170 +341,96 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              SafeArea(
-                child: ValueListenableBuilder<int>(
-                  valueListenable: _game.revision,
-                  builder: (context, _, child) => Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 14, 0),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.auto_awesome,
-                              color: Color(0xffa07a40),
-                              size: 24,
-                            ),
-                            const SizedBox(width: 9),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'WONDERTAIL',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      letterSpacing: 2.8,
-                                      fontWeight: FontWeight.w800,
-                                      color: _ink,
-                                    ),
+              Positioned(
+                top: 10,
+                left: 14,
+                right: 14,
+                child: SafeArea(
+                  bottom: false,
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: _game.revision,
+                    builder: (context, _, child) => Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                            child: Align(
+                          alignment: Alignment.topLeft,
+                          child: SizedBox(
+                              width: 320,
+                              child: _Parchment(
+                                padding: const EdgeInsets.all(11),
+                                child: Row(children: [
+                                  ValueListenableBuilder<double>(
+                                    valueListenable: _game.compassAngle,
+                                    builder: (_, angle, child) =>
+                                        Transform.rotate(
+                                            angle: angle, child: child),
+                                    child: const Icon(Icons.navigation_rounded,
+                                        color: _teal, size: 26),
                                   ),
-                                  Text(
-                                    _world.map.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 23,
-                                      height: 1.15,
-                                      fontWeight: FontWeight.w800,
-                                      color: _ink,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            _RoundButton(
-                              label: 'Your trail and journal',
-                              icon: Icons.menu_book_rounded,
-                              onTap: _openJournal,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 480),
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(15, 16, 15, 0),
-                            child: _Parchment(
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 46,
-                                    height: 46,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xffeee2b9),
-                                    ),
-                                    child: ValueListenableBuilder<double>(
-                                      valueListenable: _game.compassAngle,
-                                      builder: (_, angle, child) =>
-                                          Transform.rotate(
-                                        angle: angle,
-                                        child: child,
-                                      ),
-                                      child: const Icon(
-                                        Icons.navigation_rounded,
-                                        size: 25,
-                                        color: Color(0xff8c8450),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 10),
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'ISLAND ${_world.islandIndex + 1}  /  ${_world.map.title.toUpperCase()}',
+                                      child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                          'ISLAND ${_world.islandIndex + 1} · ${_world.map.name}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xff8e8d71),
-                                            letterSpacing: 0.8,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          WorldRules.objective(_world),
+                                              fontSize: 10,
+                                              color: _teal,
+                                              fontWeight: FontWeight.w800)),
+                                      const SizedBox(height: 4),
+                                      Text(WorldRules.objective(_world),
                                           style: const TextStyle(
-                                            fontSize: 14,
-                                            height: 1.25,
-                                            color: _ink,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            for (var i = 0; i < 3; i++)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  right: 4,
-                                                ),
-                                                child: Icon(
-                                                  (_world.progress.collected &
-                                                              (1 << i)) !=
-                                                          0
-                                                      ? Icons.auto_awesome
-                                                      : Icons.circle_outlined,
-                                                  size: 13,
-                                                  color: (_world.progress
-                                                                  .collected &
-                                                              (1 << i)) !=
-                                                          0
-                                                      ? const Color(
-                                                          0xffc3974b,
-                                                        )
-                                                      : const Color(
-                                                          0xffbeb79d,
-                                                        ),
-                                                ),
-                                              ),
-                                            Expanded(
-                                              child: Text(
-                                                '${_world.kindnessCount} islands restored',
-                                                textAlign: TextAlign.right,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  fontSize: 10,
-                                                  color: Color(0xff7d8d7b),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                    ],
+                                              fontSize: 13,
+                                              color: _ink,
+                                              fontWeight: FontWeight.w700)),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                          'Follow the glowing star • walk over coins',
+                                          style: const TextStyle(
+                                              fontSize: 9, color: _teal)),
+                                    ],
+                                  )),
+                                ]),
+                              )),
+                        )),
+                        const SizedBox(width: 8),
+                        _Parchment(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            child: Text('✦ ${_world.progress.coinCount}/12',
+                                style: const TextStyle(
+                                    color: _ink, fontWeight: FontWeight.w800))),
+                        const SizedBox(width: 6),
+                        _RoundButton(
+                            label: _muted ? 'Enable sound' : 'Mute sound',
+                            icon: _muted
+                                ? Icons.volume_off_rounded
+                                : Icons.volume_up_rounded,
+                            onTap: () {
+                              setState(() => _muted = !_muted);
+                              _audio.setMuted(
+                                  _muted, _world.map.adventure.index);
+                            }),
+                        const SizedBox(width: 6),
+                        _RoundButton(
+                            label: 'Your trail and journal',
+                            icon: Icons.menu_book_rounded,
+                            onTap: _openJournal),
+                      ],
+                    ),
                   ),
                 ),
               ),
               Positioned(
                 left: 20,
                 right: 20,
-                bottom: 177,
+                bottom: 145,
                 child: SafeArea(
                   top: false,
                   child: IgnorePointer(
@@ -634,25 +575,28 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ),
                 SafeArea(
                   child: Align(
-                    alignment: Alignment.bottomCenter,
+                    alignment: Alignment.centerRight,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 18, 16, 25),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          maxWidth: 510,
+                          maxWidth: math.min(
+                              380, MediaQuery.sizeOf(context).width * 0.48),
                           maxHeight: math.max(
                             150,
-                            MediaQuery.sizeOf(context).height - 110,
+                            MediaQuery.sizeOf(context).height * 0.76,
                           ),
                         ),
-                        child: _Parchment(
-                          padding: const EdgeInsets.all(23),
-                          child: SingleChildScrollView(
-                            child: _panel == 'journal'
-                                ? _journalCard()
-                                : _encounterCard(),
-                          ),
-                        ),
+                        child: SizedBox(
+                            key: const ValueKey('adventure-panel'),
+                            child: _Parchment(
+                              padding: const EdgeInsets.all(14),
+                              child: SingleChildScrollView(
+                                child: _panel == 'journal'
+                                    ? _journalCard()
+                                    : _encounterCard(),
+                              ),
+                            )),
                       ),
                     ),
                   ),
@@ -733,7 +677,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     } else {
       title = p.complete ? 'Beyond the clouds' : 'A sleeping skyway';
       body = p.complete
-          ? '${map.consequence}\n\nAnother island is waiting. Its paths, colors, and little mysteries will be different. You can return here from your trail book.'
+          ? '${map.consequence}\n\nNext: ${IslandMap.generate(_world.seed, _world.islandIndex + 1).name} — ${IslandMap.generate(_world.seed, _world.islandIndex + 1).title}. Find 12 sky coins to earn a glowing scarf here. Revisit islands from your trail book.'
           : 'This arch wakes when the island’s wonder comes alive.\n\n${WorldRules.objective(_world)}';
       button = 'Sail to island ${_world.islandIndex + 2}';
       actionable = p.complete;
@@ -766,7 +710,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 23,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: _ink,
                 ),
@@ -780,16 +724,16 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
         Text(
           body,
           style: const TextStyle(
-            fontSize: 16,
-            height: 1.55,
+            fontSize: 13,
+            height: 1.3,
             color: Color(0xff607276),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 12),
         if (actionable)
           _AdventureButton(
             label: button,
