@@ -432,8 +432,10 @@ class IslandMap {
         if (next < 0 || next >= 64 * 48 || parent.containsKey(next)) continue;
         if (!canStand(point(next))) continue;
         // Leave a little space around rocks for the visible path.
-        if (obstacles.any(
-            (o) => point(next).distanceTo(o.center) < o.radius + 24)) continue;
+        if (obstacles
+            .any((o) => point(next).distanceTo(o.center) < o.radius + 24)) {
+          continue;
+        }
         parent[next] = current;
         queue.add(next);
       }
