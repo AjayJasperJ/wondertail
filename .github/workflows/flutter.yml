@@ -43,9 +43,9 @@ jobs:
       - name: Package installable APK
         run: |
           mkdir -p android-artifact
-          cp build/app/outputs/flutter-apk/app-release.apk android-artifact/Wondertail-0.3.0-android.apk
+          cp build/app/outputs/flutter-apk/app-release.apk android-artifact/Wondertail-0.4.0-android.apk
           cd android-artifact
-          sha256sum Wondertail-0.3.0-android.apk > SHA256SUMS.txt
+          sha256sum Wondertail-0.4.0-android.apk > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: wondertail-android-apk

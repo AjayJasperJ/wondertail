@@ -47,6 +47,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _game = WondertailGame(
         state: _world, onWorldChanged: _changed, onSound: _audio.cue);
+    _game.calmMotion = _world.calm;
+    _muted = !_world.sound;
+    if (_muted) _audio.setMuted(true, _world.map.adventure.index);
     _autosave = Timer.periodic(const Duration(seconds: 3), (_) {
       if (_game.movedSinceSave || _retrySave) unawaited(_save());
     });
@@ -176,6 +179,22 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _returnToLobby() async {
+    _clearInput();
+    _game.controlsEnabled = false;
+    try {
+      await widget.saves.save(_world);
+      if (mounted && Navigator.of(context).canPop()) {
+        _audio.pause();
+        Navigator.of(context).pop();
+      }
+    } catch (_) {
+      if (mounted) _showRibbon('Could not save your trail. Please try again.');
+    } finally {
+      if (mounted) _game.controlsEnabled = _panel == null && !_travelling;
+    }
+  }
+
   void _closePanel() {
     if (_travelling) return;
     setState(() {
@@ -262,17 +281,20 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       unawaited(_travel(_world.islandIndex + 1));
       return;
     }
+    final beforeRoom = _world.room;
     if (WorldRules.act(_world, encounter)) {
       _game.burst(
         encounter == Encounter.friend ? _world.map.friend : _world.map.wonder,
         const Color(0xffffe29a),
       );
-      _game.refresh();
+      _game.refresh(arrival: beforeRoom != _world.room);
       _closePanel();
       _changed(
-        _world.progress.complete
-            ? _world.map.consequence
-            : WorldRules.objective(_world),
+        encounter == Encounter.ruins
+            ? 'The Sky Archive is restored! Wren will remember your discovery.'
+            : _world.progress.complete
+                ? _world.map.consequence
+                : WorldRules.objective(_world),
       );
     } else {
       _closePanel();
@@ -290,6 +312,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             : 'Explore the wonder',
       Encounter.gate =>
         _world.progress.complete ? 'Next adventure' : 'Inspect the skyway',
+      Encounter.cave => 'Enter crystal cave',
+      Encounter.lodge => 'Enter scout lodge',
+      Encounter.ruins => 'Explore ancient ruins',
+      Encounter.exitRoom => 'Return outside',
+      Encounter.scout => 'Talk to Scout Wren',
       _ => 'Explore',
     };
   }
@@ -413,10 +440,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                 ? Icons.volume_off_rounded
                                 : Icons.volume_up_rounded,
                             onTap: () {
-                              setState(() => _muted = !_muted);
+                              setState(() {
+                                _muted = !_muted;
+                                _world.sound = !_muted;
+                              });
+                              unawaited(_save());
                               _audio.setMuted(
                                   _muted, _world.map.adventure.index);
                             }),
+                        const SizedBox(width: 6),
+                        _RoundButton(
+                            label: 'Return to lobby',
+                            icon: Icons.home_rounded,
+                            onTap: _returnToLobby),
                         const SizedBox(width: 6),
                         _RoundButton(
                             label: 'Your trail and journal',
@@ -636,7 +672,45 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final p = _world.progress;
     String title, body, button;
     var actionable = false;
-    if (encounter == Encounter.friend) {
+    if (encounter == Encounter.cave) {
+      title = 'Beneath the mountain';
+      body =
+          'Step into the crystal chamber. Find three blue crystals, then bring their light to the ancient ruins.';
+      button = 'Explore the cave';
+      actionable = true;
+    } else if (encounter == Encounter.lodge) {
+      title = 'Wren’s scout lodge';
+      body =
+          'A warm map room hides inside. Scout Wren knows why these mountains glow at night.';
+      button = 'Enter the lodge';
+      actionable = true;
+    } else if (encounter == Encounter.exitRoom) {
+      title = 'Back to the open sky';
+      body =
+          'Your discoveries stay with this island. You can return whenever you like.';
+      button = 'Return outside';
+      actionable = true;
+    } else if (encounter == Encounter.scout) {
+      title = 'Wren, the island scout';
+      body = p.scoutMet
+          ? (p.ruinsRestored
+              ? '“You brought the Sky Archive back to life! Every explorer who comes here will see your work.”'
+              : '“Find three crystals in the mountain cave. The empty pedestal at the ruins needs their light.”')
+          : '“Welcome, explorer! The old Sky Archive has gone dark. Three cave crystals can wake it. Would you explore the mountain for me?”';
+      button = 'Mark the discovery in my journal';
+      actionable = !p.scoutMet;
+    } else if (encounter == Encounter.ruins) {
+      title = p.ruinsRestored
+          ? 'The restored Sky Archive'
+          : 'An ancient sky archive';
+      body = p.ruinsRestored
+          ? 'Your crystals hold a warm light above the old columns. Wren’s lost archive shines again.'
+          : p.shards == 7
+              ? 'Three crystals fit the empty pedestal. Place them to rebuild the arch and light the archive.'
+              : 'The broken pedestal needs three cave crystals. You have found ${p.shardCount}/3. Scout Wren can tell you more.';
+      button = 'Restore the Sky Archive';
+      actionable = p.shards == 7 && !p.ruinsRestored;
+    } else if (encounter == Encounter.friend) {
       title = '${map.friendName}, ${switch (map.adventure) {
         Adventure.rain => 'the lost cloud',
         Adventure.lantern => 'the lantern moth',
@@ -791,7 +865,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          Text(
+              'DISCOVERIES · ${_world.map.landform}\n'
+              '${_world.progress.scoutMet ? '✓' : '○'} Meet Wren in the lodge\n'
+              '${_world.progress.shards == 7 ? '✓' : '○'} Cave crystals ${_world.progress.shardCount}/3\n'
+              '${_world.progress.ruinsRestored ? '✓' : '○'} Restore the Sky Archive',
+              style: const TextStyle(fontSize: 12, height: 1.5, color: _ink)),
+          const SizedBox(height: 12),
           for (final entry in _world.journal)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -882,7 +963,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             label: _game.calmMotion ? 'Calm motion is on' : 'Use calm motion',
             icon: Icons.air_rounded,
             secondary: true,
-            onTap: () => setState(() => _game.calmMotion = !_game.calmMotion),
+            onTap: () {
+              setState(() {
+                _game.calmMotion = !_game.calmMotion;
+                _world.calm = _game.calmMotion;
+              });
+              unawaited(_save());
+            },
           ),
           const SizedBox(height: 13),
           const Text(

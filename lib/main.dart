@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'data/save_repository.dart';
 import 'ui/game_screen.dart';
+import 'ui/lobby_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +18,12 @@ Future<void> main() async {
 }
 
 class WondertailApp extends StatelessWidget {
-  const WondertailApp({super.key, required this.saves, required this.loaded});
+  const WondertailApp(
+      {super.key,
+      required this.saves,
+      required this.loaded,
+      this.startInGame = false});
+  final bool startInGame;
   final SaveRepository saves;
   final LoadResult loaded;
 
@@ -33,6 +39,8 @@ class WondertailApp extends StatelessWidget {
           ),
           fontFamily: 'sans-serif',
         ),
-        home: GameScreen(saves: saves, loaded: loaded),
+        home: startInGame
+            ? GameScreen(saves: saves, loaded: loaded)
+            : LobbyScreen(saves: saves, loaded: loaded),
       );
 }

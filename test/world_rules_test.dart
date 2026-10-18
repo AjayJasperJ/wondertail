@@ -37,6 +37,63 @@ void finish(WorldState world) {
 }
 
 void main() {
+  test('landforms vary and discovery interiors retain progress', () {
+    final profiles = <String>{};
+    for (var i = 0; i < 30; i++) {
+      final world =
+          WorldState(islandIndex: i, highestUnlocked: i, highestVisited: i);
+      final map = world.map;
+      profiles.add('${map.scaleX}/${map.scaleY}/${map.landform}');
+      for (final entrance in [map.cave, map.lodge, map.ruins]) {
+        expect(map.canStand(entrance), isTrue);
+        final path = map.route(map.arrival, entrance);
+        for (var p = 1; p < path.length; p++) {
+          for (var step = 0; step <= 10; step++) {
+            expect(
+                map.canStand(
+                    path[p - 1] + (path[p] - path[p - 1]) * (step / 10)),
+                isTrue);
+          }
+        }
+      }
+      stand(world, map.lodge);
+      expect(WorldRules.act(world, Encounter.lodge), isTrue);
+      expect(world.room, 2);
+      stand(world, WorldRules.scoutPosition);
+      expect(WorldRules.act(world, Encounter.scout), isTrue);
+      stand(world, WorldRules.roomExit);
+      expect(WorldRules.act(world, Encounter.exitRoom), isTrue);
+      stand(world, map.cave);
+      expect(WorldRules.act(world, Encounter.cave), isTrue);
+      expect(WorldRules.collectCoins(world), 0);
+      for (final crystal in WorldRules.caveCrystals) {
+        stand(world, crystal);
+        expect(WorldRules.collectShards(world), isTrue);
+      }
+      expect(WorldRules.collectShards(world), isFalse);
+      final insideSave = WorldState.decode(world.encode());
+      expect(insideSave.room, 0);
+      expect(insideSave.progress.shards, 7);
+      stand(world, WorldRules.roomExit);
+      WorldRules.act(world, Encounter.exitRoom);
+      stand(world, map.ruins);
+      expect(WorldRules.act(world, Encounter.ruins), isTrue);
+      expect(WorldRules.act(world, Encounter.ruins), isFalse);
+      expect(WorldState.decode(world.encode()).progress.ruinsRestored, isTrue);
+    }
+    expect(profiles.length, 5);
+  });
+  test('preferences and old generation checkpoints preserve progress', () {
+    final world =
+        WorldState(character: 2, sound: false, calm: true, guide: false);
+    world.progress.coins = 19;
+    final restored = WorldState.decode(world.encode());
+    expect((restored.character, restored.sound, restored.calm, restored.guide),
+        (2, false, true, false));
+    final old = world.toJson()..['generatorVersion'] = 2;
+    expect(WorldState.decode(jsonEncode(old)).progress.coins, 19);
+  });
+
   test('coin trails are reachable and coin memory survives encode and revisit',
       () {
     for (var island = 0; island < 40; island++) {

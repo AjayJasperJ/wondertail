@@ -84,7 +84,7 @@ Distribution licensing is undecided; no open-source license is granted by this r
 ## Android APK
 
 Download **wondertail-android-apk** from the latest successful GitHub Actions run,
-extract the ZIP, and open **Wondertail-0.3.0-android.apk** on your Android phone.
+extract the ZIP, and open **Wondertail-0.4.0-android.apk** on your Android phone.
 Allow installation from your browser or file manager if Android asks.
 This is a release-mode test build signed with the Android debug key, not a
 Play Store release. CI machines may generate different debug keys; a later
@@ -116,3 +116,24 @@ completion cues. Music begins on movement, can be muted using the HUD button,
 and stops on app background/audio-focus loss. Web is currently silent.
 The audio toggle is session-only. Real-device audio and frame pacing still
 need playtesting.
+
+
+## 0.4 lobby and exploration
+
+The app opens in a landscape lobby. Choose Rowan, Sky or Fern (cosmetic choices),
+toggle sound, calm motion and objective markers, or select an unlocked island
+in the paginated atlas. Preferences persist with your checkpoint. Use the home
+button during play to save and return to the lobby.
+
+Five landform profiles vary island width, height and coastline. Rendered shores
+and collision use the same shape function. Mountain cave entrances and scout
+lodges connect to the walking trails. Enter a separate walkable crystal chamber
+or Wren's furnished map room, meet the scout, collect three cave crystals, and
+restore the ancient Sky Archive outside. This optional discovery chain persists
+per island and does not block the original main task.
+
+Existing v2 checkpoints retain task and coin progress. Generator revision 3
+reshapes the terrain; positions outside the new walkable region reset to the
+arrival campsite. Interior saves resume safely at their outdoor entrance.
+This is a 2D game: mountains use illustrated height rather than climbable 3D
+terrain. Interior layouts and the discovery chain are authored and reused.

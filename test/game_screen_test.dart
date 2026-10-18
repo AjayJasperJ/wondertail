@@ -35,7 +35,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final world = WorldState();
     await tester.pumpWidget(
-      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
+      WondertailApp(
+          startInGame: true,
+          saves: SaveRepository(_Store()),
+          loaded: LoadResult(world)),
     );
     await frames(tester);
     final joystick = find.byKey(const ValueKey('movement-joystick'));
@@ -93,7 +96,10 @@ void main() {
     world.x = world.map.friend.x;
     world.y = world.map.friend.y;
     await tester.pumpWidget(
-      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
+      WondertailApp(
+          startInGame: true,
+          saves: SaveRepository(_Store()),
+          loaded: LoadResult(world)),
     );
     await frames(tester);
     await tester.tap(find.text('Meet Pip'));
@@ -121,7 +127,10 @@ void main() {
     world.x = world.map.gate.x;
     world.y = world.map.gate.y;
     await tester.pumpWidget(
-      WondertailApp(saves: SaveRepository(_Store()), loaded: LoadResult(world)),
+      WondertailApp(
+          startInGame: true,
+          saves: SaveRepository(_Store()),
+          loaded: LoadResult(world)),
     );
     await frames(tester);
     await tester.tap(find.text('Next adventure'));
@@ -132,6 +141,7 @@ void main() {
     expect(world.progress.stage, 0);
     await tester.tap(find.byTooltip('Your trail and journal'));
     await frames(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('visit-island-0')));
     await tester.tap(find.byKey(const ValueKey('visit-island-0')));
     await frames(tester);
     expect(world.islandIndex, 0);
