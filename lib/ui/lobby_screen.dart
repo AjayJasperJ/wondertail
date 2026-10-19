@@ -299,7 +299,8 @@ class _LobbyScreenState extends State<LobbyScreen> {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         heading('Make yourself at home',
             'Preferences save on this device. Android audio starts when you move.'),
-        SwitchListTile(
+    SwitchListTile(
+      key: const ValueKey('music-setting'),
             contentPadding: EdgeInsets.zero,
             title: const Text('Music & sounds', style: TextStyle(fontSize: 14)),
             value: world.sound,
