@@ -16,7 +16,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: dart tool/check_release.dart
       - run: flutter analyze
       - run: flutter test
       - run: flutter build web --release --no-web-resources-cdn
@@ -43,9 +44,10 @@ jobs:
       - name: Package installable APK
         run: |
           mkdir -p android-artifact
-          cp build/app/outputs/flutter-apk/app-release.apk android-artifact/Wondertail-0.4.0-android.apk
+          version=$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)
+          cp build/app/outputs/flutter-apk/app-release.apk "android-artifact/Wondertail-$version-android.apk"
           cd android-artifact
-          sha256sum Wondertail-0.4.0-android.apk > SHA256SUMS.txt
+          sha256sum ./*.apk > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: wondertail-android-apk

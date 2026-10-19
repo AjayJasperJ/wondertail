@@ -63,11 +63,15 @@ class SaveRepository {
           if (json is! Map<String, dynamic> || json['islandIndex'] is! int) {
             throw const FormatException('Invalid checkpoint.');
           }
-          final memory = await loadIsland(json['islandIndex'] as int);
+          final memory = json['progress'] is Map<String, dynamic>
+              ? IslandProgress.fromJson(
+                  json['progress'] as Map<String, dynamic>)
+              : await loadIsland(json['islandIndex'] as int);
           final state = WorldState.decode(
             jsonEncode({...json, 'progress': memory.toJson()}),
           );
           _lastGoodHeader = raw;
+          state.profile.reconcile(state);
           return LoadResult(
             state,
             notice: damaged
@@ -106,8 +110,12 @@ class SaveRepository {
   }
 
   Future<void> save(WorldState state) {
+    if (state.run != null) return Future<void>.value();
+    state.profile.reconcile(state);
     final index = state.islandIndex;
-    final header = jsonEncode(state.headerJson());
+    // One authoritative snapshot commits wallet receipts and active progress
+    // together. A partially written island cache cannot duplicate banked rewards.
+    final header = jsonEncode(state.toJson());
     final memory = jsonEncode(state.progress.toJson());
     final write = _pending.then((_) async {
       if (_cachedIndex != index || _cachedProgress != memory) {
@@ -136,5 +144,12 @@ class SaveRepository {
     });
     _pending = write.then<void>((_) {}, onError: (Object _, StackTrace __) {});
     return write;
+  }
+
+  Future<void> saveRunReward(PlayerProfile profile) async {
+    final original = (await load()).state;
+    final merged = WorldState.decode(
+        jsonEncode({...original.toJson(), 'profile': profile.toJson()}));
+    await save(merged);
   }
 }

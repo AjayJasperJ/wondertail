@@ -10,9 +10,15 @@ void stand(WorldState world, Point2 point) {
 
 void finish(WorldState world) {
   final map = world.map;
+  if (map.mutator == IslandMutator.overgrowth) {
+    stand(world, map.shears);
+    WorldRules.act(world, Encounter.tool);
+    stand(world, map.vineGate);
+    WorldRules.act(world, Encounter.vines);
+  }
   if (map.adventure == Adventure.lantern) {
-    for (final point in map.collectibles) {
-      stand(world, point);
+    for (final i in map.collectionOrder) {
+      stand(world, map.collectibles[i]);
       WorldRules.collect(world);
     }
   }
@@ -22,14 +28,18 @@ void finish(WorldState world) {
   if (map.adventure == Adventure.garden) {
     stand(world, map.wonder);
     WorldRules.act(world, Encounter.wonder);
-    for (var i = 0; i < 3; i++) {
+    for (final i in map.collectionOrder) {
       stand(world, map.collectibles[i]);
       WorldRules.act(world, Encounter.values[i + 3]);
     }
   } else {
-    for (final point in map.collectibles) {
-      stand(world, point);
-      WorldRules.collect(world);
+    for (final i in map.collectionOrder) {
+      stand(world, map.collectibles[i]);
+      if (map.adventure == Adventure.rain && map.variant == 2) {
+        WorldRules.act(world, Encounter.values[i + 3]);
+      } else {
+        WorldRules.collect(world);
+      }
     }
     stand(world, map.wonder);
     WorldRules.act(world, Encounter.wonder);
@@ -59,15 +69,16 @@ void main() {
       stand(world, map.lodge);
       expect(WorldRules.act(world, Encounter.lodge), isTrue);
       expect(world.room, 2);
-      stand(world, WorldRules.scoutPosition);
+      stand(world, map.scoutPoint);
       expect(WorldRules.act(world, Encounter.scout), isTrue);
       stand(world, WorldRules.roomExit);
       expect(WorldRules.act(world, Encounter.exitRoom), isTrue);
       stand(world, map.cave);
       expect(WorldRules.act(world, Encounter.cave), isTrue);
       expect(WorldRules.collectCoins(world), 0);
-      for (final crystal in WorldRules.caveCrystals) {
-        stand(world, crystal);
+      for (var i = 0; i < 3; i++) {
+        world.chamber = map.crystalRoom(i);
+        stand(world, map.crystalPoint(i));
         expect(WorldRules.collectShards(world), isTrue);
       }
       expect(WorldRules.collectShards(world), isFalse);
@@ -76,6 +87,7 @@ void main() {
       expect(insideSave.progress.shards, 7);
       stand(world, WorldRules.roomExit);
       WorldRules.act(world, Encounter.exitRoom);
+      if (world.room == 1) WorldRules.act(world, Encounter.exitRoom);
       stand(world, map.ruins);
       expect(WorldRules.act(world, Encounter.ruins), isTrue);
       expect(WorldRules.act(world, Encounter.ruins), isFalse);

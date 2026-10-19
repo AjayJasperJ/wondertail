@@ -22,6 +22,75 @@ Future<void> frames(WidgetTester tester, [int count = 30]) async {
 }
 
 void main() {
+  testWidgets('workshop purchase is permanent and equippable from the lobby',
+      (tester) async {
+    tester.view.physicalSize = const Size(740, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final saves = SaveRepository(MemoryStore());
+    final world = WorldState();
+    world.profile.coins = 48;
+    world.profile.cores = 2;
+    await tester
+        .pumpWidget(WondertailApp(saves: saves, loaded: LoadResult(world)));
+    await tester.ensureVisible(find.byKey(const ValueKey('open-workshop')));
+    await tester.tap(find.byKey(const ValueKey('open-workshop')));
+    await frames(tester);
+    final cape = find.byKey(const ValueKey('workshop-0'));
+    await tester.ensureVisible(cape);
+    await tester.tap(cape);
+    await frames(tester);
+    expect(world.profile.coins, 36);
+    expect(world.profile.cape, 1);
+    expect(
+        (await saves.load()).state.profile.owns(WorkshopItem.starCape), isTrue);
+    await tester.tap(cape);
+    await frames(tester);
+    expect(world.profile.coins, 36);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Trailblazer timer expires without changing the normal world',
+      (tester) async {
+    tester.view.physicalSize = const Size(740, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final saves = SaveRepository(MemoryStore());
+    final world = WorldState(highestUnlocked: 3);
+    await tester
+        .pumpWidget(WondertailApp(saves: saves, loaded: LoadResult(world)));
+    await tester.ensureVisible(find.byKey(const ValueKey('open-trailblazer')));
+    await tester.tap(find.byKey(const ValueKey('open-trailblazer')));
+    await frames(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('start-trailblazer')));
+    await tester.tap(find.byKey(const ValueKey('start-trailblazer')));
+    await frames(tester);
+    final trial =
+        tester.widget<GameScreen>(find.byType(GameScreen)).loaded.state;
+    expect(trial.run, isNotNull);
+    trial.run!.tick(420);
+    await frames(tester);
+    expect(find.text('The starlight settled'), findsOneWidget);
+    await tester.ensureVisible(find.text('Return to lobby').last);
+    await tester.tap(find.text('Return to lobby').last);
+    await frames(tester);
+    final original = (await saves.load()).state;
+    expect((
+      original.islandIndex,
+      original.highestUnlocked,
+      original.profile.coins
+    ), (
+      0,
+      3,
+      0
+    ));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets(
       'lobby saves explorer/settings and opens selected unlocked island',
       (tester) async {

@@ -47,6 +47,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _game = WondertailGame(
         state: _world, onWorldChanged: _changed, onSound: _audio.cue);
+    _world.profile.reconcile(_world);
     _game.calmMotion = _world.calm;
     _muted = !_world.sound;
     if (_muted) _audio.setMuted(true, _world.map.adventure.index);
@@ -57,13 +58,28 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       if (!mounted) return;
       _showRibbon(
         widget.loaded.notice ??
-            'Drag the compass stick to roam. Follow the golden arrow.',
+            '${_world.map.condition} · ${_world.map.conditionHint}',
       );
       unawaited(_save());
     });
   }
 
   void _changed(String message) {
+    _world.profile.reconcile(_world);
+    if (_world.run != null &&
+        _world.progress.complete &&
+        _world.islandIndex == 5) {
+      _world.run!.finish(_world.profile);
+      unawaited(
+          widget.saves.saveRunReward(_world.profile).catchError((Object _) {
+        if (mounted)
+          _saveStatus.value = 'Return to lobby to retry saving the run reward';
+      }));
+    }
+    if (_world.run?.finished ?? false) {
+      _game.controlsEnabled = false;
+      setState(() => _panel = 'runresult');
+    }
     if (!message.contains('coin') && !message.contains('scarf')) {
       _audio.cue(_world.progress.complete ? 'complete' : 'task');
     }
@@ -196,6 +212,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _closePanel() {
+    if (_world.run?.finished ?? false) return;
     if (_travelling) return;
     setState(() {
       _panel = null;
@@ -219,15 +236,28 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (_panel != null || _travelling) return;
     final encounter = WorldRules.nearby(_world);
     if (encounter == null) return;
+    if (encounter == Encounter.mirror) {
+      WorldRules.act(_world, encounter);
+      _game.refresh();
+      _changed('Mirror points ${[
+        'north',
+        'east',
+        'south',
+        'west'
+      ][_world.progress.mirror]}. Match a gate’s rune.');
+      return;
+    }
     final bed = WorldRules.bedIndex(encounter);
     if (bed != null) {
       if (WorldRules.act(_world, encounter)) {
         _game.burst(_world.map.collectibles[bed], const Color(0xffffd99c));
         _game.refresh();
         _changed(
-          _world.progress.complete
-              ? 'Three little gardens! Moss grew a new skyway for you.'
-              : 'A little garden takes root · ${_world.progress.count}/3',
+          _world.map.adventure == Adventure.rain
+              ? 'Sunseed gathered · ${_world.progress.count}/3'
+              : _world.progress.complete
+                  ? 'Three little gardens! Moss grew a new skyway for you.'
+                  : 'A little garden takes root · ${_world.progress.count}/3',
         );
       }
       return;
@@ -248,7 +278,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     try {
       // Complete the old island checkpoint before loading another island.
       await widget.saves.save(_world);
-      final memory = await widget.saves.loadIsland(index);
+      final memory = _world.run == null
+          ? await widget.saves.loadIsland(index)
+          : IslandProgress();
       if (!mounted) return;
       if (_world.travel(index, memory)) {
         _game.refresh(arrival: true);
@@ -281,17 +313,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       unawaited(_travel(_world.islandIndex + 1));
       return;
     }
-    final beforeRoom = _world.room;
+    final beforeRoom = _world.room, beforeChamber = _world.chamber;
     if (WorldRules.act(_world, encounter)) {
       _game.burst(
         encounter == Encounter.friend ? _world.map.friend : _world.map.wonder,
         const Color(0xffffe29a),
       );
-      _game.refresh(arrival: beforeRoom != _world.room);
+      _game.refresh(
+          arrival:
+              beforeRoom != _world.room || beforeChamber != _world.chamber);
       _closePanel();
       _changed(
         encounter == Encounter.ruins
-            ? 'The Sky Archive is restored! Wren will remember your discovery.'
+            ? 'Archive restored! Coin range ${_world.profile.coinRadius.round()} · hidden caches revealed.'
             : _world.progress.complete
                 ? _world.map.consequence
                 : WorldRules.objective(_world),
@@ -303,7 +337,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   String _actionLabel(Encounter? encounter) {
     if (encounter == null) return 'Follow the compass';
-    if (WorldRules.bedIndex(encounter) != null) return 'Plant a little garden';
+    if (WorldRules.bedIndex(encounter) != null)
+      return _world.map.adventure == Adventure.rain
+          ? 'Gather sunseed'
+          : 'Plant a little garden';
     return switch (encounter) {
       Encounter.friend => 'Meet ${_world.map.friendName}',
       Encounter.wonder =>
@@ -317,6 +354,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       Encounter.ruins => 'Explore ancient ruins',
       Encounter.exitRoom => 'Return outside',
       Encounter.scout => 'Talk to Scout Wren',
+      Encounter.tool => 'Pick up shears',
+      Encounter.vines => 'Clear vine gate',
+      Encounter.cache => 'Open seed cache',
+      Encounter.mirror => 'Rotate light mirror',
+      Encounter.passageLeft => 'Explore left chamber',
+      Encounter.passageRight => 'Explore right chamber',
+      Encounter.glide => 'Glide across pond',
       _ => 'Explore',
     };
   }
@@ -403,7 +447,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                          'ISLAND ${_world.islandIndex + 1} · ${_world.map.name}',
+                                          _world.run == null
+                                              ? 'ISLAND ${_world.islandIndex + 1} · ${_world.map.condition}'
+                                              : 'RUN ${_world.islandIndex - 2}/3 · ${_world.run!.remaining.floor()}s left',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
@@ -418,7 +464,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                               fontWeight: FontWeight.w700)),
                                       const SizedBox(height: 3),
                                       Text(
-                                          'Follow the glowing star • walk over coins',
+                                          _world.run == null
+                                              ? 'Bank coins • ${_world.map.friendName} bond ${_world.profile.rank(_world.map.adventure)}/3'
+                                              : 'Active-play timer • menus pause the run',
                                           style: const TextStyle(
                                               fontSize: 9, color: _teal)),
                                     ],
@@ -628,9 +676,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                             child: _Parchment(
                               padding: const EdgeInsets.all(14),
                               child: SingleChildScrollView(
-                                child: _panel == 'journal'
-                                    ? _journalCard()
-                                    : _encounterCard(),
+                                child: _panel == 'runresult'
+                                    ? _runResult()
+                                    : _panel == 'journal'
+                                        ? _journalCard()
+                                        : _encounterCard(),
                               ),
                             )),
                       ),
@@ -672,10 +722,47 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final p = _world.progress;
     String title, body, button;
     var actionable = false;
-    if (encounter == Encounter.cave) {
+    if (encounter == Encounter.tool) {
+      title = 'Trail shears';
+      body =
+          'A clearing tool for this island. Use it beside the overgrown vine gate, or explore another route.';
+      button = 'Take the shears';
+      actionable = true;
+    } else if (encounter == Encounter.vines) {
+      title = 'An overgrown path';
+      body = p.toolFound
+          ? 'Your shears can clear these vines. The opening stays clear on return visits.'
+          : 'Find the shears near camp, or walk around the tangled gate.';
+      button = 'Clear the vines';
+      actionable = p.toolFound;
+    } else if (encounter == Encounter.cache) {
+      title = 'A hidden seed cache';
+      body =
+          'Your scanner or companion found a cache: 3 Starlight and skyseeds for a creature favor. One cache per island.';
+      button = 'Open the cache';
+      actionable = !p.cacheOpened;
+    } else if (encounter == Encounter.glide) {
+      title = 'A short water crossing';
+      body =
+          'Your equipped Glider Cape carries you across this pond to the opposite safe bank. Land stays within the island.';
+      button = 'Glide to the far bank';
+      actionable = true;
+    } else if (encounter == Encounter.passageLeft ||
+        encounter == Encounter.passageRight) {
+      final branch = encounter == Encounter.passageLeft ? 1 : 2;
+      title = 'Light-locked chamber';
+      body = 'This gate’s rune points ${[
+        'north',
+        'east',
+        'south',
+        'west'
+      ][map.solution(branch)]}. Rotate the hub mirror to the same direction. Each branch holds cave crystals.';
+      button = 'Enter chamber ${branch + 1}';
+      actionable = p.mirror == map.solution(branch);
+    } else if (encounter == Encounter.cave) {
       title = 'Beneath the mountain';
       body =
-          'Step into the crystal chamber. Find three blue crystals, then bring their light to the ancient ruins.';
+          'Explore ${map.chambers} connected chambers. Align the hub’s light mirror with each gate rune to reach three crystals, then power the archive.';
       button = 'Explore the cave';
       actionable = true;
     } else if (encounter == Encounter.lodge) {
@@ -685,10 +772,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       button = 'Enter the lodge';
       actionable = true;
     } else if (encounter == Encounter.exitRoom) {
-      title = 'Back to the open sky';
+      title = _world.room == 1 && _world.chamber != 0
+          ? 'Back to the hub'
+          : 'Back to the open sky';
       body =
           'Your discoveries stay with this island. You can return whenever you like.';
-      button = 'Return outside';
+      button = _world.room == 1 && _world.chamber != 0
+          ? 'Return to cave hub'
+          : 'Return outside';
       actionable = true;
     } else if (encounter == Encounter.scout) {
       title = 'Wren, the island scout';
@@ -814,6 +905,24 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             icon: Icons.auto_awesome,
             onTap: _perform,
           ),
+        if (encounter == Encounter.friend && p.complete && _world.run == null)
+          Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _AdventureButton(
+                  label: p.favorGiven
+                      ? 'Favor remembered'
+                      : 'Give a skyseed · Bond rank ${_world.profile.rank(map.adventure)}/3',
+                  icon: Icons.favorite_rounded,
+                  onTap: p.favorGiven || _world.profile.seeds < 1
+                      ? null
+                      : () {
+                          if (EngagementRules.favor(_world)) {
+                            _game.refresh();
+                            _closePanel();
+                            _changed(
+                                '${map.friendName} remembers your gift. Bond rank ${_world.profile.rank(map.adventure)}/3!');
+                          }
+                        })),
         if (encounter == Encounter.friend && !p.listened)
           Padding(
             padding: const EdgeInsets.only(top: 10),
@@ -867,6 +976,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 12),
           Text(
+              '✦ ${_world.profile.coins} Starlight · ◈ ${_world.profile.cores} cores · ${_world.profile.seeds} skyseeds\n'
+              '${_world.map.condition}: ${_world.map.conditionHint}\n'
+              '${_world.map.friendName} bond rank ${_world.profile.rank(_world.map.adventure)}/3',
+              style: const TextStyle(fontSize: 12, color: _ink, height: 1.4)),
+          Text(
               'DISCOVERIES · ${_world.map.landform}\n'
               '${_world.progress.scoutMet ? '✓' : '○'} Meet Wren in the lodge\n'
               '${_world.progress.shards == 7 ? '✓' : '○'} Cave crystals ${_world.progress.shardCount}/3\n'
@@ -909,7 +1023,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                   button: true,
                   label: 'Visit island ${index + 1}',
                   child: GestureDetector(
-                    onTap: index == _world.islandIndex
+                    onTap: index == _world.islandIndex || _world.run != null
                         ? null
                         : () => _travel(index),
                     child: Container(
@@ -979,6 +1093,29 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           ),
         ],
       );
+
+  Widget _runResult() => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                _world.run!.won
+                    ? 'Trailblazer complete!'
+                    : 'The starlight settled',
+                style: const TextStyle(
+                    color: _ink, fontWeight: FontWeight.w800, fontSize: 21)),
+            const SizedBox(height: 10),
+            Text(
+                _world.run!.won
+                    ? 'Three islands restored in ${_world.run!.elapsed.toStringAsFixed(1)} seconds. Your first victory earns the permanent Trailblazer Cape, 24 Starlight and 2 cores. Later victories improve your best time.'
+                    : 'The optional 7-minute run ended. Your normal world and its progress are safe. You can try a new route from the lobby.',
+                style: const TextStyle(color: _ink, height: 1.4)),
+            const SizedBox(height: 12),
+            _AdventureButton(
+                label: 'Return to lobby',
+                icon: Icons.home_rounded,
+                onTap: _returnToLobby),
+          ]);
 }
 
 class _Parchment extends StatelessWidget {

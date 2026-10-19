@@ -73,6 +73,37 @@ class _LobbyScreenState extends State<LobbyScreen> {
     }
   }
 
+  Future<void> launchRun() async {
+    if (busy || world.highestUnlocked < 3) return;
+    setState(() => busy = true);
+    try {
+      world.profile.runsStarted++;
+      await widget.saves.save(world);
+      final expedition = WorldState(
+          seed: (world.seed + world.profile.runsStarted * 7919) & 0x7fffffff,
+          islandIndex: 3,
+          highestUnlocked: 3,
+          highestVisited: 3,
+          character: world.character,
+          sound: world.sound,
+          calm: world.calm,
+          guide: world.guide,
+          profile: world.profile,
+          run: TrailRun());
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(MaterialPageRoute(
+          builder: (_) =>
+              GameScreen(saves: widget.saves, loaded: LoadResult(expedition))));
+      await widget.saves.save(world);
+    } catch (_) {
+      if (mounted) {
+        setState(() => error = 'Could not save the expedition. Please retry.');
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         backgroundColor: _night,
@@ -97,7 +128,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
                         fontWeight: FontWeight.w900,
                         letterSpacing: 2)),
                 const Spacer(),
-                Text('${world.kindnessCount} islands restored',
+                Text('✦ ${world.profile.coins}  ◈ ${world.profile.cores}',
                     style: const TextStyle(color: _cream, fontSize: 11)),
               ]),
               const SizedBox(height: 10),
@@ -172,12 +203,15 @@ class _LobbyScreenState extends State<LobbyScreen> {
                               borderRadius: BorderRadius.circular(20)),
                           padding: const EdgeInsets.all(15),
                           child: SingleChildScrollView(
+                              key: ValueKey('lobby-content-$tab'),
                               child: switch (tab) {
-                            1 => explorers(),
-                            2 => settings(),
-                            3 => islands(),
-                            _ => adventure(),
-                          }),
+                                1 => explorers(),
+                                2 => settings(),
+                                3 => islands(),
+                                4 => workshop(),
+                                5 => trailblazer(),
+                                _ => adventure(),
+                              }),
                         )),
                   ])),
               if (error != null)
@@ -230,6 +264,20 @@ class _LobbyScreenState extends State<LobbyScreen> {
       Text('Main adventure: ${map.title}',
           style: const TextStyle(
               fontSize: 12, fontWeight: FontWeight.w700, color: _night)),
+      const SizedBox(height: 8),
+      Text('${map.condition} · ${map.conditionHint}',
+          style: const TextStyle(fontSize: 12, color: _night)),
+      const SizedBox(height: 12),
+      FilledButton.icon(
+          key: const ValueKey('open-workshop'),
+          onPressed: busy ? null : () => setState(() => tab = 4),
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('Loom & Workshop')),
+      OutlinedButton.icon(
+          key: const ValueKey('open-trailblazer'),
+          onPressed: busy ? null : () => setState(() => tab = 5),
+          icon: const Icon(Icons.route),
+          label: const Text('Trailblazer Runs')),
       if (widget.loaded.notice != null)
         Padding(
             padding: const EdgeInsets.only(top: 10),
@@ -293,6 +341,99 @@ class _LobbyScreenState extends State<LobbyScreen> {
                   ]),
                 ),
               )),
+      ]);
+
+  Widget workshop() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        heading('Loom & Workshop',
+            '✦ ${world.profile.coins} Starlight · ◈ ${world.profile.cores} cores · ${world.profile.seeds} skyseeds\nUnlocks last across all islands on this device.'),
+        const Text(
+            'Every 12-coin collection earns one core. Restored archives widen coin pickup range (up to 52) and reveal caches.',
+            style: TextStyle(fontSize: 11, color: _night)),
+        for (final item in WorkshopItem.values)
+          Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, color: _night)),
+                    Text(item.description,
+                        style: const TextStyle(fontSize: 11, color: _night)),
+                    TextButton(
+                        key: ValueKey('workshop-${item.index}'),
+                        onPressed: busy
+                            ? null
+                            : world.profile.owns(item)
+                                ? () {
+                                    setState(() => world.profile.equip(item));
+                                    persist();
+                                  }
+                                : item == WorkshopItem.runnerCape ||
+                                        world.profile.coins < item.coins ||
+                                        world.profile.cores < item.cores
+                                    ? null
+                                    : () {
+                                        setState(
+                                            () => world.profile.purchase(item));
+                                        persist();
+                                      },
+                        child: Text(world.profile.owns(item)
+                            ? 'Equip / toggle'
+                            : item == WorkshopItem.runnerCape
+                                ? 'Finish Trailblazer to earn'
+                                : 'Unlock · ${item.coins} Starlight + ${item.cores} cores')),
+                  ])),
+        TextButton(
+            onPressed: () {
+              setState(() {
+                world.profile.cape = 0;
+                world.profile.trail = false;
+                world.profile.hat = false;
+              });
+              persist();
+            },
+            child: const Text('Unequip accessories')),
+        const Divider(),
+        const Text('COMPANION BONDS',
+            style: TextStyle(color: _night, fontWeight: FontWeight.w800)),
+        for (final creature in Adventure.values)
+          Text(
+              '${[
+                'Pip',
+                'Luma',
+                'Moss'
+              ][creature.index]} · Rank ${world.profile.rank(creature)}/3 · ${world.profile.bonds[creature.index]} kindness\n'
+              '${[
+                'Rain gifts bonus Starlight at rank 2.',
+                'Rank 2 lights twilight mist and reveals caches.',
+                'Rank 2 uncovers seed caches.'
+              ][creature.index]}',
+              style: const TextStyle(fontSize: 11, height: 1.5, color: _night)),
+        const Text(
+            'Earn kindness by restoring a main wonder and giving one skyseed favor per island. Rank 2 needs 2 kindness; rank 3 needs 4.',
+            style: TextStyle(fontSize: 11, height: 1.5, color: _night)),
+      ]);
+
+  Widget trailblazer() =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        heading('Trailblazer Runs',
+            'Optional three-island expeditions. Your normal world stays safe.'),
+        const Text(
+            'Restore three wonders within 7 minutes of active play. Menus and background time pause the clock. Each attempt uses a new seed and island conditions.\n\nFirst victory earns the permanent Trailblazer Cape, 24 Starlight, and 2 cores. Later victories improve your best time; normal pickups are not banked during a run. Leaving or restarting ends an unfinished run.',
+            style: TextStyle(fontSize: 12, height: 1.5, color: _night)),
+        if (world.profile.bestRunMillis > 0)
+          Text(
+              'Best: ${(world.profile.bestRunMillis / 1000).toStringAsFixed(1)} seconds',
+              style: const TextStyle(color: _night)),
+        const SizedBox(height: 12),
+        FilledButton(
+            key: const ValueKey('start-trailblazer'),
+            onPressed: busy || world.highestUnlocked < 3 ? null : launchRun,
+            child: Text(world.highestUnlocked < 3
+                ? 'Restore 3 islands to unlock'
+                : 'Start 3-island run')),
       ]);
 
   Widget settings() =>

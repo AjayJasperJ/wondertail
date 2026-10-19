@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+part 'progression.dart';
+part 'engagement_rules.dart';
+
 class Point2 {
   const Point2(this.x, this.y);
   final double x;
@@ -16,6 +19,8 @@ enum Biome { meadow, twilight, coral }
 
 enum Adventure { rain, lantern, garden }
 
+enum IslandMutator { calm, breeze, mist, overgrowth }
+
 enum Encounter {
   friend,
   wonder,
@@ -27,7 +32,14 @@ enum Encounter {
   lodge,
   ruins,
   exitRoom,
-  scout
+  scout,
+  tool,
+  vines,
+  cache,
+  mirror,
+  passageLeft,
+  passageRight,
+  glide
 }
 
 class IslandProgress {
@@ -40,9 +52,16 @@ class IslandProgress {
     this.shards = 0,
     this.scoutMet = false,
     this.ruinsRestored = false,
+    this.favorGiven = false,
+    this.cacheOpened = false,
+    this.vinesCleared = false,
+    this.toolFound = false,
+    this.mirror = 0,
   });
   int shards;
   bool scoutMet, ruinsRestored;
+  bool favorGiven, cacheOpened, vinesCleared, toolFound;
+  int mirror;
   int get shardCount => shards.toRadixString(2).replaceAll('0', '').length;
   int coins;
   int get coinCount => coins.toRadixString(2).replaceAll('0', '').length;
@@ -62,11 +81,28 @@ class IslandProgress {
         'shards': shards,
         'scoutMet': scoutMet,
         'ruinsRestored': ruinsRestored,
+        'favorGiven': favorGiven,
+        'cacheOpened': cacheOpened,
+        'vinesCleared': vinesCleared,
+        'toolFound': toolFound,
+        'mirror': mirror,
       };
   factory IslandProgress.fromJson(Map<String, dynamic> json) {
     final shards = json['shards'] ?? 0;
     final scout = json['scoutMet'] ?? false;
     final ruins = json['ruinsRestored'] ?? false;
+    for (final key in [
+      'favorGiven',
+      'cacheOpened',
+      'vinesCleared',
+      'toolFound'
+    ]) {
+      if ((json[key] ?? false) is! bool) throw FormatException('Invalid $key.');
+    }
+    final mirror = json['mirror'] ?? 0;
+    if (mirror is! int || mirror < 0 || mirror > 3) {
+      throw const FormatException('Invalid mirror.');
+    }
     if (shards is! int ||
         shards < 0 ||
         shards > 7 ||
@@ -99,6 +135,11 @@ class IslandProgress {
       shards: shards,
       scoutMet: scout,
       ruinsRestored: ruins,
+      favorGiven: json['favorGiven'] ?? false,
+      cacheOpened: json['cacheOpened'] ?? false,
+      vinesCleared: json['vinesCleared'] ?? false,
+      toolFound: json['toolFound'] ?? false,
+      mirror: mirror,
       coins: coins,
       stage: stage,
       collected: collected,
@@ -123,8 +164,11 @@ class WorldState {
     double? x,
     double? y,
     IslandProgress? progress,
-  }) : progress = progress ?? IslandProgress() {
-    map = IslandMap.generate(seed, islandIndex);
+    PlayerProfile? profile,
+    this.run,
+  })  : profile = profile ?? PlayerProfile(),
+        progress = progress ?? IslandProgress() {
+    map = IslandMap.generate(seed, islandIndex, compact: run != null);
     this.x = x ?? map.arrival.x;
     this.y = y ?? map.arrival.y;
   }
@@ -133,6 +177,9 @@ class WorldState {
   int character;
   bool sound, calm, guide;
   int room = 0; // 0 outdoors, 1 crystal cave, 2 scout lodge.
+  int chamber = 0;
+  final PlayerProfile profile;
+  final TrailRun? run;
   final int seed;
   int islandIndex;
   int highestUnlocked;
@@ -145,13 +192,15 @@ class WorldState {
   int get kindnessCount => highestUnlocked;
 
   bool travel(int index, IslandProgress memory) {
+    if (run != null && (index != islandIndex + 1 || index > 5)) return false;
     if (index < 0 || index > highestUnlocked || index == islandIndex) {
       return false;
     }
     room = 0;
+    chamber = 0;
     islandIndex = index;
     highestVisited = math.max(highestVisited, index);
-    map = IslandMap.generate(seed, index);
+    map = IslandMap.generate(seed, index, compact: run != null);
     progress = memory;
     x = map.arrival.x;
     y = map.arrival.y;
@@ -169,6 +218,7 @@ class WorldState {
         'sound': sound,
         'calm': calm,
         'guide': guide,
+        'profile': profile.toJson(),
         'x': room == 0 ? x : (room == 1 ? map.cave.x : map.lodge.x),
         'y': room == 0 ? y : (room == 1 ? map.cave.y : map.lodge.y),
       };
@@ -232,6 +282,7 @@ class WorldState {
       x: (json['x'] as num).toDouble(),
       y: (json['y'] as num).toDouble(),
       progress: IslandProgress.fromJson(progress),
+      profile: PlayerProfile.fromJson(json['profile']),
     );
     if (!world.map.canStand(world.position)) {
       world.x = world.map.arrival.x;
@@ -313,6 +364,8 @@ class Obstacle {
 
 class IslandMap {
   IslandMap._({
+    required this.variationSeed,
+    this.compact = false,
     required this.index,
     required this.name,
     required this.biome,
@@ -326,6 +379,8 @@ class IslandMap {
     required this.trees,
   });
   final int index;
+  final int variationSeed;
+  final bool compact;
   final String name;
   final Biome biome;
   final Adventure adventure;
@@ -340,8 +395,10 @@ class IslandMap {
   static const radiusX = 440.0;
   static const radiusY = 330.0;
   static const playerRadius = 13.0;
-  double get scaleX => [1.0, 1.32, 0.94, 1.18, 1.42][index % 5];
-  double get scaleY => [1.0, 0.94, 1.26, 1.18, 1.08][index % 5];
+  double get scaleX =>
+      [1.0, 1.32, 0.94, 1.18, 1.42][index % 5] * (compact ? 0.82 : 1);
+  double get scaleY =>
+      [1.0, 0.94, 1.26, 1.18, 1.08][index % 5] * (compact ? 0.82 : 1);
   String get landform => [
         'Three Capes',
         'Long Ridge',
@@ -371,7 +428,7 @@ class IslandMap {
               math.sin(angle) * (radiusY * scaleY * coast(angle) - inset) +
               drop);
 
-  factory IslandMap.generate(int seed, int index) {
+  factory IslandMap.generate(int seed, int index, {bool compact = false}) {
     // Bounded integer arithmetic is identical on Dart VM and JavaScript.
     final random = SeededRandom((seed + index * 104729) & 0x7fffffff);
     final biome = Biome.values[(index + (index ~/ 9) + seed % 3) % 3];
@@ -454,6 +511,8 @@ class IslandMap {
         ? 'Little Drift'
         : '${prefixes[random.nextInt(prefixes.length)]} ${suffixes[random.nextInt(suffixes.length)]}';
     final map = IslandMap._(
+      variationSeed: seed,
+      compact: compact,
       index: index,
       name: name,
       biome: biome,
@@ -468,6 +527,8 @@ class IslandMap {
     );
     Point2 scaled(Point2 p) => map.terrainPoint(p);
     final result = IslandMap._(
+      variationSeed: seed,
+      compact: compact,
       index: index,
       name: name,
       biome: biome,
@@ -639,11 +700,13 @@ class WorldRules {
     var count = 0;
     for (var i = 0; i < world.map.coins.length; i++) {
       if ((world.progress.coins & (1 << i)) == 0 &&
-          world.position.distanceTo(world.map.coins[i]) < 28) {
+          world.position.distanceTo(world.map.coins[i]) <
+              world.profile.coinRadius) {
         world.progress.coins |= 1 << i;
         count++;
       }
     }
+    world.profile.reconcile(world);
     return count;
   }
 
@@ -663,14 +726,22 @@ class WorldRules {
         Encounter.lodge => world.map.lodge,
         Encounter.ruins => world.map.ruins,
         Encounter.exitRoom => roomExit,
-        Encounter.scout => scoutPosition,
+        Encounter.scout => world.map.scoutPoint,
+        Encounter.tool => world.map.shears,
+        Encounter.vines => world.map.vineGate,
+        Encounter.cache => world.map.hiddenCache,
+        Encounter.mirror => world.map.mirrorPoint,
+        Encounter.passageLeft => const Point2(475, 500),
+        Encounter.passageRight => const Point2(805, 500),
+        Encounter.glide => world.position,
         _ => world.map.collectibles[bedIndex(encounter)!],
       };
   static bool collectShards(WorldState world) {
     if (world.room != 1) return false;
     final before = world.progress.shards;
     for (var i = 0; i < 3; i++) {
-      if (world.position.distanceTo(caveCrystals[i]) < 35) {
+      if (world.map.crystalRoom(i) == world.chamber &&
+          world.position.distanceTo(world.map.crystalPoint(i)) < 35) {
         world.progress.shards |= 1 << i;
       }
     }
@@ -681,7 +752,7 @@ class WorldRules {
     if (world.room == 1) {
       return world.progress.shards == 7
           ? 'Return outside · restore the ancient ruins'
-          : 'Explore the cave · crystals ${world.progress.shardCount}/3';
+          : 'Chamber ${world.chamber + 1}/${world.map.chambers} · crystals ${world.progress.shardCount}/3 · align the mirror to open branches';
     }
     if (world.room == 2) {
       return world.progress.scoutMet
@@ -694,18 +765,22 @@ class WorldRules {
       case Adventure.rain:
         if (p.stage == 0) return 'Free Pip from the crystal';
         if (p.stage == 1) return 'Pip is waking the island with rain…';
-        if (p.count < 3) return 'Find sunseeds · ${p.count}/3';
+        if (p.count < 3) {
+          return world.map.variant == 2
+              ? 'Gather sunseed ${world.map.collectionOrder[p.count] + 1} · press the action beside it'
+              : 'Find sunseeds · ${p.count}/3';
+        }
         return 'Bring your sunseeds to the grove';
       case Adventure.lantern:
         if (p.count < 3) {
-          return 'Follow the lights in order · next: ${p.count + 1}';
+          return 'Follow the lights · next: ${world.map.collectionOrder[p.count] + 1}';
         }
         if (p.stage == 0) return 'Bring the lights back to Luma';
         return 'Kindle the star lantern';
       case Adventure.garden:
         if (p.stage == 0) return 'Meet Moss, the wandering turtle';
         if (p.stage == 1) return 'Fill your can at the sleepy garden';
-        return 'Plant the glowing seed beds · ${p.count}/3';
+        return 'Plant bed ${world.map.collectionOrder[p.count] + 1} · ${p.count}/3';
     }
   }
 
@@ -717,22 +792,37 @@ class WorldRules {
 
   static Point2 target(WorldState world) {
     if (world.room == 2) {
-      return world.progress.scoutMet ? roomExit : scoutPosition;
+      return world.progress.scoutMet ? roomExit : world.map.scoutPoint;
     }
     if (world.room == 1) {
       for (var i = 0; i < 3; i++) {
-        if ((world.progress.shards & (1 << i)) == 0) return caveCrystals[i];
+        if ((world.progress.shards & (1 << i)) == 0 &&
+            world.map.crystalRoom(i) == world.chamber) {
+          return world.map.crystalPoint(i);
+        }
+      }
+      if (world.chamber == 0 && world.progress.shards != 7) {
+        return world.map.mirrorPoint;
       }
       return roomExit;
     }
     final p = world.progress;
-    if (p.complete) return world.map.gate;
+    if (p.complete) {
+      if (world.profile.archives > 0 && !p.cacheOpened && world.run == null) {
+        return world.map.hiddenCache;
+      }
+      return world.map.gate;
+    }
     if (itemsActive(world) && p.count < 3) {
       var target = world.map.collectibles.first;
       var distance = double.infinity;
       for (var i = 0; i < 3; i++) {
         if ((p.collected & (1 << i)) != 0) continue;
-        if (world.map.adventure == Adventure.lantern && i != p.count) continue;
+        if ((world.map.adventure == Adventure.lantern ||
+                world.map.variant != 0) &&
+            i != world.map.collectionOrder[p.count]) {
+          continue;
+        }
         final d = world.position.distanceTo(world.map.collectibles[i]);
         if (d < distance) {
           distance = d;
@@ -747,11 +837,43 @@ class WorldRules {
 
   static Encounter? nearby(WorldState world) {
     if (world.room != 0) {
+      final special = EngagementRules.nearby(world);
+      if (special != null) return special;
       if (world.position.distanceTo(roomExit) < 65) return Encounter.exitRoom;
-      if (world.room == 2 && world.position.distanceTo(scoutPosition) < 80) {
+      if (world.room == 2 &&
+          world.position.distanceTo(world.map.scoutPoint) < 80) {
         return Encounter.scout;
       }
       return null;
+    }
+    if ((world.map.adventure == Adventure.garden &&
+            world.progress.stage == 2) ||
+        (world.map.adventure == Adventure.rain &&
+            world.map.variant == 2 &&
+            world.progress.stage == 2)) {
+      for (var i = 0; i < 3; i++) {
+        if ((world.progress.collected & (1 << i)) == 0 &&
+            world.position.distanceTo(world.map.collectibles[i]) < 70) {
+          return Encounter.values[3 + i];
+        }
+      }
+    }
+    final position = world.position;
+    if (world.progress.stage == 0 &&
+        position.distanceTo(world.map.friend) < 88 &&
+        (world.map.adventure != Adventure.lantern ||
+            world.progress.count == 3)) {
+      return Encounter.friend;
+    }
+    if (position.distanceTo(world.map.wonder) < 88 &&
+        !world.progress.complete &&
+        (world.progress.count == 3 ||
+            (world.map.adventure == Adventure.garden &&
+                world.progress.stage == 1))) {
+      return Encounter.wonder;
+    }
+    if (world.progress.complete && position.distanceTo(world.map.gate) < 88) {
+      return Encounter.gate;
     }
     for (final encounter in [
       Encounter.cave,
@@ -762,15 +884,8 @@ class WorldRules {
         return encounter;
       }
     }
-    if (world.map.adventure == Adventure.garden && world.progress.stage == 2) {
-      for (var i = 0; i < 3; i++) {
-        if ((world.progress.collected & (1 << i)) == 0 &&
-            world.position.distanceTo(world.map.collectibles[i]) < 70) {
-          return Encounter.values[3 + i];
-        }
-      }
-    }
-    final position = world.position;
+    final special = EngagementRules.nearby(world);
+    if (special != null) return special;
     if (position.distanceTo(world.map.friend) < 88) return Encounter.friend;
     if (position.distanceTo(world.map.wonder) < 88) return Encounter.wonder;
     if (position.distanceTo(world.map.gate) < 88) return Encounter.gate;
@@ -790,14 +905,22 @@ class WorldRules {
 
   static bool act(WorldState world, Encounter encounter) {
     if (nearby(world) != encounter) return false;
+    if (EngagementRules.act(world, encounter)) return true;
     final p = world.progress;
     if (encounter == Encounter.cave || encounter == Encounter.lodge) {
       world.room = encounter == Encounter.cave ? 1 : 2;
+      world.chamber = 0;
       world.x = 640;
       world.y = 610;
       return true;
     }
     if (encounter == Encounter.exitRoom) {
+      if (world.room == 1 && world.chamber != 0) {
+        world.chamber = 0;
+        world.x = 640;
+        world.y = 610;
+        return true;
+      }
       final exit = world.room == 1 ? world.map.cave : world.map.lodge;
       world.room = 0;
       world.x = exit.x;
@@ -810,6 +933,7 @@ class WorldRules {
     }
     if (encounter == Encounter.ruins && p.shards == 7 && !p.ruinsRestored) {
       p.ruinsRestored = true;
+      world.profile.reconcile(world);
       return true;
     }
     if (encounter == Encounter.friend && p.stage == 0) {
@@ -819,8 +943,19 @@ class WorldRules {
     }
     final bed = bedIndex(encounter);
     if (bed != null &&
+        world.map.adventure == Adventure.rain &&
+        world.map.variant == 2 &&
+        p.stage == 2 &&
+        p.count < 3 &&
+        bed == world.map.collectionOrder[p.count]) {
+      p.collected |= 1 << bed;
+      return true;
+    }
+    if (bed != null &&
         world.map.adventure == Adventure.garden &&
         p.stage == 2 &&
+        (world.map.variant == 0 ||
+            (p.count < 3 && bed == world.map.collectionOrder[p.count])) &&
         (p.collected & (1 << bed)) == 0) {
       p.collected |= 1 << bed;
       if (p.count == 3) {
@@ -829,6 +964,7 @@ class WorldRules {
           world.highestUnlocked,
           world.islandIndex + 1,
         );
+        world.profile.reconcile(world);
       }
       return true;
     }
@@ -848,6 +984,7 @@ class WorldRules {
         world.highestUnlocked,
         world.islandIndex + 1,
       );
+      world.profile.reconcile(world);
       return true;
     }
     return false;
@@ -856,6 +993,9 @@ class WorldRules {
   /// Returns collected item indices; persistence/UI are updated only on change.
   static List<int> collect(WorldState world) {
     if (world.room != 0) return const [];
+    if (world.map.adventure == Adventure.rain && world.map.variant == 2) {
+      return const [];
+    }
     if (world.map.adventure == Adventure.garden ||
         !itemsActive(world) ||
         world.progress.count == 3) {
@@ -863,8 +1003,9 @@ class WorldRules {
     }
     List<int> collected = const [];
     for (var i = 0; i < 3; i++) {
+      if (world.progress.count == 3) break;
       if (world.map.adventure == Adventure.lantern &&
-          i != world.progress.count) {
+          i != world.map.collectionOrder[world.progress.count]) {
         continue;
       }
       if ((world.progress.collected & (1 << i)) == 0 &&
@@ -886,6 +1027,7 @@ class WorldRules {
     p.rainTime = (p.rainTime + dt).clamp(0, 2.4);
     if (p.rainTime < 2.4) return false;
     p.stage = 2;
+    world.profile.reconcile(world);
     return true;
   }
 
@@ -903,16 +1045,24 @@ class WorldRules {
     if (length < 0.001) return false;
     final duration = seconds.clamp(0.0, 0.15);
     final steps = math.max(1, (duration / (1 / 90)).ceil());
-    final delta = Point2(dx, dy) *
+    var delta = Point2(dx, dy) *
         ((sprint ? 260 : 205) * duration / steps / math.max(1, length));
+    if (world.room == 0 &&
+        world.map.mutator == IslandMutator.breeze &&
+        world.position.distanceTo(world.map.windLane) < 110) {
+      delta = delta * 1.35 + Point2(35 * duration / steps, 0);
+    }
     final before = world.position;
     var position = before;
     for (var i = 0; i < steps; i++) {
       if (world.room == 0) {
-        position = world.map.slide(position, delta);
+        final next = world.map.slide(position, delta);
+        position = EngagementRules.passable(world, next) ? next : position;
       } else {
-        position = Point2((position.x + delta.x).clamp(437, 843),
-            (position.y + delta.y).clamp(297, 707));
+        final inset = world.map.inset(world.chamber);
+        position = Point2(
+            (position.x + delta.x).clamp(437 + inset, 843 - inset),
+            (position.y + delta.y).clamp(297 + inset, 707));
       }
     }
     world.x = position.x;

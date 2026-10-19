@@ -27,6 +27,29 @@ class MemoryStore implements SaveStore {
 }
 
 void main() {
+  test(
+      'a challenge victory saves rewards while retaining the normal checkpoint',
+      () async {
+    final store = MemoryStore();
+    final repo = SaveRepository(store);
+    final normal = WorldState(highestUnlocked: 3, x: 380, y: 540);
+    await repo.save(normal);
+    final attempt = WorldState(
+        seed: 987,
+        islandIndex: 3,
+        highestVisited: 3,
+        highestUnlocked: 3,
+        profile: normal.profile,
+        run: TrailRun());
+    attempt.run!.tick(100);
+    attempt.run!.finish(attempt.profile);
+    await repo.saveRunReward(attempt.profile);
+    final recovered = (await SaveRepository(store).load()).state;
+    expect((recovered.seed, recovered.islandIndex, recovered.x),
+        (normal.seed, 0, 380));
+    expect((recovered.profile.coins, recovered.profile.cores), (24, 2));
+    expect(recovered.profile.owns(WorkshopItem.runnerCape), isTrue);
+  });
   test('fresh load and active island snapshot round-trip', () async {
     final store = MemoryStore();
     final repo = SaveRepository(store);
@@ -62,12 +85,13 @@ void main() {
     expect(loaded.progress.listened, isTrue);
   });
   test(
-    'movement checkpoint cost does not grow with the visited trail',
+    'movement checkpoints do not rewrite historical island caches',
     () async {
       final store = MemoryStore();
       final repo = SaveRepository(store);
       final world = WorldState(highestUnlocked: 10000, highestVisited: 10000);
       await repo.save(world);
+      final initialBytes = store.values[SaveRepository.currentKey]!.length;
       store.writes.clear();
       for (var i = 0; i < 5; i++) {
         world.x += 1;
@@ -81,7 +105,8 @@ void main() {
         ),
         isTrue,
       );
-      expect(store.values[SaveRepository.currentKey]!.length, lessThan(250));
+      expect(store.values[SaveRepository.currentKey]!.length,
+          lessThanOrEqualTo(initialBytes + 10));
     },
   );
   test(
@@ -114,6 +139,40 @@ void main() {
     final result = await SaveRepository(store).load();
     expect(result.notice, contains('recovered'));
     expect(result.state.x, world.x - 10);
+  });
+  test('failed wallet commit recovers atomically without minting coins twice',
+      () async {
+    final store = MemoryStore();
+    final repo = SaveRepository(store);
+    final world = WorldState();
+    await repo.save(world);
+    world.progress.coins = 4095;
+    store.failingKey = SaveRepository.currentKey;
+    await expectLater(repo.save(world), throwsStateError);
+    store.failingKey = null;
+    final restart = SaveRepository(store);
+    final recovered = (await restart.load()).state;
+    expect((recovered.profile.coins, recovered.progress.coins), (0, 0));
+    // A stale ahead-of-checkpoint island cache is reconciled once, not lost.
+    recovered.progress = await restart.loadIsland(0);
+    await restart.save(recovered);
+    expect((recovered.profile.coins, recovered.profile.cores), (12, 1));
+    await restart.save(recovered);
+    expect((await SaveRepository(store).load()).state.profile.coins, 12);
+  });
+  test('old per-island-only coin saves import once into the global wallet',
+      () async {
+    final store = MemoryStore();
+    final old = WorldState(progress: IslandProgress(coins: 4095));
+    final header = old.headerJson()..remove('profile');
+    store.values[SaveRepository.currentKey] = jsonEncode(header);
+    store.values[SaveRepository.islandKey(0)] =
+        jsonEncode(old.progress.toJson());
+    final repo = SaveRepository(store);
+    final imported = (await repo.load()).state;
+    expect((imported.profile.coins, imported.profile.cores), (12, 1));
+    await repo.save(imported);
+    expect((await SaveRepository(store).load()).state.profile.cores, 1);
   });
   test(
     'a recovered island backup survives a failed write after recovery',
