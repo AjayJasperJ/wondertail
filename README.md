@@ -2,7 +2,7 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**Current version: 0.7.0** · Flutter + Flame · Android and web
+**Current version: 0.8.0** · Flutter + Flame · Android and web
 
 Explore islands, help Pip, Luma and Moss, solve cave light-gate puzzles, and restore
 ancient archives. Bank Starlight, earn cores, and unlock permanent equipment in
@@ -13,6 +13,12 @@ active-play clock.
 The Super-Adventure update adds health, stamina, double jumps, lava, chasers,
 close-range combat, a persistent backpack, lodge crafting, and three puzzle-gate
 families. Recover at camp without losing your bag when health runs out.
+
+The v0.8 expansion adds directional weapon combos, ranged projectiles, tactical
+throwables and powers, forage creatures, flying/burrowing hunters and vault
+guardians. Beyond the introduction, new islands expand to three times the width
+and height, with desert, snow, underground, volcanic and celestial realms.
+Existing saves retain their visited layouts; expansion starts beyond their frontier.
 
 ## Play
 
@@ -35,6 +41,9 @@ explorer selection, settings, the Loom & Workshop, and Trailblazer Runs.
 Touch: analog stick, context action, and bottom bag/jump/attack/sprint controls.
 Keyboard: WASD/arrows, Shift to sprint, Space to jump (again for double jump),
 F to attack, E to interact, B for backpack, J for journal, Escape to close a card.
+Q cycles weapons; G throws, R activates a power, I explores nearby secrets or
+forage creatures and builds a bridge when materials are available. Tap the world
+to aim. Tap bottom-center slots to cycle weapon, throwable and power selection.
 
 ## What's included
 
@@ -53,6 +62,10 @@ F to attack, E to interact, B for backpack, J for journal, Escape to close a car
 - Mountain/building/trunk foot colliders and distinct explorer movement/body stats.
 - Gather crystals/herbs; craft health tonics, stamina boosters and a guard charm.
 - Seeded rope, maze and four-color puzzle gates; an optional maze timer.
+- Six weapons, three throwables, three energy powers, lodge gear crafting,
+  weight limits, and eight biome identities with progress-driven seasons.
+- Animated lava channels, craftable crossings, slippery snow and cold exposure,
+  capped biome mobs, hidden switches, lore and explorable guarded vaults.
 
 The island sequence has no authored ending, but its mechanics and modular rooms
 come from a finite content library. Progress and unlocks are shared across
@@ -86,7 +99,8 @@ flutter test
 Keep release history in [CHANGELOG.md](CHANGELOG.md), not in this README.
 Every version bump must have a changelog entry; CI verifies this.
 
-- [v0.7 gameplay, rules and limits](docs/SUPER_ADVENTURE_V0.7.md)
+- [v0.8 gameplay, equipment, migration and limits](docs/ULTIMATE_OVERHAUL_V0.8.md)
+- [v0.7 gameplay foundation](docs/SUPER_ADVENTURE_V0.7.md)
 - [v0.5 progression and save details](docs/ENGAGEMENT_UPDATE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Playtest checklist](docs/PLAYTEST_CHECKLIST.md)

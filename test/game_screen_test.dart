@@ -26,6 +26,39 @@ Future<void> frames(WidgetTester tester, [int count = 12]) async {
 }
 
 void main() {
+  testWidgets('tactical HUD stays below play and right controls operate gear',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final w = WorldState();
+    await tester.pumpWidget(WondertailApp(
+        startInGame: true,
+        saves: SaveRepository(_Store()),
+        loaded: LoadResult(w)));
+    await frames(tester);
+    final hud = tester.getRect(find.byKey(const ValueKey('tactical-hud')));
+    final stick =
+        tester.getRect(find.byKey(const ValueKey('movement-joystick')));
+    final attack = tester.getRect(find.byTooltip('Attack'));
+    expect(hud.height, lessThan(100));
+    expect(hud.top, greaterThan(250));
+    expect(stick.right, lessThan(hud.left));
+    expect(hud.right, lessThan(attack.left));
+    await tester.tap(find.byTooltip('Throw tactical gear'));
+    await frames(tester, 2);
+    expect(w.loadout.supplies[0], 2);
+    await tester.tap(find.byTooltip('Activate power'));
+    await frames(tester, 2);
+    expect(w.loadout.energy, lessThan(70));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ);
+    await frames(tester, 2);
+    expect(w.loadout.weapon, Weapon.slingshot);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('bottom action controls jump and backpack pauses play',
       (tester) async {
     tester.view.physicalSize = const Size(640, 360);

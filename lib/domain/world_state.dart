@@ -4,6 +4,9 @@ import 'dart:math' as math;
 part 'progression.dart';
 part 'engagement_rules.dart';
 part 'adventure_system.dart';
+part 'combat_system.dart';
+part 'mob_ai.dart';
+part 'world_generator.dart';
 
 class Point2 {
   const Point2(this.x, this.y);
@@ -16,7 +19,16 @@ class Point2 {
   double distanceTo(Point2 other) => (this - other).length;
 }
 
-enum Biome { meadow, twilight, coral }
+enum Biome {
+  meadow,
+  twilight,
+  coral,
+  desert,
+  winter,
+  underground,
+  devils,
+  heaven
+}
 
 enum Adventure { rain, lantern, garden }
 
@@ -60,6 +72,7 @@ class IslandProgress {
     this.mirror = 0,
     this.gathered = 0,
     this.puzzleCleared = false,
+    this.secrets = 0,
   });
   int shards;
   bool scoutMet, ruinsRestored;
@@ -67,6 +80,7 @@ class IslandProgress {
   int mirror;
   int gathered;
   bool puzzleCleared;
+  int secrets;
   int get shardCount => shards.toRadixString(2).replaceAll('0', '').length;
   int coins;
   int get coinCount => coins.toRadixString(2).replaceAll('0', '').length;
@@ -93,6 +107,7 @@ class IslandProgress {
         'mirror': mirror,
         'gathered': gathered,
         'puzzleCleared': puzzleCleared,
+        'secrets': secrets,
       };
   factory IslandProgress.fromJson(Map<String, dynamic> json) {
     final shards = json['shards'] ?? 0;
@@ -109,6 +124,10 @@ class IslandProgress {
     final mirror = json['mirror'] ?? 0;
     final gathered = json['gathered'] ?? 0;
     final puzzle = json['puzzleCleared'] ?? false;
+    final secrets = json['secrets'] ?? 0;
+    if (secrets is! int || secrets < 0 || secrets > 255) {
+      throw const FormatException('Invalid secrets.');
+    }
     if (gathered is! int || gathered < 0 || gathered > 63 || puzzle is! bool) {
       throw const FormatException('Invalid adventure memory.');
     }
@@ -154,6 +173,7 @@ class IslandProgress {
       mirror: mirror,
       gathered: gathered,
       puzzleCleared: puzzle,
+      secrets: secrets,
       coins: coins,
       stage: stage,
       collected: collected,
@@ -182,16 +202,31 @@ class WorldState {
     this.run,
     ExpeditionBag? bag,
     PlayerVitals? vitals,
+    CombatLoadout? loadout,
+    this.expansionStart = 3,
   })  : profile = profile ?? PlayerProfile(),
+        loadout = loadout ?? CombatLoadout(),
         bag = bag ?? ExpeditionBag(),
         vitals = vitals ?? PlayerVitals(),
         progress = progress ?? IslandProgress() {
-    map = IslandMap.generate(seed, islandIndex, compact: run != null);
+    map = IslandMap.generate(seed, islandIndex,
+        compact: run != null,
+        expanded: run == null && islandIndex >= expansionStart);
+    this.vitals.maxHealth = ExplorerStats.forCharacter(character).maxHealth;
+    this.vitals.health = vitals == null
+        ? this.vitals.maxHealth
+        : this.vitals.health.clamp(0, this.vitals.maxHealth);
     this.x = x ?? map.arrival.x;
     this.y = y ?? map.arrival.y;
   }
   static const schemaVersion = 2;
-  static const generatorVersion = 4;
+  static const generatorVersion = 5;
+  final int expansionStart;
+  final CombatLoadout loadout;
+  final List<Projectile> projectiles = [];
+  final List<Ordnance> ordnance = [];
+  Point2 facing = const Point2(1, 0), inertia = const Point2(0, 0);
+  double aimOverride = 0;
   int character;
   bool sound, calm, guide;
   int room = 0; // 0 outdoors, 1 crystal cave, 2 scout lodge.
@@ -201,8 +236,10 @@ class WorldState {
   final ExpeditionBag bag;
   final PlayerVitals vitals;
   final List<Hostile> hostiles = [];
+  final List<PassiveMob> passives = [];
   int encounterIsland = -1;
   double attackFlash = 0;
+  bool respawnPending = false;
   final int seed;
   int islandIndex;
   int highestUnlocked;
@@ -224,9 +261,13 @@ class WorldState {
     vitals.land();
     hostiles.clear();
     encounterIsland = -1;
+    projectiles.clear();
+    ordnance.clear();
+    inertia = const Point2(0, 0);
     islandIndex = index;
     highestVisited = math.max(highestVisited, index);
-    map = IslandMap.generate(seed, index, compact: run != null);
+    map = IslandMap.generate(seed, index,
+        compact: run != null, expanded: run == null && index >= expansionStart);
     progress = memory;
     x = map.arrival.x;
     y = map.arrival.y;
@@ -247,8 +288,22 @@ class WorldState {
         'profile': profile.toJson(),
         'bag': bag.toJson(),
         'vitals': vitals.toJson(),
-        'x': room == 0 ? x : (room == 1 ? map.cave.x : map.lodge.x),
-        'y': room == 0 ? y : (room == 1 ? map.cave.y : map.lodge.y),
+        'loadout': loadout.toJson(),
+        'expansionStart': expansionStart,
+        'x': room == 0
+            ? x
+            : (room == 1
+                ? map.cave.x
+                : room == 3
+                    ? map.secretPoint(0).x
+                    : map.lodge.x),
+        'y': room == 0
+            ? y
+            : (room == 1
+                ? map.cave.y
+                : room == 3
+                    ? map.secretPoint(0).y
+                    : map.lodge.y),
       };
   Map<String, Object> toJson() => {
         ...headerJson(),
@@ -263,7 +318,7 @@ class WorldState {
     }
     if (json['schemaVersion'] == 1) return WorldState._fromLegacy(json);
     if (json['schemaVersion'] != schemaVersion ||
-        ![2, 3, generatorVersion].contains(json['generatorVersion'])) {
+        ![2, 3, 4, generatorVersion].contains(json['generatorVersion'])) {
       throw const FormatException('Unsupported Wondertail save.');
     }
     for (final key in [
@@ -298,7 +353,14 @@ class WorldState {
         (json['guide'] ?? true) is! bool) {
       throw const FormatException('Invalid explorer settings.');
     }
+    final expansion =
+        json['expansionStart'] ?? math.max(3, json['highestVisited'] + 1);
+    if (expansion is! int || expansion < 0) {
+      throw const FormatException('Invalid expansion boundary.');
+    }
     final world = WorldState(
+      expansionStart: expansion,
+      loadout: CombatLoadout.fromJson(json['loadout']),
       character: character,
       sound: json['sound'] ?? true,
       calm: json['calm'] ?? false,
@@ -396,6 +458,7 @@ class IslandMap {
   IslandMap._({
     required this.variationSeed,
     this.compact = false,
+    this.expanded = false,
     required this.index,
     required this.name,
     required this.biome,
@@ -411,6 +474,8 @@ class IslandMap {
   final int index;
   final int variationSeed;
   final bool compact;
+  final bool expanded;
+  late final NavigationGrid navigation = NavigationGrid(this);
   final String name;
   final Biome biome;
   final Adventure adventure;
@@ -431,9 +496,19 @@ class IslandMap {
   static const radiusY = 330.0;
   static const playerRadius = 13.0;
   double get scaleX =>
-      [1.0, 1.32, 0.94, 1.18, 1.42][index % 5] * (compact ? 0.82 : 1);
+      [1.0, 1.32, 0.94, 1.18, 1.42][index % 5] *
+      (compact
+          ? 0.82
+          : expanded
+              ? 3
+              : 1);
   double get scaleY =>
-      [1.0, 0.94, 1.26, 1.18, 1.08][index % 5] * (compact ? 0.82 : 1);
+      [1.0, 0.94, 1.26, 1.18, 1.08][index % 5] *
+      (compact
+          ? 0.82
+          : expanded
+              ? 3
+              : 1);
   String get landform => [
         'Three Capes',
         'Long Ridge',
@@ -455,6 +530,7 @@ class IslandMap {
   late final Point2 cave = _placeCave();
   Point2 _placeCave() {
     final origin = terrainPoint(const Point2(800, 340));
+    if (expanded) return origin;
     final marks = [
       friend,
       wonder,
@@ -549,10 +625,13 @@ class IslandMap {
               math.sin(angle) * (radiusY * scaleY * coast(angle) - inset) +
               drop);
 
-  factory IslandMap.generate(int seed, int index, {bool compact = false}) {
+  factory IslandMap.generate(int seed, int index,
+      {bool compact = false, bool expanded = false}) {
     // Bounded integer arithmetic is identical on Dart VM and JavaScript.
     final random = SeededRandom((seed + index * 104729) & 0x7fffffff);
-    final biome = Biome.values[(index + (index ~/ 9) + seed % 3) % 3];
+    final biome = expanded
+        ? Biome.values[(index - 3).abs() % Biome.values.length]
+        : Biome.values[(index + (index ~/ 9) + seed % 3) % 3];
     // A nine-island rotation crosses every adventure with every biome. A
     // seeded phase changes the later trail; the migrated first island is rain.
     final phase = (seed ~/ 7) % 2;
@@ -593,7 +672,7 @@ class IslandMap {
       obstacles.add(Obstacle(point, radius, pond: obstacles.isEmpty));
     }
     final flowers = List.generate(
-      90,
+      expanded ? 270 : 90,
       (_) => Point2(
         300 + random.nextDouble() * 680,
         255 + random.nextDouble() * 450,
@@ -632,6 +711,7 @@ class IslandMap {
         ? 'Little Drift'
         : '${prefixes[random.nextInt(prefixes.length)]} ${suffixes[random.nextInt(suffixes.length)]}';
     final map = IslandMap._(
+      expanded: expanded,
       variationSeed: seed,
       compact: compact,
       index: index,
@@ -648,6 +728,7 @@ class IslandMap {
     );
     Point2 scaled(Point2 p) => map.terrainPoint(p);
     final result = IslandMap._(
+      expanded: expanded,
       variationSeed: seed,
       compact: compact,
       index: index,
@@ -671,6 +752,7 @@ class IslandMap {
     result.obstacles.addAll([
       Obstacle(result.lodge + const Point2(0, -65), 28, structure: true),
     ]);
+    if (expanded) WorldGenerator.populate(result, random);
     return result;
   }
 
@@ -731,6 +813,7 @@ class IslandMap {
   ];
 
   List<Point2> route(Point2 from, Point2 to) {
+    if (expanded) return WorldGenerator.route(this, from, to);
     const step = 20.0;
     int key(int x, int y) => y * 96 + x;
     Point2 point(int k) => Point2((k % 96) * step, (k ~/ 96) * step);
@@ -874,6 +957,11 @@ class WorldRules {
   }
 
   static String objective(WorldState world) {
+    if (world.room == 3) {
+      return world.progress.secrets & 2 == 0
+          ? 'Hidden vault · approach the chest and Explore'
+          : 'Vault restored · return outside';
+    }
     if (world.room == 1) {
       return world.progress.shards == 7
           ? 'Return outside · restore the ancient ruins'
@@ -916,6 +1004,11 @@ class WorldRules {
       };
 
   static Point2 target(WorldState world) {
+    if (world.room == 3) {
+      return world.progress.secrets & 2 == 0
+          ? const Point2(640, 380)
+          : roomExit;
+    }
     if (world.room == 2) {
       return world.progress.scoutMet ? roomExit : world.map.scoutPoint;
     }
@@ -1038,7 +1131,11 @@ class WorldRules {
         world.y = 610;
         return true;
       }
-      final exit = world.room == 1 ? world.map.cave : world.map.lodge;
+      final exit = world.room == 1
+          ? world.map.cave
+          : world.room == 3
+              ? world.map.secretPoint(0)
+              : world.map.lodge;
       world.room = 0;
       world.x = exit.x;
       world.y = exit.y + 25;
@@ -1152,8 +1249,15 @@ class WorldRules {
     if (!dx.isFinite || !dy.isFinite || !seconds.isFinite || seconds <= 0) {
       return false;
     }
+    if (world.room == 0 && world.map.biome == Biome.winter) {
+      final f = 1 - math.exp(-4 * seconds.clamp(0, .15));
+      world.inertia = world.inertia * (1 - f) + Point2(dx, dy) * f;
+      dx = world.inertia.x;
+      dy = world.inertia.y;
+    }
     final length = math.sqrt(dx * dx + dy * dy);
     if (length < 0.001) return false;
+    if (world.aimOverride <= 0) world.facing = Point2(dx, dy) * (1 / length);
     final duration = seconds.clamp(0.0, 0.15);
     final steps = math.max(1, (duration / (1 / 90)).ceil());
     var delta = Point2(dx, dy) *

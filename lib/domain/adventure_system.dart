@@ -5,6 +5,21 @@ class ExplorerStats {
   const ExplorerStats(this.speed, this.width, this.depth, this.strength,
       this.jumpSpeed, this.bodyX, this.bodyY);
   final double speed, width, depth, strength, jumpSpeed, bodyX, bodyY;
+  double get maxHealth => width < 20
+      ? 80
+      : width > 24
+          ? 125
+          : 100;
+  int get capacity => width < 20
+      ? 30
+      : width > 24
+          ? 70
+          : 45;
+  double get knockback => width > 24
+      ? .4
+      : width < 20
+          ? 1.25
+          : 1;
   static ExplorerStats forCharacter(int character) => const [
         ExplorerStats(1, 22, 16, 1, 330, 1, 1),
         ExplorerStats(1.12, 18, 14, .8, 365, .84, 1.12),
@@ -15,6 +30,7 @@ class ExplorerStats {
 class PlayerVitals {
   PlayerVitals({this.health = 100, this.stamina = 100});
   double health, stamina;
+  double maxHealth = 100, warmth = 100;
   double z = 0, velocityZ = 0, invulnerable = 0, attackCooldown = 0;
   int jumps = 0;
   bool get airborne => z > 0 || velocityZ > 0;
@@ -40,7 +56,10 @@ class PlayerVitals {
     if (value is! Map) throw const FormatException('Invalid vitals.');
     for (final key in ['health', 'stamina']) {
       final n = value[key];
-      if (n is! num || !n.isFinite || n < 0 || n > 100) {
+      if (n is! num ||
+          !n.isFinite ||
+          n < 0 ||
+          n > (key == 'health' ? 125 : 100)) {
         throw const FormatException('Invalid vitals.');
       }
     }
@@ -87,9 +106,9 @@ class ExpeditionBag {
   }
 
   bool useTonic(PlayerVitals v) {
-    if (tonics == 0 || v.health >= 100) return false;
+    if (tonics == 0 || v.health >= v.maxHealth) return false;
     tonics--;
-    v.health = math.min(100, v.health + 50);
+    v.health = math.min(v.maxHealth, v.health + 50);
     return true;
   }
 
@@ -157,6 +176,11 @@ class Hostile {
   final Point2 home;
   double health;
   bool get alive => health > 0;
+  MobKind kind = MobKind.hunter;
+  double clock = 0, cooldown = 1, telegraph = 0;
+  Point2 heading = const Point2(1, 0);
+  List<Point2> path = [];
+  int pathIndex = 0;
 }
 
 class ActionRules {
@@ -200,6 +224,14 @@ class ActionRules {
           w.position.distanceTo(w.map.resource(i)) > 30) {
         continue;
       }
+      if (w.bag.crystals +
+              w.bag.herbs +
+              w.bag.tonics +
+              w.bag.boosters +
+              (i.isEven ? 1 : 2) >
+          ExplorerStats.forCharacter(w.character).capacity) {
+        continue;
+      }
       w.progress.gathered |= 1 << i;
       if (i.isEven) {
         w.bag.crystals = math.min(999999, w.bag.crystals + 1);
@@ -212,6 +244,10 @@ class ActionRules {
   }
 
   static bool attack(WorldState w) {
+    return CombatRules.attack(w);
+  }
+
+  static bool legacyAttack(WorldState w) {
     if (w.room != 0) return false;
     final v = w.vitals;
     if (v.attackCooldown > 0 || v.stamina < 8) return false;
@@ -242,11 +278,15 @@ class ActionRules {
       w.chamber = 0;
       w.x = w.map.arrival.x;
       w.y = w.map.arrival.y;
-      w.vitals.health = 100;
+      w.vitals.health = w.vitals.maxHealth;
+      w.vitals.warmth = 100;
+      w.respawnPending = true;
       w.vitals.stamina = 100;
       w.vitals.land();
       w.hostiles.clear();
       w.encounterIsland = -1;
+      w.projectiles.clear();
+      w.ordnance.clear();
       return true;
     }
     return false;
@@ -256,6 +296,13 @@ class ActionRules {
   static bool tick(WorldState w, double seconds,
       {bool sprint = false, bool moving = false}) {
     final dt = seconds.clamp(0.0, .15), v = w.vitals;
+    w.respawnPending = false;
+    w.aimOverride = math.max(0, w.aimOverride - dt);
+    final maximum = ExplorerStats.forCharacter(w.character).maxHealth;
+    if (v.maxHealth != maximum) {
+      v.health = math.min(v.health, maximum);
+      v.maxHealth = maximum;
+    }
     v.invulnerable = math.max(0, v.invulnerable - dt);
     v.attackCooldown = math.max(0, v.attackCooldown - dt);
     w.attackFlash = math.max(0, w.attackFlash - dt);
@@ -272,20 +319,16 @@ class ActionRules {
       v.z += v.velocityZ * dt;
       if (v.z <= 0) v.land();
     }
-    if (w.encounterIsland != w.islandIndex) {
-      w.encounterIsland = w.islandIndex;
-      w.hostiles.clear();
-      for (var i = 0; i < math.min(3, w.map.difficulty); i++) {
-        final home =
-            w.map.trails[2 + i][(w.map.trails[2 + i].length * .75).floor()];
-        w.hostiles.add(Hostile(home, home, 60 + w.map.difficulty * 5.0));
-      }
-    }
+    MobAI.ensureSpawns(w);
+    CombatRules.tick(w, dt);
+    if (w.respawnPending) return true;
+    if (WorldGenerator.environment(w, dt)) return true;
     if (w.room != 0) {
       if (w.room == 1 &&
           w.chamber > 0 &&
           v.z < 26 &&
-          w.position.distanceTo(const Point2(700, 560)) < 34) {
+          (w.x - 700).abs() < 45 &&
+          (w.y - 560).abs() < 22) {
         return damage(w, 25);
       }
       return false;
@@ -299,29 +342,11 @@ class ActionRules {
       return damage(w, 100);
     }
     for (var i = 0; i < w.map.lavaCount; i++) {
-      if (v.z < 26 && w.position.distanceTo(w.map.lava(i)) < 27) {
-        if (damage(w, 25)) return true;
+      if (v.z < 26 && WorldGenerator.inLava(w, w.position, i)) {
+        if (damage(w, w.map.expanded ? 40 : 25)) return true;
       }
     }
-    for (final enemy in w.hostiles) {
-      if (!enemy.alive) continue;
-      final chase = enemy.position.distanceTo(w.position) < 210 &&
-          enemy.home.distanceTo(w.position) < 270;
-      final target = chase ? w.position : enemy.home;
-      final delta = target - enemy.position;
-      if (delta.length > 2) {
-        final next = w.map.slide(
-            enemy.position,
-            delta *
-                (math.min(delta.length, (72 + w.map.difficulty * 7) * dt) /
-                    delta.length));
-        enemy.position = solidSlide(w, enemy.position, next);
-      }
-      if (v.z < 30 && enemy.position.distanceTo(w.position) < 27) {
-        if (damage(w, 12 + w.map.difficulty * 2.0)) return true;
-      }
-    }
-    return false;
+    return MobAI.tick(w, dt);
   }
 }
 

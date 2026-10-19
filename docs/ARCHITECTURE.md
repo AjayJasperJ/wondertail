@@ -1,6 +1,11 @@
 # Technical architecture
 
-## Version 0.7
+## Version 0.8
+
+See [ULTIMATE_OVERHAUL_V0.8.md](ULTIMATE_OVERHAUL_V0.8.md) for the current
+combat, mob, expanded-navigation, climate and migration rules. Generator 5 adds
+an expansion boundary so historical layouts and compact runs retain their scale.
+Dedicated combat/AI/generation modules extend the retained foundation below.
 
 The current action, inventory, puzzle and persistence rules are detailed in
 [SUPER_ADVENTURE_V0.7.md](SUPER_ADVENTURE_V0.7.md). `adventure_system.dart` adds

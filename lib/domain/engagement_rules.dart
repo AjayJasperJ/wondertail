@@ -7,12 +7,13 @@ extension IslandVariation on IslandMap {
           SeededRandom((variationSeed ^ (index * 7919)) & 0x7fffffff)
               .nextInt(3)];
   int get variant => index < 3 ? 0 : (index + variationSeed) % 3;
-  String get condition => [
+  String get condition =>
+      '${expanded ? "${biome.name} · ${season.name} · " : ""}${[
         'Clear skies',
         'Breezy currents',
         'Misty shroud',
         'Overgrown paths'
-      ][mutator.index];
+      ][mutator.index]}';
   String get conditionHint => switch (mutator) {
         IslandMutator.calm =>
           'Jump lava and evade chasers. Recover safely at camp.',

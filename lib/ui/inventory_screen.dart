@@ -30,7 +30,9 @@ class InventoryPanel extends StatelessWidget {
           Text('${bag.crystals} crystals · ${bag.herbs} herbs'),
           const SizedBox(height: 10),
           Text(
-              'Health ${world.vitals.health.round()}/100 · Booster ${world.vitals.stamina.round()}/100'),
+              'Health ${world.vitals.health.round()}/${world.vitals.maxHealth.round()} · Booster ${world.vitals.stamina.round()}/100'),
+          Text(
+              'Pack ${bag.crystals + bag.herbs + bag.tonics + bag.boosters}/${ExplorerStats.forCharacter(world.character).capacity} · ammo ${world.loadout.ammo}'),
           TextButton(
               onPressed: () => act(() => bag.useTonic(world.vitals)),
               child: Text('Drink tonic (${bag.tonics}) · +50 health')),
@@ -52,6 +54,33 @@ class InventoryPanel extends StatelessWidget {
                       ? 'Guard charm equipped · 40% less damage'
                       : 'Craft guard charm · 3 crystals + 1 herb',
                 })),
+          const Divider(),
+          const Text('ARSENAL · equip owned gear; forge new gear at a lodge'),
+          for (final weapon in Weapon.values)
+            TextButton(
+                onPressed: world.loadout.owns(weapon)
+                    ? () {
+                        world.loadout.selected = weapon.index;
+                        onChanged();
+                      }
+                    : world.room == 2
+                        ? () =>
+                            act(() => world.loadout.craftWeapon(world, weapon))
+                        : null,
+                child: Text(
+                    '${weapon.name.toUpperCase()} · ${world.loadout.owns(weapon) ? "Equip" : "${weapon == Weapon.gun ? 4 : weapon == Weapon.hammer ? 3 : 2} crystals + 1 herb"}')),
+          TextButton(
+              onPressed: world.room == 2
+                  ? () =>
+                      act(() => world.loadout.restock(world, ammunition: true))
+                  : null,
+              child: const Text('Craft 10 ammo · 1 crystal + 1 herb')),
+          TextButton(
+              onPressed: world.room == 2
+                  ? () => act(() => world.loadout.restock(world))
+                  : null,
+              child: Text(
+                  'Craft ${ThrowableKind.values[world.loadout.throwable].name} · 1 crystal + 1 herb')),
           const Text(
               'Materials persist across islands. Camp recovery keeps your bag.',
               style: TextStyle(fontSize: 11)),

@@ -10,6 +10,7 @@ import '../domain/world_state.dart';
 import '../game/wondertail_game.dart';
 import '../game/game_audio.dart';
 import 'inventory_screen.dart';
+import 'tactical_hud.dart';
 import 'puzzles/puzzle_screen.dart';
 
 const _ink = Color(0xff344f55);
@@ -181,6 +182,26 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     if (key == LogicalKeyboardKey.keyF && event is KeyDownEvent) {
       _game.attack();
       return KeyEventResult.handled;
+    }
+    if (event is KeyDownEvent) {
+      if (key == LogicalKeyboardKey.keyG) {
+        _game.throwGear();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyR) {
+        _game.usePower();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyI) {
+        _game.explore();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyQ) {
+        _world.loadout.cycleWeapon();
+        _game.vitalsRevision.value++;
+        unawaited(_save());
+        return KeyEventResult.handled;
+      }
     }
     if (key == LogicalKeyboardKey.keyB && event is KeyDownEvent) {
       _openBag();
@@ -436,7 +457,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
             children: [
               Positioned.fill(
                 child: RepaintBoundary(
-                  child: GameWidget(game: _game, autofocus: false),
+                  child: Listener(
+                      behavior: HitTestBehavior.opaque,
+                      onPointerDown: (e) =>
+                          _game.aim(e.localPosition.dx, e.localPosition.dy),
+                      child: GameWidget(game: _game, autofocus: false)),
                 ),
               ),
               const Positioned(
@@ -557,8 +582,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
               Positioned(
                 left: 150,
-                right: 210,
-                bottom: 130,
+                right: 225,
+                bottom: 7,
                 child: SafeArea(
                   top: false,
                   child: IgnorePointer(
@@ -572,8 +597,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                             constraints: const BoxConstraints(maxWidth: 470),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 12,
+                                horizontal: 8,
+                                vertical: 3,
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0xee365b5e),
@@ -584,11 +609,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                               ),
                               child: Text(
                                 text ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   color: Color(0xfffff0cb),
-                                  fontSize: 13,
-                                  height: 1.4,
+                                  fontSize: 10,
+                                  height: 1.2,
                                 ),
                               ),
                             ),
@@ -601,90 +628,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
               if (_panel == null && !_travelling) ...[
                 Positioned(
-                  left: 150,
-                  right: 210,
-                  bottom: 25,
-                  child: SafeArea(
-                      top: false,
-                      child: ValueListenableBuilder<int>(
-                        valueListenable: _game.vitalsRevision,
-                        builder: (_, __, ___) => Container(
-                            padding: const EdgeInsets.all(9),
-                            decoration: BoxDecoration(
-                                color: const Color(0xdd203e48),
-                                borderRadius: BorderRadius.circular(14)),
-                            child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(children: [
-                                    const Icon(Icons.favorite,
-                                        color: Color(0xfff09e91), size: 14),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                        child: LinearProgressIndicator(
-                                            value: _world.vitals.health / 100,
-                                            color: const Color(0xffef9d8a),
-                                            backgroundColor:
-                                                const Color(0xff49606a),
-                                            minHeight: 7)),
-                                    const SizedBox(width: 5),
-                                    Text('${_world.vitals.health.round()}',
-                                        style: const TextStyle(
-                                            color: Colors.white, fontSize: 10))
-                                  ]),
-                                  const SizedBox(height: 6),
-                                  Row(children: [
-                                    const Icon(Icons.bolt,
-                                        color: Color(0xff9cddd0), size: 14),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                        child: LinearProgressIndicator(
-                                            value: _world.vitals.stamina / 100,
-                                            color: const Color(0xff9cddd0),
-                                            backgroundColor:
-                                                const Color(0xff49606a),
-                                            minHeight: 7))
-                                  ]),
-                                  Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      children: [
-                                        IconButton(
-                                            tooltip: 'Backpack',
-                                            onPressed: _openBag,
-                                            icon: const Icon(
-                                                Icons.backpack_outlined,
-                                                color: Colors.white,
-                                                size: 22)),
-                                        IconButton(
-                                            tooltip: 'Jump / double jump',
-                                            onPressed: _game.jump,
-                                            icon: const Icon(
-                                                Icons.arrow_upward_rounded,
-                                                color: Colors.white,
-                                                size: 22)),
-                                        IconButton(
-                                            tooltip: 'Attack',
-                                            onPressed: _game.attack,
-                                            icon: const Icon(
-                                                Icons.flash_on_rounded,
-                                                color: Colors.white,
-                                                size: 22)),
-                                        IconButton(
-                                            tooltip: 'Toggle sprint',
-                                            onPressed: () {
-                                              _touchSprint = !_touchSprint;
-                                              _syncInput();
-                                            },
-                                            icon: Icon(Icons.directions_run,
-                                                color: _touchSprint
-                                                    ? const Color(0xffffd58c)
-                                                    : Colors.white,
-                                                size: 22)),
-                                      ]),
-                                ])),
-                      )),
-                ),
+                    left: 150,
+                    right: 225,
+                    bottom: 30,
+                    child: SafeArea(
+                        top: false,
+                        child: ValueListenableBuilder<int>(
+                            valueListenable: _game.vitalsRevision,
+                            builder: (_, __, ___) => TacticalHud(
+                                world: _world,
+                                changed: () {
+                                  _game.vitalsRevision.value++;
+                                  unawaited(_save());
+                                })))),
                 Positioned(
                   left: 15,
                   bottom: 35,
@@ -702,62 +658,45 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                   ),
                 ),
                 Positioned(
-                  right: 16,
-                  bottom: 46,
-                  child: SafeArea(
-                    top: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        ValueListenableBuilder<int>(
-                          valueListenable: _game.revision,
-                          builder: (_, __, ___) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xddfff4d5),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Text(
-                              _world.progress.complete
-                                  ? 'A new path is waiting'
-                                  : '${_world.progress.count}/3 ${_world.map.adventure == Adventure.garden ? 'gardens' : _world.map.collectibleName}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: _ink,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        SizedBox(
-                          width: math.min(
-                            185,
-                            MediaQuery.sizeOf(context).width - 174,
-                          ),
-                          child: ValueListenableBuilder<Encounter?>(
-                            valueListenable: _game.interaction,
-                            builder: (_, encounter, __) => _AdventureButton(
-                              label: _actionLabel(encounter),
-                              icon: encounter == null
-                                  ? Icons.explore_rounded
-                                  : Icons.auto_awesome,
-                              onTap: encounter == null ? null : _interact,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                    right: 12,
+                    bottom: 26,
+                    child: SafeArea(
+                        top: false,
+                        child: SizedBox(
+                            width: 190,
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  ValueListenableBuilder<Encounter?>(
+                                      valueListenable: _game.interaction,
+                                      builder: (_, encounter, __) =>
+                                          _AdventureButton(
+                                              label: _actionLabel(encounter),
+                                              icon: encounter == null
+                                                  ? Icons.explore_rounded
+                                                  : Icons.auto_awesome,
+                                              onTap: encounter == null
+                                                  ? null
+                                                  : _interact)),
+                                  TacticalActions(
+                                      jump: _game.jump,
+                                      attack: _game.attack,
+                                      throwGear: _game.throwGear,
+                                      power: _game.usePower,
+                                      bag: _openBag,
+                                      sprint: () {
+                                        setState(
+                                            () => _touchSprint = !_touchSprint);
+                                        _syncInput();
+                                      },
+                                      explore: _game.explore,
+                                      running: _touchSprint),
+                                ]))))
               ],
               Positioned(
-                left: 20,
-                right: 20,
-                bottom: 9,
+                left: 16,
+                bottom: 6,
                 child: SafeArea(
                   top: false,
                   child: GestureDetector(

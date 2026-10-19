@@ -59,6 +59,8 @@ void main() {
     final normal = WorldState(highestUnlocked: 3, x: 380, y: 540);
     normal.bag.crystals = 7;
     normal.vitals.health = 62;
+    normal.loadout.ammo = 17;
+    normal.loadout.owned |= 1 << Weapon.gun.index;
     await repo.save(normal);
     final attempt = WorldState(
         seed: 987,
@@ -69,6 +71,7 @@ void main() {
         run: TrailRun());
     attempt.bag.crystals = 99;
     attempt.vitals.health = 1;
+    attempt.loadout.ammo = 0;
     attempt.run!.tick(100);
     attempt.run!.finish(attempt.profile);
     await repo.saveRunReward(attempt.profile);
@@ -79,6 +82,8 @@ void main() {
     expect(recovered.profile.owns(WorkshopItem.runnerCape), isTrue);
     expect(recovered.bag.crystals, 7);
     expect(recovered.vitals.health, 62);
+    expect(recovered.loadout.ammo, 17);
+    expect(recovered.loadout.owns(Weapon.gun), isTrue);
   });
   test('fresh load and active island snapshot round-trip', () async {
     final store = MemoryStore();

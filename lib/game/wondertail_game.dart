@@ -45,6 +45,46 @@ class IslandPalette {
             Color(0xffb5eee0),
             Color(0xff8c625d),
           ),
+        Biome.desert => const IslandPalette(
+            Color(0xffb3c8d1),
+            Color(0xffffe3af),
+            Color(0xffd7b172),
+            Color(0xffefcf91),
+            Color(0xff718f69),
+            Color(0xff87e6d1),
+            Color(0xff765740)),
+        Biome.winter => const IslandPalette(
+            Color(0xff8aaec9),
+            Color(0xffeef5fa),
+            Color(0xffd3e6eb),
+            Color(0xfff0fbfc),
+            Color(0xff7197a3),
+            Color(0xff8bdadf),
+            Color(0xff365d72)),
+        Biome.underground => const IslandPalette(
+            Color(0xff202d44),
+            Color(0xff4e6477),
+            Color(0xff536074),
+            Color(0xff6a7b89),
+            Color(0xff536d87),
+            Color(0xff90d5f0),
+            Color(0xffd0e6e8)),
+        Biome.devils => const IslandPalette(
+            Color(0xff342d43),
+            Color(0xffad6656),
+            Color(0xff594554),
+            Color(0xff765764),
+            Color(0xff563844),
+            Color(0xffffb363),
+            Color(0xfff0cda4)),
+        Biome.heaven => const IslandPalette(
+            Color(0xffa7c9e5),
+            Color(0xfffff5da),
+            Color(0xffe6eadb),
+            Color(0xfffff9e7),
+            Color(0xff9eacc0),
+            Color(0xffffd476),
+            Color(0xff6d6480)),
       };
 }
 
@@ -77,10 +117,49 @@ class WondertailGame extends FlameGame {
 
   void attack() {
     if (!controlsEnabled) return;
-    if (ActionRules.attack(state)) onSound?.call('task');
+    if (ActionRules.attack(state)) {
+      onSound?.call('task');
+      movedSinceSave = true;
+    }
+  }
+
+  void throwGear() {
+    if (controlsEnabled && CombatRules.throwGear(state)) {
+      onSound?.call('task');
+      movedSinceSave = true;
+    }
+  }
+
+  void usePower() {
+    if (controlsEnabled && CombatRules.power(state)) {
+      onSound?.call('complete');
+      movedSinceSave = true;
+    }
+  }
+
+  void explore() {
+    if (!controlsEnabled) return;
+    final before = state.room;
+    final result = WorldGenerator.interact(state);
+    if (result != null) {
+      refresh(arrival: before != state.room);
+      onWorldChanged(result);
+    }
   }
 
   double inputX = 0, inputY = 0;
+  void aim(double x, double y) {
+    if (!controlsEnabled) return;
+    final zoom = size.x > size.y ? (size.y / 530).clamp(.58, .9) : .72;
+    final at = Point2((x - size.x / 2) / zoom + _cameraX,
+        (y - size.y * .52) / zoom + _cameraY);
+    final delta = at - state.position;
+    if (delta.length > 1) {
+      state.facing = delta * (1 / delta.length);
+      state.aimOverride = 2;
+    }
+  }
+
   bool sprint = false;
   bool controlsEnabled = true;
   bool movedSinceSave = false;
@@ -95,6 +174,7 @@ class WondertailGame extends FlameGame {
   final List<_Spark> _sparks = [];
   Paint? _skyPaint;
   double _skyWidth = 0, _skyHeight = 0;
+  final Map<bool, Paint> _lavaPaints = {};
 
   void clearInput() {
     inputX = 0;
@@ -281,7 +361,22 @@ class WondertailGame extends FlameGame {
   void render(Canvas canvas) {
     super.render(canvas);
     if (size.x <= 0 || size.y <= 0) return;
-    final palette = IslandPalette.forBiome(state.map.biome);
+    final basePalette = IslandPalette.forBiome(state.map.biome);
+    final leaf = state.map.expanded && state.map.biome == Biome.meadow
+        ? switch (state.map.season) {
+            Season.autumn => const Color(0xffb67a51),
+            Season.winter => const Color(0xffb9cbd2),
+            _ => basePalette.leaf,
+          }
+        : basePalette.leaf;
+    final palette = IslandPalette(
+        basePalette.sky,
+        basePalette.horizon,
+        basePalette.grass,
+        basePalette.light,
+        leaf,
+        basePalette.accent,
+        basePalette.ink);
     if (_skyPaint == null || _skyWidth != size.x || _skyHeight != size.y) {
       _skyWidth = size.x;
       _skyHeight = size.y;
@@ -323,15 +418,17 @@ class WondertailGame extends FlameGame {
     canvas.translate(size.x / 2, size.y * 0.52);
     canvas.scale(zoom);
     canvas.translate(-_cameraX, -_cameraY);
-    final key = state.room * 1000000 +
-        state.chamber * 10000 +
-        state.progress.mirror * 10000000 +
-        state.islandIndex * 64 +
-        (state.progress.ruinsRestored ? 32 : 0) +
-        state.progress.stage * 8 +
-        (state.map.adventure == Adventure.garden
-            ? state.progress.collected
-            : 0);
+    final key =
+        (state.room == 3 && state.progress.secrets & 2 != 0 ? 1000000000 : 0) +
+            state.room * 1000000 +
+            state.chamber * 10000 +
+            state.progress.mirror * 10000000 +
+            state.islandIndex * 64 +
+            (state.progress.ruinsRestored ? 32 : 0) +
+            state.progress.stage * 8 +
+            (state.map.adventure == Adventure.garden
+                ? state.progress.collected
+                : 0);
     if (_terrainKey != key || _terrain == null) {
       _terrain?.dispose();
       final recorder = ui.PictureRecorder();
@@ -425,6 +522,15 @@ class WondertailGame extends FlameGame {
       }
     }
     canvas.restore();
+    if (state.map.biome == Biome.winter && !calmMotion) {
+      for (var i = 0; i < 24; i++) {
+        canvas.drawCircle(
+            Offset((i * 173 + _time * 17) % size.x,
+                (i * 79 + _time * 35) % size.y),
+            1.5 + (i % 3) * .4,
+            _paint(const Color(0xaaffffff)));
+      }
+    }
     if (state.map.mutator == IslandMutator.mist) {
       final rank = state.profile.rank(Adventure.lantern);
       final radius =
@@ -893,6 +999,38 @@ class WondertailGame extends FlameGame {
   }
 
   void _drawInterior(Canvas canvas) {
+    if (state.room == 3) {
+      canvas.drawRect(const Rect.fromLTWH(150, 100, 1000, 850),
+          _paint(const Color(0xff1d293b)));
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(const Rect.fromLTWH(420, 280, 440, 440),
+              const Radius.circular(40)),
+          _paint(const Color(0xff536174)));
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(const Rect.fromLTWH(438, 298, 404, 404),
+              const Radius.circular(30)),
+          _paint(const Color(0xff8a8d98)));
+      for (var y = 320.0; y < 680; y += 38) {
+        canvas.drawRect(
+            Rect.fromLTWH(605, y, 70, 30), _paint(const Color(0xffb9b4a3)));
+      }
+      for (final x in [475.0, 805.0]) {
+        for (final y in [340.0, 620.0]) {
+          _crystal(canvas, Offset(x, y), const Color(0xffa1d9e3));
+        }
+      }
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              const Rect.fromLTWH(610, 350, 60, 40), const Radius.circular(8)),
+          _paint(state.progress.secrets & 2 == 0
+              ? const Color(0xffcfac6c)
+              : const Color(0xff7b7869)));
+      _label(canvas, const Offset(640, 325), 'SEALED SCHEMATIC · EXPLORE',
+          const Color(0xffffe8ac));
+      _label(canvas, const Offset(640, 690), 'RETURN OUTSIDE',
+          const Color(0xffffe8ac));
+      return;
+    }
     final cave = state.room == 1;
     final inset = state.map.inset(state.chamber);
     canvas.drawRect(const Rect.fromLTWH(200, 100, 880, 850),
@@ -1020,6 +1158,56 @@ class WondertailGame extends FlameGame {
     Color blossomColor, {
     bool blossom = false,
   }) {
+    final biome = state.map.biome;
+    if (biome == Biome.desert ||
+        biome == Biome.winter ||
+        biome == Biome.devils ||
+        biome == Biome.underground ||
+        biome == Biome.heaven) {
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.scale(scale);
+      if (biome == Biome.heaven) {
+        _cloud(canvas, const Offset(0, -22), .8, const Color(0xeefff9e3));
+        canvas.drawArc(
+            const Rect.fromLTWH(-21, -58, 42, 65),
+            math.pi,
+            math.pi,
+            false,
+            _paint(const Color(0xffdfbf74))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 6);
+      } else if (biome == Biome.desert) {
+        final paint = _paint(const Color(0xff73927a))
+          ..strokeWidth = 14
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(Offset.zero, const Offset(0, -70), paint);
+        canvas.drawLine(const Offset(0, -35), const Offset(-24, -35), paint);
+        canvas.drawLine(const Offset(-24, -35), const Offset(-24, -52), paint);
+        canvas.drawLine(const Offset(0, -23), const Offset(22, -23), paint);
+        canvas.drawLine(const Offset(22, -23), const Offset(22, -44), paint);
+      } else {
+        final winter = biome == Biome.winter;
+        canvas.drawRect(const Rect.fromLTWH(-6, -32, 12, 38),
+            _paint(const Color(0xff73646b)));
+        for (var i = 0; i < (winter ? 3 : 1); i++) {
+          final yy = -i * 23.0;
+          canvas.drawPath(
+              Path()
+                ..moveTo(-35, yy)
+                ..lineTo(0, yy - (winter ? 55 : 95))
+                ..lineTo(35, yy)
+                ..close(),
+              _paint(winter
+                  ? const Color(0xffd6e9ea)
+                  : biome == Biome.devils
+                      ? const Color(0xff47394f)
+                      : const Color(0xff7b94ab)));
+        }
+      }
+      canvas.restore();
+      return;
+    }
     canvas.save();
     canvas.translate(x, y);
     canvas.scale(scale);
@@ -1422,27 +1610,69 @@ class WondertailGame extends FlameGame {
   }
 
   void _drawActionWorld(Canvas canvas) {
-    void lava(Point2 point) {
-      final rect = Rect.fromCenter(
-          center: Offset(point.x, point.y), width: 68, height: 48);
-      canvas.drawOval(rect.inflate(7), _paint(const Color(0xff544053)));
-      canvas.drawOval(rect, _paint(const Color(0xffe4623c)));
-      canvas.drawOval(rect.deflate(8), _paint(const Color(0xffffbb53)));
-      for (var i = 0; i < 3; i++) {
+    void lava(Point2 point, {int index = 0}) {
+      final direction = state.room == 0
+          ? state.map.channelDirection(index)
+          : const Point2(0, 1);
+      final width = state.room == 0 && state.map.expanded ? 210.0 : 90.0;
+      canvas.save();
+      canvas.translate(point.x, point.y);
+      canvas.rotate(math.atan2(direction.y, direction.x) + math.pi / 2);
+      final rect =
+          Rect.fromCenter(center: Offset.zero, width: width, height: 44);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(rect.inflate(9), const Radius.circular(16)),
+          _paint(const Color(0xff433746)));
+      final glow = _lavaPaints.putIfAbsent(
+          width > 100,
+          () => Paint()
+            ..shader = const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xffff9951),
+                  Color(0xfff6ca63),
+                  Color(0xffd64b3a)
+                ]).createShader(rect));
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(11)), glow);
+      for (var i = 0; i < 7; i++) {
+        final x = -width * .43 + i * width * .14;
         canvas.drawCircle(
-            Offset(
-                point.x - 18 + i * 18, point.y + math.sin(_time * 3 + i) * 5),
-            4,
-            _paint(const Color(0xffffe6a0)));
+            Offset(x, math.sin(_time * 3 + i) * 9),
+            2 + math.sin(_time * 4 + i).abs() * 2,
+            _paint(const Color(0xffffefaf)));
+        if (!calmMotion) {
+          canvas.drawArc(
+              Rect.fromCenter(
+                  center: Offset(x, -30 - math.sin(_time * 2 + i) * 4),
+                  width: 14,
+                  height: 15),
+              0,
+              math.pi,
+              false,
+              _paint(const Color(0x44ffe4af))
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 2);
+        }
       }
-      _label(canvas, Offset(point.x, point.y - 40), 'JUMP',
-          const Color(0xffffe8c4));
+      if (state.room == 0 && index == 0 && state.progress.secrets & 128 != 0) {
+        canvas.drawRect(const Rect.fromLTWH(-18, -34, 36, 68),
+            _paint(const Color(0xffb79878)));
+        for (var y = -30.0; y < 35; y += 12) {
+          canvas.drawLine(Offset(-18, y), Offset(18, y),
+              _paint(const Color(0xff715d56))..strokeWidth = 2);
+        }
+      }
+      canvas.restore();
+      _label(canvas, Offset(point.x, point.y - 60), 'JUMP / BRIDGE',
+          const Color(0xffffe5b0));
     }
 
     if (state.room == 1 && state.chamber > 0) lava(const Point2(700, 560));
     if (state.room != 0) return;
     for (var i = 0; i < state.map.lavaCount; i++) {
-      lava(state.map.lava(i));
+      lava(state.map.lava(i), index: i);
     }
     for (var i = 0; i < 6; i++) {
       if (state.progress.gathered & (1 << i) != 0) continue;
@@ -1463,6 +1693,31 @@ class WondertailGame extends FlameGame {
     for (final enemy in state.hostiles) {
       if (!enemy.alive) continue;
       final e = enemy.position;
+      final elite = enemy.kind == MobKind.elite;
+      final flying = enemy.kind == MobKind.flier;
+      if (enemy.telegraph > 0) {
+        canvas.drawCircle(
+            Offset(e.x, e.y),
+            40,
+            _paint(const Color(0xaaffce84))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3);
+      }
+      if (enemy.kind == MobKind.burrower && enemy.clock % 4 < 3.1) {
+        canvas.drawOval(
+            Rect.fromCenter(center: Offset(e.x, e.y), width: 38, height: 16),
+            _paint(const Color(0xffa88b68))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3);
+        continue;
+      }
+      canvas.save();
+      if (flying) canvas.translate(0, -28 - math.sin(_time * 5) * 6);
+      if (elite) {
+        canvas.translate(e.x, e.y);
+        canvas.scale(1.4);
+        canvas.translate(-e.x, -e.y);
+      }
       canvas.drawOval(
           Rect.fromCenter(center: Offset(e.x, e.y + 3), width: 39, height: 13),
           _paint(const Color(0x33523c54)));
@@ -1471,20 +1726,124 @@ class WondertailGame extends FlameGame {
               Rect.fromCenter(
                   center: Offset(e.x, e.y - 14), width: 35, height: 33),
               const Radius.circular(12)),
-          _paint(const Color(0xffa24e70)));
+          _paint(elite
+              ? const Color(0xff6a4f93)
+              : flying
+                  ? const Color(0xff748faa)
+                  : const Color(0xffa24e70)));
+      if (flying) {
+        for (final dx in [-1.0, 1.0]) {
+          canvas.drawOval(
+              Rect.fromCenter(
+                  center: Offset(e.x + dx * 26, e.y - 20),
+                  width: 32,
+                  height: 14),
+              _paint(const Color(0xffa7c7d0)));
+        }
+      }
       for (final dx in [-7.0, 7.0]) {
         canvas.drawCircle(
             Offset(e.x + dx, e.y - 19), 3, _paint(const Color(0xffffe09c)));
       }
       canvas.drawRect(
-          Rect.fromLTWH(e.x - 18, e.y - 40,
-              36 * (enemy.health / (60 + state.map.difficulty * 5)), 3),
+          Rect.fromLTWH(
+              e.x - 18,
+              e.y - 40,
+              36 *
+                  (enemy.health /
+                      (elite
+                          ? 240 + state.map.difficulty * 15
+                          : 60 + state.map.difficulty * 5)),
+              3),
           _paint(const Color(0xffffbb7a)));
+      canvas.restore();
+    }
+    for (final mob in state.passives) {
+      _cloud(
+          canvas,
+          Offset(mob.position.x, mob.position.y - 12),
+          .3,
+          [
+            const Color(0xffe9d8a8),
+            const Color(0xffbcd8bd),
+            const Color(0xffc9c2e3)
+          ][mob.kind]);
+    }
+    for (final shot in state.projectiles) {
+      canvas.drawCircle(
+          Offset(shot.position.x, shot.position.y - 16),
+          shot.hostile ? 7 : 4,
+          _paint(shot.hostile
+              ? const Color(0xfff59d79)
+              : const Color(0xffffe8a0)));
+    }
+    for (final bomb in state.ordnance) {
+      if (!bomb.detonated) {
+        final height =
+            math.sin(math.min(1, bomb.age / bomb.fuse) * math.pi) * 45;
+        canvas.drawCircle(
+            Offset(bomb.position.x, bomb.position.y - height),
+            9,
+            _paint(bomb.kind == ThrowableKind.gas
+                ? const Color(0xffa1c38a)
+                : const Color(0xffe9b06b)));
+      } else {
+        canvas.drawCircle(
+            Offset(bomb.position.x, bomb.position.y),
+            125,
+            _paint(bomb.kind == ThrowableKind.gas
+                ? const Color(0x557eaf8b)
+                : const Color(0x66ffca7a)));
+      }
+    }
+    if (state.loadout.shieldTime > 0) {
+      canvas.drawCircle(
+          Offset(state.x, state.y - 15),
+          45,
+          _paint(const Color(0x779be4e2))
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 4);
+    }
+    if (state.map.expanded) {
+      final vault = state.map.secretPoint(0), tablet = state.map.secretPoint(1);
+      final breached = state.progress.secrets & 1 != 0,
+          claimed = state.progress.secrets & 2 != 0;
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromCenter(
+                  center: Offset(vault.x, vault.y - 10), width: 64, height: 50),
+              const Radius.circular(8)),
+          _paint(breached ? const Color(0xffb3996b) : const Color(0xff666376)));
+      _label(
+          canvas,
+          Offset(vault.x, vault.y + 30),
+          claimed
+              ? 'VAULT RESTORED'
+              : breached
+                  ? 'GUARDED VAULT'
+                  : 'CRACKED VAULT',
+          const Color(0xfff4dfab));
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromCenter(
+                  center: Offset(tablet.x, tablet.y - 10),
+                  width: 28,
+                  height: 40),
+              const Radius.circular(4)),
+          _paint(const Color(0xff90a9a5)));
+      _label(canvas, Offset(tablet.x, tablet.y + 25), 'LORE / SWITCH',
+          const Color(0xffffe9b8));
     }
     if (state.attackFlash > 0) {
-      canvas.drawCircle(
-          Offset(state.x, state.y - 12 - state.vitals.z),
-          80,
+      canvas.drawArc(
+          Rect.fromCircle(
+              center: Offset(state.x, state.y - 12 - state.vitals.z),
+              radius: WeaponStats.of(state.loadout.weapon).speed > 0
+                  ? 35
+                  : WeaponStats.of(state.loadout.weapon).reach),
+          math.atan2(state.facing.y, state.facing.x) - 1.2,
+          2.4,
+          false,
           _paint(const Color(0xaaffedb1))
             ..style = PaintingStyle.stroke
             ..strokeWidth = 5);
@@ -1509,6 +1868,15 @@ class WondertailGame extends FlameGame {
     canvas.translate(0, bounce - state.vitals.z);
     final stats = ExplorerStats.forCharacter(state.character);
     canvas.scale(stats.bodyX, stats.bodyY);
+    canvas.save();
+    canvas.rotate(math.atan2(state.facing.y, state.facing.x));
+    final melee = WeaponStats.of(state.loadout.weapon).speed == 0;
+    canvas.drawLine(
+        const Offset(12, -12),
+        Offset(melee ? 45 : 33, -12),
+        _paint(melee ? const Color(0xffe2e5cd) : const Color(0xff4c5963))
+          ..strokeWidth = melee ? 5 : 9);
+    canvas.restore();
     if (state.vitals.invulnerable > 0 && (_time * 14).floor().isEven) {
       canvas.drawCircle(
           const Offset(0, -23), 34, _paint(const Color(0x66ffdf80)));

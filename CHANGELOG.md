@@ -4,6 +4,47 @@ User-visible changes for each application version belong here. The app version
 in `pubspec.yaml` is the source of truth. Older dates are omitted where they were
 not recorded in the release history.
 
+## [0.8.0] - 2026-10-19
+
+### Added
+
+- Compact bottom-center vitals and equipment tray; right-side jump, attack,
+  throwable, power, sprint, bag and nearby-exploration controls. Notifications
+  use a single-line bottom ribbon. Tap the world to aim independently of movement.
+- Swords, daggers and hammers with directional combo strikes; guns, bows and
+  slingshots with swept projectile collision, finite ammunition where applicable,
+  lodge forging and restocking. Sword and slingshot are starter equipment.
+- Grenades, lingering gas and timer charges, with fuses, bounded area effects,
+  saved supplies and vault-wall breaching. Dash, shield and Starlight burst powers
+  use combat energy and cooldowns.
+- Passive forage creatures and distinct hunter, dive-bomber, burrower and ranged
+  elite behaviors. Seasonal spawn variation, pursuit routes and at most nine mobs.
+- Desert, winter, underground, volcanic Devils and celestial Heaven realms,
+  alongside the three retained biomes; biome scenery and progress-driven seasons.
+- New frontier islands have 3x width and height, more scenery, larger collision
+  grids and cached navigation. Introductory and Trailblazer islands retain their size.
+- Animated lava channels, edge gradients, bubbles and heat-wave lines; permanent
+  crystal bridges, snowflakes, ice momentum and cold exposure with campsite/lodge warmth.
+- Seeded lore/switch locations and guarded vault interiors with once-only hammer
+  schematics, ammunition and booster rewards. Explore interacts with nearby secrets.
+
+### Changed
+
+- Explorer maximum health, carrying capacity and knockback resistance now vary
+  by body archetype; gathering respects capacity without deleting older inventory.
+- Generator 5 saves include the expansion boundary and validated combat loadout.
+  Older visited islands retain their layout; new expansion begins beyond the
+  saved frontier. Challenge gear, bag and vitals do not replace normal progress.
+- Split combat, AI and world-generation rules into dedicated domain modules.
+
+### Known limits
+
+- This remains stylized top-down 2D. Heat distortion is drawn wave animation,
+  not a full-screen post-processing shader. Seasons change along progression,
+  not through a real-time weather simulation. Realm names do not imply separate 3D worlds.
+- Enemies, projectiles, active fuses and unfinished challenges are session-only;
+  supplies, equipment, secrets and rewards persist. No real-device frame-rate guarantee.
+
 ## [0.7.0] - 2026-10-19
 
 ### Added
