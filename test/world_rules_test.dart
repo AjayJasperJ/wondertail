@@ -216,7 +216,8 @@ void main() {
   test('head-on rocks slide smoothly instead of locking either axis', () {
     for (final direction in [-1.0, 1.0]) {
       final world = WorldState();
-      final obstacle = world.map.obstacles.last;
+      final obstacle =
+          world.map.obstacles.where((o) => !o.structure && !o.pond).last;
       stand(
         world,
         Point2(

@@ -115,7 +115,9 @@ These bounds do not establish a frame-rate guarantee on low-end phones.
 - `lib/ui/inventory_screen.dart`: inventory and lodge crafting panel.
 - `lib/ui/puzzles/puzzle_screen.dart`: interactive boards and optional maze clock.
 
-Schema 2 and generator 3 remain readable; added fields have validated defaults.
+Schema 2 now records generator 4; generators 2 and 3 remain readable. Mountain
+placement avoids quest endpoints and trees reserve space around landmarks.
+Added fields have validated defaults.
 Old bag/vitals omissions become an empty bag and 100 health/stamina. Save recovery
 continues using authoritative checkpoint plus backups. Jump velocities, live
 enemy state and unfinished puzzle boards are transient. Trial attempts get a

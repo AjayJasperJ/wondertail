@@ -104,9 +104,13 @@ void main() {
   });
   test('mountain and trunk feet block movement while landmarks stay reachable',
       () {
-    for (var i = 0; i < 40; i++) {
-      final w =
-          WorldState(islandIndex: i, highestVisited: i, highestUnlocked: i);
+    for (var i = 0; i < 80; i++) {
+      final w = WorldState(
+          seed: 4271 + i ~/ 40,
+          islandIndex: i % 40,
+          highestVisited: i % 40,
+          highestUnlocked: i % 40,
+          run: i.isOdd ? TrailRun() : null);
       expect(w.map.canStand(w.map.arrival), isTrue);
       for (final trail in w.map.trails) {
         for (var j = 1; j < trail.length; j++) {

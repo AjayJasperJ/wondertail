@@ -191,7 +191,7 @@ class WorldState {
     this.y = y ?? map.arrival.y;
   }
   static const schemaVersion = 2;
-  static const generatorVersion = 3;
+  static const generatorVersion = 4;
   int character;
   bool sound, calm, guide;
   int room = 0; // 0 outdoors, 1 crystal cave, 2 scout lodge.
@@ -263,7 +263,7 @@ class WorldState {
     }
     if (json['schemaVersion'] == 1) return WorldState._fromLegacy(json);
     if (json['schemaVersion'] != schemaVersion ||
-        ![2, generatorVersion].contains(json['generatorVersion'])) {
+        ![2, 3, generatorVersion].contains(json['generatorVersion'])) {
       throw const FormatException('Unsupported Wondertail save.');
     }
     for (final key in [
@@ -420,7 +420,7 @@ class IslandMap {
   final List<Point2> collectibles;
   final List<Obstacle> obstacles;
   late final List<SolidBox> solidBoxes = [
-    SolidBox(cave.x - 120, cave.y - 125, cave.x + 130, cave.y - 22),
+    SolidBox(cave.x - 120, cave.y - 45, cave.x + 130, cave.y - 22),
     SolidBox(lodge.x - 51, lodge.y - 80, lodge.x + 51, lodge.y - 19),
     for (final t in trees) SolidBox(t.x - 9, t.y - 10, t.x + 9, t.y + 5),
   ];
@@ -452,7 +452,39 @@ class IslandMap {
   Point2 terrainPoint(Point2 p) => Point2(center.x + (p.x - center.x) * scaleX,
       center.y + (p.y - center.y) * scaleY);
   Point2 get arrival => terrainPoint(const Point2(370, 545));
-  Point2 get cave => terrainPoint(const Point2(800, 340));
+  late final Point2 cave = _placeCave();
+  Point2 _placeCave() {
+    final origin = terrainPoint(const Point2(800, 340));
+    final marks = [
+      friend,
+      wonder,
+      gate,
+      ...collectibles,
+      arrival,
+      lodge,
+      ruins
+    ];
+    // Keep the mountain's solid footprint clear of quest endpoints, including
+    // their snapped route cells. Rotation can otherwise bury a light in rock.
+    for (final dy in [0.0, 70.0, 140.0, -70.0, -140.0]) {
+      for (final dx in [0.0, 70.0, -70.0, 140.0, -140.0, -210.0]) {
+        final p = origin + Point2(dx, dy);
+        final footprint = SolidBox(p.x - 150, p.y - 75, p.x + 160, p.y + 8);
+        if (!onLand(p, margin: 45) ||
+            !onLand(p + const Point2(-120, -25), margin: 20) ||
+            !onLand(p + const Point2(130, -25), margin: 20) ||
+            marks.any(
+                (m) => footprint.contains(m, ExplorerStats.forCharacter(2))) ||
+            obstacles.any((o) => p.distanceTo(o.center) < o.radius + 45) ||
+            trees.any((t) => p.distanceTo(t) < 45)) {
+          continue;
+        }
+        return p;
+      }
+    }
+    return origin;
+  }
+
   Point2 get lodge => terrainPoint(const Point2(400, 390));
   Point2 get ruins => terrainPoint(const Point2(570, 675));
   Point2 shorePoint(double angle, {double inset = 0, double drop = 0}) =>
@@ -578,10 +610,11 @@ class IslandMap {
       flowers:
           flowers.map(scaled).where((p) => map.onLand(p, margin: 24)).toList(),
       trees: List.generate(
-          18, (i) => map.shorePoint(i * math.pi * 2 / 18, inset: 48)),
+              18, (i) => map.shorePoint(i * math.pi * 2 / 18, inset: 48))
+          .where((t) => landmarks.every((m) => t.distanceTo(scaled(m)) > 65))
+          .toList(),
     );
     result.obstacles.addAll([
-      Obstacle(result.cave + const Point2(0, -110), 28, structure: true),
       Obstacle(result.lodge + const Point2(0, -65), 28, structure: true),
     ]);
     return result;

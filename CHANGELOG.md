@@ -31,6 +31,8 @@ not recorded in the release history.
   older checkpoints receive default health and an empty bag. Trial backpacks
   and vitals stay separate from normal exploration and reward merges.
 - Campsite artwork follows each generated island's arrival point.
+- Generator 4 places mountain footprints clear of quest targets and reserves
+  landmark space when planting solid trees; older generation saves still load.
 
 ### Known limits
 

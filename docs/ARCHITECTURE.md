@@ -11,7 +11,7 @@ separately from quest HUD updates. The table below describes the retained base.
 | Boundary | Implementation |
 | --- | --- |
 | Domain | Pure Dart world/island rules, `PlayerProfile`, reward receipts, mutators, and `TrailRun` |
-| Generation | Save schema 2, generator 3; stable PRNG; seed/index; compact challenge maps |
+| Generation | Save schema 2, generator 4 (reads 2/3); stable PRNG; seed/index; compact challenge maps |
 | Movement | Analog input, substeps, circular blockers, irregular shore projection, vine gates, wind and checked glide landings |
 | Real-time drawing | Flame 1.30.1; original Canvas art; one cached `ui.Picture` for static terrain |
 | UI | Flutter; scoped value notifiers for contact, compass, progress and save status; themed in-game cards |

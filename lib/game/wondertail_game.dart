@@ -404,6 +404,16 @@ class WondertailGame extends FlameGame {
     for (final p in _sparks) {
       canvas.drawCircle(Offset(p.x, p.y), 3 * (p.life / 0.8), _paint(p.color));
     }
+    if (state.y < state.map.cave.y - 22 &&
+        state.y > state.map.cave.y - 215 &&
+        (state.x - state.map.cave.x).abs() < 145) {
+      canvas.saveLayer(
+          Rect.fromLTWH(
+              state.map.cave.x - 130, state.map.cave.y - 200, 265, 240),
+          Paint()..color = const Color(0x99ffffff));
+      _mountain(canvas);
+      canvas.restore();
+    }
     // Repaint only nearby foreground trees so the explorer can walk behind
     // foliage without rebuilding the static scene.
     for (var i = 0; i < state.map.trees.length; i++) {
@@ -778,7 +788,7 @@ class WondertailGame extends FlameGame {
         _paint(const Color(0xfff1fcff))..strokeWidth = 3);
   }
 
-  void _structures(Canvas canvas) {
+  void _mountain(Canvas canvas) {
     final cave = state.map.cave;
     canvas.save();
     canvas.translate(cave.x, cave.y);
@@ -816,6 +826,10 @@ class WondertailGame extends FlameGame {
     _label(canvas, const Offset(0, 20), 'CRYSTAL CAVE · ENTER',
         const Color(0xff344f55));
     canvas.restore();
+  }
+
+  void _structures(Canvas canvas) {
+    _mountain(canvas);
     final lodge = state.map.lodge;
     canvas.save();
     canvas.translate(lodge.x, lodge.y);
