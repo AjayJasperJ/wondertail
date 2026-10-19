@@ -87,7 +87,10 @@ void main() {
       expect(insideSave.progress.shards, 7);
       stand(world, WorldRules.roomExit);
       WorldRules.act(world, Encounter.exitRoom);
-      if (world.room == 1) WorldRules.act(world, Encounter.exitRoom);
+      if (world.room == 1) {
+        stand(world, WorldRules.roomExit);
+        expect(WorldRules.act(world, Encounter.exitRoom), isTrue);
+      }
       stand(world, map.ruins);
       expect(WorldRules.act(world, Encounter.ruins), isTrue);
       expect(WorldRules.act(world, Encounter.ruins), isFalse);
