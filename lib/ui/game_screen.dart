@@ -9,6 +9,8 @@ import '../data/save_repository.dart';
 import '../domain/world_state.dart';
 import '../game/wondertail_game.dart';
 import '../game/game_audio.dart';
+import 'inventory_screen.dart';
+import 'puzzles/puzzle_screen.dart';
 
 const _ink = Color(0xff344f55);
 const _paper = Color(0xfffff7df);
@@ -36,6 +38,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   final ValueNotifier<String?> _ribbon = ValueNotifier(null);
   Timer? _autosave, _ribbonTimer;
   String? _panel;
+  bool _touchSprint = false;
   Encounter? _encounter;
   bool _travelling = false, _retrySave = false;
   int _atlasPage = 0;
@@ -110,6 +113,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _clearInput() {
+    _touchSprint = false;
     _held.clear();
     _touchX = 0;
     _touchY = 0;
@@ -135,7 +139,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
     _game.inputX = dx == 0 ? _touchX : dx;
     _game.inputY = dy == 0 ? _touchY : dy;
-    _game.sprint = _held.contains(LogicalKeyboardKey.shiftLeft) ||
+    _game.sprint = _touchSprint ||
+        _held.contains(LogicalKeyboardKey.shiftLeft) ||
         _held.contains(LogicalKeyboardKey.shiftRight);
   }
 
@@ -169,8 +174,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       _syncInput();
       return KeyEventResult.handled;
     }
-    if ((key == LogicalKeyboardKey.keyE || key == LogicalKeyboardKey.space) &&
-        event is KeyDownEvent) {
+    if (key == LogicalKeyboardKey.space && event is KeyDownEvent) {
+      _game.jump();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyF && event is KeyDownEvent) {
+      _game.attack();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyB && event is KeyDownEvent) {
+      _openBag();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.keyE && event is KeyDownEvent) {
       _interact();
       return KeyEventResult.handled;
     }
@@ -311,6 +327,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     final encounter = _encounter;
     if (encounter == null) return;
     if (encounter == Encounter.gate && _world.progress.complete) {
+      if (_world.run == null && !_world.progress.puzzleCleared) {
+        unawaited(_openPuzzle());
+        return;
+      }
       unawaited(_travel(_world.islandIndex + 1));
       return;
     }
@@ -334,6 +354,28 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     } else {
       _closePanel();
     }
+  }
+
+  void _openBag() {
+    if (_panel != null || _travelling) return;
+    _clearInput();
+    _game.controlsEnabled = false;
+    setState(() => _panel = 'bag');
+  }
+
+  Future<void> _openPuzzle() async {
+    _clearInput();
+    _game.controlsEnabled = false;
+    final puzzle = GatewayPuzzle(_world.seed, _world.islandIndex);
+    final result = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => PuzzleScreen(puzzle: puzzle)));
+    if (!mounted) return;
+    if (result == true && ActionRules.clearGateway(_world, puzzle)) {
+      _audio.cue('task');
+      _changed('Puzzle cleared! The next island is ready.');
+      _game.refresh();
+    }
+    _closePanel();
   }
 
   String _actionLabel(Encounter? encounter) {
@@ -514,9 +556,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ),
               ),
               Positioned(
-                left: 20,
-                right: 20,
-                bottom: 145,
+                left: 150,
+                right: 210,
+                bottom: 130,
                 child: SafeArea(
                   top: false,
                   child: IgnorePointer(
@@ -558,6 +600,91 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                 ),
               ),
               if (_panel == null && !_travelling) ...[
+                Positioned(
+                  left: 150,
+                  right: 210,
+                  bottom: 25,
+                  child: SafeArea(
+                      top: false,
+                      child: ValueListenableBuilder<int>(
+                        valueListenable: _game.vitalsRevision,
+                        builder: (_, __, ___) => Container(
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                                color: const Color(0xdd203e48),
+                                borderRadius: BorderRadius.circular(14)),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(children: [
+                                    const Icon(Icons.favorite,
+                                        color: Color(0xfff09e91), size: 14),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                        child: LinearProgressIndicator(
+                                            value: _world.vitals.health / 100,
+                                            color: const Color(0xffef9d8a),
+                                            backgroundColor:
+                                                const Color(0xff49606a),
+                                            minHeight: 7)),
+                                    const SizedBox(width: 5),
+                                    Text('${_world.vitals.health.round()}',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 10))
+                                  ]),
+                                  const SizedBox(height: 6),
+                                  Row(children: [
+                                    const Icon(Icons.bolt,
+                                        color: Color(0xff9cddd0), size: 14),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                        child: LinearProgressIndicator(
+                                            value: _world.vitals.stamina / 100,
+                                            color: const Color(0xff9cddd0),
+                                            backgroundColor:
+                                                const Color(0xff49606a),
+                                            minHeight: 7))
+                                  ]),
+                                  Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        IconButton(
+                                            tooltip: 'Backpack',
+                                            onPressed: _openBag,
+                                            icon: const Icon(
+                                                Icons.backpack_outlined,
+                                                color: Colors.white,
+                                                size: 22)),
+                                        IconButton(
+                                            tooltip: 'Jump / double jump',
+                                            onPressed: _game.jump,
+                                            icon: const Icon(
+                                                Icons.arrow_upward_rounded,
+                                                color: Colors.white,
+                                                size: 22)),
+                                        IconButton(
+                                            tooltip: 'Attack',
+                                            onPressed: _game.attack,
+                                            icon: const Icon(
+                                                Icons.flash_on_rounded,
+                                                color: Colors.white,
+                                                size: 22)),
+                                        IconButton(
+                                            tooltip: 'Toggle sprint',
+                                            onPressed: () {
+                                              _touchSprint = !_touchSprint;
+                                              _syncInput();
+                                            },
+                                            icon: Icon(Icons.directions_run,
+                                                color: _touchSprint
+                                                    ? const Color(0xffffd58c)
+                                                    : Colors.white,
+                                                size: 22)),
+                                      ]),
+                                ])),
+                      )),
+                ),
                 Positioned(
                   left: 15,
                   bottom: 35,
@@ -678,11 +805,20 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                             child: _Parchment(
                               padding: const EdgeInsets.all(14),
                               child: SingleChildScrollView(
-                                child: _panel == 'runresult'
-                                    ? _runResult()
-                                    : _panel == 'journal'
-                                        ? _journalCard()
-                                        : _encounterCard(),
+                                child: _panel == 'bag'
+                                    ? InventoryPanel(
+                                        world: _world,
+                                        onClose: _closePanel,
+                                        onChanged: () {
+                                          setState(() {});
+                                          _game.vitalsRevision.value++;
+                                          _changed('Backpack updated.');
+                                        })
+                                    : _panel == 'runresult'
+                                        ? _runResult()
+                                        : _panel == 'journal'
+                                            ? _journalCard()
+                                            : _encounterCard(),
                               ),
                             )),
                       ),
@@ -846,7 +982,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       body = p.complete
           ? '${map.consequence}\n\nNext: ${IslandMap.generate(_world.seed, _world.islandIndex + 1).name} — ${IslandMap.generate(_world.seed, _world.islandIndex + 1).title}. Find 12 sky coins to earn a glowing scarf here. Revisit islands from your trail book.'
           : 'This arch wakes when the island’s wonder comes alive.\n\n${WorldRules.objective(_world)}';
-      button = 'Sail to island ${_world.islandIndex + 2}';
+      button = _world.run == null && !p.puzzleCleared
+          ? 'Solve the skyway puzzle'
+          : 'Sail to island ${_world.islandIndex + 2}';
       actionable = p.complete;
     }
     return Column(

@@ -33,6 +33,8 @@ void main() {
     final store = MemoryStore();
     final repo = SaveRepository(store);
     final normal = WorldState(highestUnlocked: 3, x: 380, y: 540);
+    normal.bag.crystals = 7;
+    normal.vitals.health = 62;
     await repo.save(normal);
     final attempt = WorldState(
         seed: 987,
@@ -41,6 +43,8 @@ void main() {
         highestUnlocked: 3,
         profile: normal.profile,
         run: TrailRun());
+    attempt.bag.crystals = 99;
+    attempt.vitals.health = 1;
     attempt.run!.tick(100);
     attempt.run!.finish(attempt.profile);
     await repo.saveRunReward(attempt.profile);
@@ -49,6 +53,8 @@ void main() {
         (normal.seed, 0, 380));
     expect((recovered.profile.coins, recovered.profile.cores), (24, 2));
     expect(recovered.profile.owns(WorkshopItem.runnerCape), isTrue);
+    expect(recovered.bag.crystals, 7);
+    expect(recovered.vitals.health, 62);
   });
   test('fresh load and active island snapshot round-trip', () async {
     final store = MemoryStore();

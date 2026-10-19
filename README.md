@@ -2,13 +2,17 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**Current version: 0.5.0** · Flutter + Flame · Android and web
+**Current version: 0.7.0** · Flutter + Flame · Android and web
 
 Explore islands, help Pip, Luma and Moss, solve cave light-gate puzzles, and restore
 ancient archives. Bank Starlight, earn cores, and unlock permanent equipment in
 the lobby workshop. From island 4, wind, mist and overgrown paths change how you
 explore. Optional Trailblazer runs remix three compact islands against an
 active-play clock.
+
+The Super-Adventure update adds health, stamina, double jumps, lava, chasers,
+close-range combat, a persistent backpack, lodge crafting, and three puzzle-gate
+families. Recover at camp without losing your bag when health runs out.
 
 ## Play
 
@@ -27,9 +31,10 @@ flutter build apk --release
 ```
 
 Android uses landscape orientation. The lobby contains island selection,
-explorer appearances, settings, the Loom & Workshop, and Trailblazer Runs.
-Touch: drag the analog stick and tap the context action. Keyboard: WASD/arrows,
-Shift to sprint, E/Space to interact, J for the journal, Escape to close a card.
+explorer selection, settings, the Loom & Workshop, and Trailblazer Runs.
+Touch: analog stick, context action, and bottom bag/jump/attack/sprint controls.
+Keyboard: WASD/arrows, Shift to sprint, Space to jump (again for double jump),
+F to attack, E to interact, B for backpack, J for journal, Escape to close a card.
 
 ## What's included
 
@@ -44,6 +49,10 @@ Shift to sprint, E/Space to interact, J for the journal, Escape to close a card.
   islands; first victory earns a permanent cape and one-time currency reward.
 - Local saves, island revisits, backup recovery, and migration of older progress.
 - Original synthesized Android music and cues; web audio is currently silent.
+- Health and booster bars, gravity-driven jumps, pond falls and campsite recovery.
+- Mountain/building/trunk foot colliders and distinct explorer movement/body stats.
+- Gather crystals/herbs; craft health tonics, stamina boosters and a guard charm.
+- Seeded rope, maze and four-color puzzle gates; an optional maze timer.
 
 The island sequence has no authored ending, but its mechanics and modular rooms
 come from a finite content library. Progress and unlocks are shared across
@@ -77,7 +86,8 @@ flutter test
 Keep release history in [CHANGELOG.md](CHANGELOG.md), not in this README.
 Every version bump must have a changelog entry; CI verifies this.
 
-- [v0.5 gameplay and save details](docs/ENGAGEMENT_UPDATE.md)
+- [v0.7 gameplay, rules and limits](docs/SUPER_ADVENTURE_V0.7.md)
+- [v0.5 progression and save details](docs/ENGAGEMENT_UPDATE.md)
 - [Contributing](CONTRIBUTING.md)
 - [Playtest checklist](docs/PLAYTEST_CHECKLIST.md)
 - [Original design](docs/GAME_DESIGN.md) — concept history, not a shipped-feature checklist

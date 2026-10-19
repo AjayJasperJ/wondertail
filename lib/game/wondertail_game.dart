@@ -67,6 +67,19 @@ class WondertailGame extends FlameGame {
   final ValueNotifier<int> revision = ValueNotifier(0);
   final ValueNotifier<Encounter?> interaction = ValueNotifier(null);
   final ValueNotifier<double> compassAngle = ValueNotifier(0);
+  final ValueNotifier<int> vitalsRevision = ValueNotifier(0);
+  double _vitalsClock = 0;
+
+  void jump() {
+    if (!controlsEnabled) return;
+    if (ActionRules.jump(state)) onSound?.call('pickup');
+  }
+
+  void attack() {
+    if (!controlsEnabled) return;
+    if (ActionRules.attack(state)) onSound?.call('task');
+  }
+
   double inputX = 0, inputY = 0;
   bool sprint = false;
   bool controlsEnabled = true;
@@ -151,6 +164,27 @@ class WondertailGame extends FlameGame {
     }
     if (WorldRules.move(state, inputX, inputY, step, sprint: sprint)) {
       movedSinceSave = true;
+    }
+    final beforeHealth = state.vitals.health;
+    final respawned = ActionRules.tick(state, step,
+        sprint: sprint, moving: inputX != 0 || inputY != 0);
+    _vitalsClock += step;
+    if (_vitalsClock >= .1) {
+      _vitalsClock = 0;
+      vitalsRevision.value++;
+    }
+    if (respawned) {
+      refresh(arrival: true);
+      onSound?.call('task');
+      onWorldChanged('Recovered at camp. Your bag and discoveries are safe.');
+    } else if (beforeHealth > state.vitals.health) {
+      onSound?.call('near');
+      movedSinceSave = true;
+    }
+    if (ActionRules.gather(state) > 0) {
+      onSound?.call('pickup');
+      onWorldChanged('Materials collected. Craft at the scout lodge!');
+      refresh();
     }
     final smoothing = calmMotion ? 1.0 : 1 - math.exp(-12 * step);
     _cameraX += (state.x - _cameraX) * smoothing;
@@ -308,6 +342,7 @@ class WondertailGame extends FlameGame {
       terrainBuildCount++;
     }
     canvas.drawPicture(_terrain!);
+    _drawActionWorld(canvas);
     if (state.room != 0) {
       if (state.room == 1) {
         for (var i = 0; i < 3; i++) {
@@ -365,6 +400,16 @@ class WondertailGame extends FlameGame {
     _player(canvas);
     for (final p in _sparks) {
       canvas.drawCircle(Offset(p.x, p.y), 3 * (p.life / 0.8), _paint(p.color));
+    }
+    // Repaint only nearby foreground trees so the explorer can walk behind
+    // foliage without rebuilding the static scene.
+    for (var i = 0; i < state.map.trees.length; i++) {
+      final t = state.map.trees[i];
+      if (state.y < t.y && state.y > t.y - 110 && (state.x - t.x).abs() < 55) {
+        _tree(
+            canvas, t.x, t.y, palette.leaf, .65 + (i % 4) * .1, palette.accent,
+            blossom: state.progress.complete);
+      }
     }
     canvas.restore();
     if (state.map.mutator == IslandMutator.mist) {
@@ -690,6 +735,8 @@ class WondertailGame extends FlameGame {
       p.ink,
     );
     // The arrival campsite remains a visual anchor when revisiting.
+    canvas.save();
+    canvas.translate(state.map.arrival.x - 370, state.map.arrival.y - 545);
     final tent = Path()
       ..moveTo(325, 566)
       ..lineTo(351, 518)
@@ -709,6 +756,7 @@ class WondertailGame extends FlameGame {
       const Offset(379, 566),
       _paint(const Color(0xff9c795c))..strokeWidth = 3,
     );
+    canvas.restore();
   }
 
   void _crystal(Canvas canvas, Offset at, Color color) {
@@ -1356,6 +1404,79 @@ class WondertailGame extends FlameGame {
     }
   }
 
+  void _drawActionWorld(Canvas canvas) {
+    void lava(Point2 point) {
+      final rect = Rect.fromCenter(
+          center: Offset(point.x, point.y), width: 68, height: 48);
+      canvas.drawOval(rect.inflate(7), _paint(const Color(0xff544053)));
+      canvas.drawOval(rect, _paint(const Color(0xffe4623c)));
+      canvas.drawOval(rect.deflate(8), _paint(const Color(0xffffbb53)));
+      for (var i = 0; i < 3; i++) {
+        canvas.drawCircle(
+            Offset(
+                point.x - 18 + i * 18, point.y + math.sin(_time * 3 + i) * 5),
+            4,
+            _paint(const Color(0xffffe6a0)));
+      }
+      _label(canvas, Offset(point.x, point.y - 40), 'JUMP',
+          const Color(0xffffe8c4));
+    }
+
+    if (state.room == 1 && state.chamber > 0) lava(const Point2(700, 560));
+    if (state.room != 0) return;
+    for (var i = 0; i < state.map.lavaCount; i++) lava(state.map.lava(i));
+    for (var i = 0; i < 6; i++) {
+      if (state.progress.gathered & (1 << i) != 0) continue;
+      final r = state.map.resource(i);
+      if (i.isEven) {
+        _crystal(canvas, Offset(r.x, r.y), const Color(0xff83e5e2));
+      } else {
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(r.x - 5, r.y - 8), width: 12, height: 24),
+            _paint(const Color(0xff31785f)));
+        canvas.drawOval(
+            Rect.fromCenter(
+                center: Offset(r.x + 5, r.y - 5), width: 12, height: 20),
+            _paint(const Color(0xff84c983)));
+      }
+    }
+    for (final enemy in state.hostiles) {
+      if (!enemy.alive) continue;
+      final e = enemy.position;
+      canvas.drawOval(
+          Rect.fromCenter(center: Offset(e.x, e.y + 3), width: 39, height: 13),
+          _paint(const Color(0x33523c54)));
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(
+              Rect.fromCenter(
+                  center: Offset(e.x, e.y - 14), width: 35, height: 33),
+              const Radius.circular(12)),
+          _paint(const Color(0xffa24e70)));
+      for (final dx in [-7.0, 7.0])
+        canvas.drawCircle(
+            Offset(e.x + dx, e.y - 19), 3, _paint(const Color(0xffffe09c)));
+      canvas.drawRect(
+          Rect.fromLTWH(e.x - 18, e.y - 40,
+              36 * (enemy.health / (60 + state.map.difficulty * 5)), 3),
+          _paint(const Color(0xffffbb7a)));
+    }
+    if (state.attackFlash > 0) {
+      canvas.drawCircle(
+          Offset(state.x, state.y - 12 - state.vitals.z),
+          80,
+          _paint(const Color(0xaaffedb1))
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 5);
+    }
+    if (state.progress.complete &&
+        !state.progress.puzzleCleared &&
+        state.run == null) {
+      _label(canvas, Offset(state.map.gate.x, state.map.gate.y - 100),
+          'PUZZLE GATE', const Color(0xffffefb2));
+    }
+  }
+
   void _player(Canvas canvas) {
     final moving = (inputX != 0 || inputY != 0) && controlsEnabled;
     final bounce = moving && !calmMotion ? math.sin(_time * 15) * 2 : 0.0;
@@ -1365,7 +1486,13 @@ class WondertailGame extends FlameGame {
       const Rect.fromLTWH(-16, -3, 32, 12),
       _paint(const Color(0x33718965)),
     );
-    canvas.translate(0, bounce);
+    canvas.translate(0, bounce - state.vitals.z);
+    final stats = ExplorerStats.forCharacter(state.character);
+    canvas.scale(stats.bodyX, stats.bodyY);
+    if (state.vitals.invulnerable > 0 && (_time * 14).floor().isEven) {
+      canvas.drawCircle(
+          const Offset(0, -23), 34, _paint(const Color(0x66ffdf80)));
+    }
     if (state.profile.cape != 0) {
       canvas.drawPath(
           Path()

@@ -122,7 +122,7 @@ void main() {
   ) async {
     final world = WorldState(
       highestUnlocked: 1,
-      progress: IslandProgress(stage: 3, collected: 7),
+      progress: IslandProgress(stage: 3, collected: 7, puzzleCleared: true),
     );
     world.x = world.map.gate.x;
     world.y = world.map.gate.y;
@@ -152,6 +152,7 @@ void main() {
   test('static drawing and HUD updates remain bounded during movement', () {
     final world = WorldState();
     world.progress.coins = 4095;
+    world.progress.gathered = 63;
     final game = WondertailGame(state: world, onWorldChanged: (_) {});
     game.onGameResize(Vector2(390, 844));
     game.inputX = 1;

@@ -1,6 +1,12 @@
 # Technical architecture
 
-## Version 0.5
+## Version 0.7
+
+The current action, inventory, puzzle and persistence rules are detailed in
+[SUPER_ADVENTURE_V0.7.md](SUPER_ADVENTURE_V0.7.md). `adventure_system.dart` adds
+pure Dart vitals/combat/backpack/puzzle models. Movement also checks shared
+mountain, lodge and trunk foot boxes. The bottom vitals notifier is throttled
+separately from quest HUD updates. The table below describes the retained base.
 
 | Boundary | Implementation |
 | --- | --- |
@@ -22,7 +28,8 @@ its position or island memories.
 Island zero remains the cloud/rain adventure so old saves have a meaningful migration. Later islands combine biome selection, a repeating adventure rotation and seeded map variations. Landmark arrangements, obstacles, decoration and names are deterministic. The three authored mechanics are cloud rescue/rain/exploration, a numbered light sequence, and filling a can then planting three beds. The player can keep generating a next island; this does not mean unlimited unique authored mechanics.
 
 The world holds the active map, island progress, and shared player profile.
-Restoring a wonder unlocks the next index. A lobby atlas or journal loads earlier
+Restoring a wonder and solving its puzzle gate unlock the next index (optional
+Trailblazer runs use restoration alone). A lobby atlas or journal loads earlier
 island memory before replacing the map. Generated scenery is reconstructed from
 the seed/index; progress bits, equipment, bond points and reward receipts persist.
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 part 'progression.dart';
 part 'engagement_rules.dart';
+part 'adventure_system.dart';
 
 class Point2 {
   const Point2(this.x, this.y);
@@ -57,11 +58,15 @@ class IslandProgress {
     this.vinesCleared = false,
     this.toolFound = false,
     this.mirror = 0,
+    this.gathered = 0,
+    this.puzzleCleared = false,
   });
   int shards;
   bool scoutMet, ruinsRestored;
   bool favorGiven, cacheOpened, vinesCleared, toolFound;
   int mirror;
+  int gathered;
+  bool puzzleCleared;
   int get shardCount => shards.toRadixString(2).replaceAll('0', '').length;
   int coins;
   int get coinCount => coins.toRadixString(2).replaceAll('0', '').length;
@@ -86,6 +91,8 @@ class IslandProgress {
         'vinesCleared': vinesCleared,
         'toolFound': toolFound,
         'mirror': mirror,
+        'gathered': gathered,
+        'puzzleCleared': puzzleCleared,
       };
   factory IslandProgress.fromJson(Map<String, dynamic> json) {
     final shards = json['shards'] ?? 0;
@@ -100,6 +107,11 @@ class IslandProgress {
       if ((json[key] ?? false) is! bool) throw FormatException('Invalid $key.');
     }
     final mirror = json['mirror'] ?? 0;
+    final gathered = json['gathered'] ?? 0;
+    final puzzle = json['puzzleCleared'] ?? false;
+    if (gathered is! int || gathered < 0 || gathered > 63 || puzzle is! bool) {
+      throw const FormatException('Invalid adventure memory.');
+    }
     if (mirror is! int || mirror < 0 || mirror > 3) {
       throw const FormatException('Invalid mirror.');
     }
@@ -140,6 +152,8 @@ class IslandProgress {
       vinesCleared: json['vinesCleared'] ?? false,
       toolFound: json['toolFound'] ?? false,
       mirror: mirror,
+      gathered: gathered,
+      puzzleCleared: puzzle,
       coins: coins,
       stage: stage,
       collected: collected,
@@ -166,7 +180,11 @@ class WorldState {
     IslandProgress? progress,
     PlayerProfile? profile,
     this.run,
+    ExpeditionBag? bag,
+    PlayerVitals? vitals,
   })  : profile = profile ?? PlayerProfile(),
+        bag = bag ?? ExpeditionBag(),
+        vitals = vitals ?? PlayerVitals(),
         progress = progress ?? IslandProgress() {
     map = IslandMap.generate(seed, islandIndex, compact: run != null);
     this.x = x ?? map.arrival.x;
@@ -180,6 +198,11 @@ class WorldState {
   int chamber = 0;
   final PlayerProfile profile;
   final TrailRun? run;
+  final ExpeditionBag bag;
+  final PlayerVitals vitals;
+  final List<Hostile> hostiles = [];
+  int encounterIsland = -1;
+  double attackFlash = 0;
   final int seed;
   int islandIndex;
   int highestUnlocked;
@@ -198,6 +221,9 @@ class WorldState {
     }
     room = 0;
     chamber = 0;
+    vitals.land();
+    hostiles.clear();
+    encounterIsland = -1;
     islandIndex = index;
     highestVisited = math.max(highestVisited, index);
     map = IslandMap.generate(seed, index, compact: run != null);
@@ -219,6 +245,8 @@ class WorldState {
         'calm': calm,
         'guide': guide,
         'profile': profile.toJson(),
+        'bag': bag.toJson(),
+        'vitals': vitals.toJson(),
         'x': room == 0 ? x : (room == 1 ? map.cave.x : map.lodge.x),
         'y': room == 0 ? y : (room == 1 ? map.cave.y : map.lodge.y),
       };
@@ -283,6 +311,8 @@ class WorldState {
       y: (json['y'] as num).toDouble(),
       progress: IslandProgress.fromJson(progress),
       profile: PlayerProfile.fromJson(json['profile']),
+      bag: ExpeditionBag.fromJson(json['bag']),
+      vitals: PlayerVitals.fromJson(json['vitals']),
     );
     if (!EngagementRules.passable(world, world.position)) {
       world.x = world.map.arrival.x;
@@ -389,6 +419,11 @@ class IslandMap {
   final Point2 gate;
   final List<Point2> collectibles;
   final List<Obstacle> obstacles;
+  late final List<SolidBox> solidBoxes = [
+    SolidBox(cave.x - 120, cave.y - 125, cave.x + 130, cave.y - 22),
+    SolidBox(lodge.x - 51, lodge.y - 80, lodge.x + 51, lodge.y - 19),
+    for (final t in trees) SolidBox(t.x - 9, t.y - 10, t.x + 9, t.y + 5),
+  ];
   final List<Point2> flowers;
   final List<Point2> trees;
   static const center = Point2(640, 480);
@@ -650,8 +685,10 @@ class IslandMap {
         coast(math.atan2(dy, dx)) - margin / (radiusY * scaleY) + 0.000001;
   }
 
-  bool canStand(Point2 point) =>
+  bool canStand(Point2 point, {int character = 2}) =>
       onLand(point) &&
+      !solidBoxes.any(
+          (b) => b.contains(point, ExplorerStats.forCharacter(character))) &&
       !obstacles.any((rock) =>
           point.distanceTo(rock.center) < rock.radius + playerRadius - 0.05);
 
@@ -667,10 +704,11 @@ class IslandMap {
 
   /// Project against contact normals, then preserve tangential movement. Small
   /// substeps prevent tunnelling; gentle head-on assistance removes dead zones.
-  Point2 slide(Point2 from, Point2 delta) {
+  Point2 slide(Point2 from, Point2 delta, {bool jumping = false}) {
     var point = _insideShore(from + delta);
     for (var pass = 0; pass < 3; pass++) {
       for (final rock in obstacles) {
+        if (jumping && rock.pond) continue;
         final difference = point - rock.center;
         final distance = difference.length;
         final limit = rock.radius + playerRadius + 0.05;
@@ -952,10 +990,7 @@ class WorldRules {
       p.collected |= 1 << bed;
       if (p.count == 3) {
         p.stage = 3;
-        world.highestUnlocked = math.max(
-          world.highestUnlocked,
-          world.islandIndex + 1,
-        );
+        ActionRules.unlock(world);
         world.profile.reconcile(world);
       }
       return true;
@@ -972,10 +1007,7 @@ class WorldRules {
         p.count == 3) {
       if (world.map.adventure == Adventure.rain && p.stage < 2) return false;
       p.stage = 3;
-      world.highestUnlocked = math.max(
-        world.highestUnlocked,
-        world.islandIndex + 1,
-      );
+      ActionRules.unlock(world);
       world.profile.reconcile(world);
       return true;
     }
@@ -1038,7 +1070,11 @@ class WorldRules {
     final duration = seconds.clamp(0.0, 0.15);
     final steps = math.max(1, (duration / (1 / 90)).ceil());
     var delta = Point2(dx, dy) *
-        ((sprint ? 260 : 205) * duration / steps / math.max(1, length));
+        ((sprint && world.vitals.stamina > 1 ? 260 : 205) *
+            ExplorerStats.forCharacter(world.character).speed *
+            duration /
+            steps /
+            math.max(1, length));
     if (world.room == 0 &&
         world.map.mutator == IslandMutator.breeze &&
         world.position.distanceTo(world.map.windLane) < 110) {
@@ -1048,14 +1084,24 @@ class WorldRules {
     var position = before;
     for (var i = 0; i < steps; i++) {
       if (world.room == 0) {
-        final next = world.map.slide(position, delta);
+        final next =
+            world.map.slide(position, delta, jumping: world.vitals.z > 20);
         final escapingVines = world.map.mutator == IslandMutator.overgrowth &&
             !world.progress.vinesCleared &&
             position.distanceTo(world.map.vineGate) < 36 &&
             next.distanceTo(world.map.vineGate) >
                 position.distanceTo(world.map.vineGate);
-        position = EngagementRules.passable(world, next) || escapingVines
-            ? next
+        final safe = ActionRules.solidSlide(world, position, next);
+        final overWater = world.vitals.z > 20 &&
+            world.map.onLand(safe) &&
+            ActionRules.groundedClear(world, safe) &&
+            !world.map.obstacles.any((o) =>
+                !o.pond &&
+                safe.distanceTo(o.center) < o.radius + IslandMap.playerRadius);
+        position = (EngagementRules.passable(world, safe) ||
+                escapingVines ||
+                overWater)
+            ? safe
             : position;
       } else {
         final inset = world.map.inset(world.chamber);

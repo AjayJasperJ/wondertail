@@ -55,7 +55,7 @@ class EngagementRules {
       w.profile.rank(Adventure.garden) >= 2;
 
   static bool passable(WorldState w, Point2 point) =>
-      w.map.canStand(point) &&
+      w.map.canStand(point, character: w.character) &&
       !(w.map.mutator == IslandMutator.overgrowth &&
           !w.progress.vinesCleared &&
           point.distanceTo(w.map.vineGate) < 23 + IslandMap.playerRadius);

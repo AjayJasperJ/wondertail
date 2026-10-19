@@ -4,6 +4,44 @@ User-visible changes for each application version belong here. The app version
 in `pubspec.yaml` is the source of truth. Older dates are omitted where they were
 not recorded in the release history.
 
+## [0.7.0] - 2026-10-19
+
+### Added
+
+- Bottom health/booster bars and touch backpack, jump, attack and sprint controls.
+- Gravity-driven Z jumps and double jumps with stamina costs; airborne pond
+  crossings, landing hazards and campsite recovery without inventory loss.
+- Seeded lava patches, side-cave lava, bounded hostile chasers, close-range
+  attacks, damage immunity windows and a craftable damage-reducing guard charm.
+- Persistent expedition backpack, once-per-island crystal/herb gathering, and
+  scout-lodge recipes for health tonics, stamina boosters and defensive gear.
+- Seeded rope-untangling, perfect-maze and four-color graph puzzle gateways.
+  Normal progression requires restoration plus puzzle clearance; existing
+  unlocked islands remain accessible. The maze timer is optional and pauses
+  while the app is backgrounded.
+- Distinct explorer body proportions, foot boxes, movement/jump speeds and
+  attack strength. Nearby foreground trees can occlude the explorer.
+
+### Changed
+
+- Mountains, lodges and tree trunks share solid foot geometry with route
+  generation and movement. Circular rocks and shore sliding remain supported.
+- Space now jumps; E interacts, F attacks and B opens the backpack.
+- Saves include backpack, gathered-item bits, puzzle clearance and vitals;
+  older checkpoints receive default health and an empty bag. Trial backpacks
+  and vitals stay separate from normal exploration and reward merges.
+- Campsite artwork follows each generated island's arrival point.
+
+### Known limits
+
+- Stylized top-down 2D with simulated jump height; no side-scrolling engine,
+  climbable mountain mesh, Minecraft voxel world, or realistic character assets.
+- Layouts and puzzles are seeded combinations of finite rules. Enemies reset
+  after travel/relaunch; unfinished puzzle boards are session-only. Puzzle
+  clearance persists. Timed maze expiry restarts only that maze attempt.
+- No measured retention, excitement, boredom or cognitive-development results.
+  Real-device frame pacing and touch feel still require playtesting.
+
 ## [0.5.0] - 2026-10-19
 
 ### Added

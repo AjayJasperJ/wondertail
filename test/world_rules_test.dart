@@ -9,6 +9,8 @@ void stand(WorldState world, Point2 point) {
 }
 
 void finish(WorldState world) {
+  world.progress.puzzleCleared =
+      true; // Main-adventure fixture; gateway tested separately.
   final map = world.map;
   if (map.mutator == IslandMutator.overgrowth) {
     stand(world, map.shears);
