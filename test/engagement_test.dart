@@ -49,6 +49,7 @@ void main() {
         progress: IslandProgress(stage: 3, shards: 7, ruinsRestored: true));
     w.profile.reconcile(w);
     expect(w.profile.coinRadius, 36);
+    expect(WorldState.decode(w.encode()).profile.coinRadius, 36);
     expect(EngagementRules.cacheVisible(w), isTrue);
     place(w, w.map.hiddenCache);
     expect(WorldRules.act(w, Encounter.cache), isTrue);

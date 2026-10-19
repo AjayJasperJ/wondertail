@@ -48,6 +48,8 @@ not recorded in the release history.
 - Later lantern instructions show their generated order instead of the tutorial's.
 - Old positions inside a newly introduced vine gate relocate safely; movement
   can also back out of a gate without getting trapped.
+- Archive bonuses are counted on load/restoration rather than scanning the full
+  reward history for every nearby coin during each frame.
 
 ## [0.4.0] - 2026-10-19
 

@@ -24,6 +24,7 @@ extension WorkshopDetails on WorkshopItem {
 /// Reward receipts live with the wallet in the authoritative checkpoint.
 /// Re-entering an island or replaying a failed write cannot mint its rewards twice.
 class PlayerProfile {
+  int _archives = 0;
   int coins = 0, cores = 0, seeds = 0, owned = 0, cape = 0;
   bool trail = false, hat = false;
   final List<int> bonds = [0, 0, 0];
@@ -36,8 +37,7 @@ class PlayerProfile {
       : bonds[creature.index] >= 2
           ? 2
           : 1;
-  int get archives =>
-      receipts.values.where((value) => (value & (1 << 13)) != 0).length;
+  int get archives => _archives;
   double get coinRadius => 28 + math.min(archives, 3) * 8.0;
 
   bool purchase(WorkshopItem item) {
@@ -76,7 +76,9 @@ class PlayerProfile {
     final key = '${world.seed}:${world.islandIndex}';
     var paid = receipts[key] ?? 0;
     final newCoins = p.coins & ~(paid & 4095);
-    coins += newCoins.toRadixString(2).replaceAll('0', '').length;
+    if (newCoins != 0) {
+      coins += newCoins.toRadixString(2).replaceAll('0', '').length;
+    }
     paid |= p.coins;
     if (p.coins == 4095 && (paid & (1 << 12)) == 0) {
       cores++;
@@ -84,6 +86,7 @@ class PlayerProfile {
     }
     if (p.ruinsRestored && (paid & (1 << 13)) == 0) {
       paid |= 1 << 13;
+      _archives++;
     }
     if (p.complete && (paid & (1 << 14)) == 0) {
       bonds[world.map.adventure.index]++;
@@ -174,6 +177,7 @@ class PlayerProfile {
         throw const FormatException('Invalid reward receipt.');
       }
       p.receipts[entry.key] = entry.value as int;
+      if (((entry.value as int) & (1 << 13)) != 0) p._archives++;
     }
     if ((p.cape == 1 && !p.owns(WorkshopItem.starCape)) ||
         (p.cape == 2 && !p.owns(WorkshopItem.gliderCape)) ||
