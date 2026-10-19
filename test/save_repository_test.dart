@@ -27,6 +27,30 @@ class MemoryStore implements SaveStore {
 }
 
 void main() {
+  test('failed material checkpoint preserves bag and gathering together',
+      () async {
+    final store = MemoryStore();
+    final repo = SaveRepository(store);
+    final world = WorldState();
+    await repo.save(world);
+    final at = world.map.resource(0);
+    world.x = at.x;
+    world.y = at.y;
+    ActionRules.gather(world);
+    store.failingKey = SaveRepository.currentKey;
+    await expectLater(repo.save(world), throwsStateError);
+    store.failingKey = null;
+    final recovered = (await SaveRepository(store).load()).state;
+    expect(recovered.bag.crystals, 0);
+    expect(recovered.progress.gathered, 0);
+    recovered.x = at.x;
+    recovered.y = at.y;
+    ActionRules.gather(recovered);
+    await SaveRepository(store).save(recovered);
+    final saved = (await SaveRepository(store).load()).state;
+    expect(saved.bag.crystals, 1);
+    expect(ActionRules.gather(saved), 0);
+  });
   test(
       'a challenge victory saves rewards while retaining the normal checkpoint',
       () async {

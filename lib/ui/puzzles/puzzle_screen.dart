@@ -107,78 +107,84 @@ class _PuzzleScreenState extends State<PuzzleScreen>
         Expanded(
             child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: LayoutBuilder(builder: (context, c) {
-                  final size = Size(c.maxWidth, c.maxHeight);
-                  return switch (p.kind) {
-                    PuzzleKind.rope => Stack(children: [
-                        Positioned.fill(
-                            child: CustomPaint(painter: _PuzzlePainter(p))),
-                        for (var i = 0; i < 6; i++)
-                          Positioned(
-                              left: p.nodes[i].x * size.width - 18,
-                              top: p.nodes[i].y * size.height - 18,
-                              child: GestureDetector(
-                                  onPanUpdate: (d) => setState(() {
-                                        p.nodes[i] = Point2(
-                                            (p.nodes[i].x +
-                                                    d.delta.dx / size.width)
-                                                .clamp(.06, .94),
-                                            (p.nodes[i].y +
-                                                    d.delta.dy / size.height)
-                                                .clamp(.06, .94));
-                                      }),
-                                  child: CircleAvatar(
-                                      radius: 18,
-                                      backgroundColor: const Color(0xffffd18a),
-                                      child: Text('${i + 1}')))),
-                      ]),
-                    PuzzleKind.maze => CustomPaint(
-                        painter: _PuzzlePainter(p),
-                        child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTapDown: (d) => setState(() {
-                                  final x =
-                                      (d.localPosition.dx / size.width * 5)
-                                          .floor()
-                                          .clamp(0, 4);
-                                  final y =
-                                      (d.localPosition.dy / size.height * 5)
-                                          .floor()
-                                          .clamp(0, 4);
-                                  p.mazeMove(y * 5 + x);
-                                }))),
-                    PuzzleKind.coloring => Stack(children: [
-                        Positioned.fill(
-                            child: GridView.count(
-                                crossAxisCount: 3,
-                                childAspectRatio: size.width / size.height,
-                                physics: const NeverScrollableScrollPhysics(),
-                                children: [
-                              for (var i = 0; i < 9; i++)
-                                GestureDetector(
-                                    onTap: () => setState(() {
-                                          p.colors[i] = (p.colors[i] + 1) % 4;
-                                        }),
-                                    child: Container(
-                                        margin: const EdgeInsets.all(3),
-                                        decoration: BoxDecoration(
-                                            color: p.colors[i] < 0
-                                                ? const Color(0xff607783)
-                                                : _colors[p.colors[i]],
-                                            borderRadius:
-                                                BorderRadius.circular(12)),
-                                        child: Center(
-                                            child: Text('${i + 1}',
-                                                style: const TextStyle(
-                                                    fontSize: 24))))),
-                            ])),
-                        Positioned.fill(
-                            child: IgnorePointer(
-                                child:
-                                    CustomPaint(painter: _PuzzlePainter(p)))),
-                      ]),
-                  };
-                }))),
+                child: LayoutBuilder(
+                    key: const ValueKey('puzzle-board'),
+                    builder: (context, c) {
+                      final size = Size(c.maxWidth, c.maxHeight);
+                      return switch (p.kind) {
+                        PuzzleKind.rope => Stack(children: [
+                            Positioned.fill(
+                                child: CustomPaint(painter: _PuzzlePainter(p))),
+                            for (var i = 0; i < 6; i++)
+                              Positioned(
+                                  left: p.nodes[i].x * size.width - 18,
+                                  top: p.nodes[i].y * size.height - 18,
+                                  child: GestureDetector(
+                                      onPanUpdate: (d) => setState(() {
+                                            p.nodes[i] = Point2(
+                                                (p.nodes[i].x +
+                                                        d.delta.dx / size.width)
+                                                    .clamp(.06, .94),
+                                                (p.nodes[i].y +
+                                                        d.delta.dy /
+                                                            size.height)
+                                                    .clamp(.06, .94));
+                                          }),
+                                      child: CircleAvatar(
+                                          radius: 18,
+                                          backgroundColor:
+                                              const Color(0xffffd18a),
+                                          child: Text('${i + 1}')))),
+                          ]),
+                        PuzzleKind.maze => CustomPaint(
+                            painter: _PuzzlePainter(p),
+                            child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapDown: (d) => setState(() {
+                                      final x =
+                                          (d.localPosition.dx / size.width * 5)
+                                              .floor()
+                                              .clamp(0, 4);
+                                      final y =
+                                          (d.localPosition.dy / size.height * 5)
+                                              .floor()
+                                              .clamp(0, 4);
+                                      p.mazeMove(y * 5 + x);
+                                    }))),
+                        PuzzleKind.coloring => Stack(children: [
+                            Positioned.fill(
+                                child: GridView.count(
+                                    crossAxisCount: 3,
+                                    childAspectRatio: size.width / size.height,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    children: [
+                                  for (var i = 0; i < 9; i++)
+                                    GestureDetector(
+                                        onTap: () => setState(() {
+                                              p.colors[i] =
+                                                  (p.colors[i] + 1) % 4;
+                                            }),
+                                        child: Container(
+                                            margin: const EdgeInsets.all(3),
+                                            decoration: BoxDecoration(
+                                                color: p.colors[i] < 0
+                                                    ? const Color(0xff607783)
+                                                    : _colors[p.colors[i]],
+                                                borderRadius:
+                                                    BorderRadius.circular(12)),
+                                            child: Center(
+                                                child: Text('${i + 1}',
+                                                    style: const TextStyle(
+                                                        fontSize: 24))))),
+                                ])),
+                            Positioned.fill(
+                                child: IgnorePointer(
+                                    child: CustomPaint(
+                                        painter: _PuzzlePainter(p)))),
+                          ]),
+                      };
+                    }))),
       ])));
 }
 
@@ -211,10 +217,12 @@ class _PuzzlePainter extends CustomPainter {
         paint.strokeWidth = 3;
         if (i % 5 == 0) canvas.drawLine(Offset(x, y), Offset(x, y + h), paint);
         if (i < 5) canvas.drawLine(Offset(x, y), Offset(x + w, y), paint);
-        if (i % 5 == 4 || !p.mazeEdges.contains(GatewayPuzzle.edge(i, i + 1)))
+        if (i % 5 == 4 || !p.mazeEdges.contains(GatewayPuzzle.edge(i, i + 1))) {
           canvas.drawLine(Offset(x + w, y), Offset(x + w, y + h), paint);
-        if (i >= 20 || !p.mazeEdges.contains(GatewayPuzzle.edge(i, i + 5)))
+        }
+        if (i >= 20 || !p.mazeEdges.contains(GatewayPuzzle.edge(i, i + 5))) {
           canvas.drawLine(Offset(x, y + h), Offset(x + w, y + h), paint);
+        }
         if (i == 24 || i == p.mazeCell) {
           paint.color = i == p.mazeCell
               ? const Color(0xff83ddd1)

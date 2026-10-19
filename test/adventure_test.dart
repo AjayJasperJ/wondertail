@@ -169,7 +169,9 @@ void main() {
               p.colors[i] = c;
               if (p.borders
                       .every((e) => e % 100 != i || p.colors[e ~/ 100] != c) &&
-                  solve(i + 1)) return true;
+                  solve(i + 1)) {
+                return true;
+              }
             }
             p.colors[i] = -1;
             return false;
@@ -189,9 +191,10 @@ void main() {
     ActionRules.unlock(w);
     expect(w.highestUnlocked, 0);
     expect(ActionRules.clearGateway(w, p), isFalse);
-    for (var i = 0; i < 6; i++)
+    for (var i = 0; i < 6; i++) {
       p.nodes[i] = Point2(.5 + .38 * math.cos(i * math.pi / 3),
           .5 + .38 * math.sin(i * math.pi / 3));
+    }
     expect(ActionRules.clearGateway(w, p), isTrue);
     expect(w.highestUnlocked, 1);
     expect(WorldState.decode(w.encode()).progress.puzzleCleared, isTrue);

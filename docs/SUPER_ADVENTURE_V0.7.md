@@ -34,8 +34,8 @@ currency drop, preventing repeated reset farming. They reset on travel/relaunch.
 | Explorer slot | Speed multiplier | Foot box | Jump impulse | Strength | Appearance |
 | --- | --- | --- | --- | --- | --- |
 | Rowan | 1.00 | 22 × 16 | 330 | 1.0 | Balanced proportions |
-| Luma | 1.12 | 18 × 14 | 365 | 0.8 | Tall and narrow |
-| Moss | 0.92 | 28 × 20 | 310 | 1.4 | Broad and compact |
+| Sky | 1.12 | 18 × 14 | 365 | 0.8 | Tall and narrow |
+| Fern | 0.92 | 28 × 20 | 310 | 1.4 | Broad and compact |
 
 These are stylized Canvas characters, not realistic animated human models.
 Base walking speed is 205 world units/second; sprint speed is 260 before the

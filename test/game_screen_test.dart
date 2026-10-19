@@ -26,6 +26,36 @@ Future<void> frames(WidgetTester tester, [int count = 12]) async {
 }
 
 void main() {
+  testWidgets('bottom action controls jump and backpack pauses play',
+      (tester) async {
+    tester.view.physicalSize = const Size(640, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final world = WorldState(bag: ExpeditionBag(tonics: 1));
+    world.vitals.health = 40;
+    await tester.pumpWidget(WondertailApp(
+        startInGame: true,
+        saves: SaveRepository(_Store()),
+        loaded: LoadResult(world)));
+    await frames(tester);
+    await tester.tap(find.byTooltip('Jump / double jump'));
+    await frames(tester, 5);
+    expect(world.vitals.z, greaterThan(0));
+    await tester.tap(find.byTooltip('Backpack'));
+    await frames(tester);
+    final pausedZ = world.vitals.z;
+    await frames(tester, 20);
+    expect(world.vitals.z, pausedZ);
+    expect(find.text('EXPEDITION BAG'), findsOneWidget);
+    await tester.tap(find.text('Drink tonic (1) · +50 health'));
+    await frames(tester);
+    expect(world.vitals.health, 90);
+    expect(world.bag.tonics, 0);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('analog drag walks, release stops, themed journal pauses input', (
     tester,
   ) async {

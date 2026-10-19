@@ -72,7 +72,7 @@ class WondertailGame extends FlameGame {
 
   void jump() {
     if (!controlsEnabled) return;
-    if (ActionRules.jump(state)) onSound?.call('pickup');
+    if (ActionRules.jump(state)) onSound?.call('near');
   }
 
   void attack() {
@@ -182,7 +182,7 @@ class WondertailGame extends FlameGame {
       movedSinceSave = true;
     }
     if (ActionRules.gather(state) > 0) {
-      onSound?.call('pickup');
+      onSound?.call('coin');
       onWorldChanged('Materials collected. Craft at the scout lodge!');
       refresh();
     }
@@ -208,6 +208,9 @@ class WondertailGame extends FlameGame {
         [
           for (var i = 0; i < state.map.coins.length; i++)
             if ((state.progress.coins & (1 << i)) == 0) state.map.coins[i],
+          for (var i = 0; i < 6; i++)
+            if ((state.progress.gathered & (1 << i)) == 0)
+              state.map.resource(i),
           if (WorldRules.itemsActive(state))
             for (var i = 0; i < 3; i++)
               if ((state.progress.collected & (1 << i)) == 0)
@@ -1424,7 +1427,9 @@ class WondertailGame extends FlameGame {
 
     if (state.room == 1 && state.chamber > 0) lava(const Point2(700, 560));
     if (state.room != 0) return;
-    for (var i = 0; i < state.map.lavaCount; i++) lava(state.map.lava(i));
+    for (var i = 0; i < state.map.lavaCount; i++) {
+      lava(state.map.lava(i));
+    }
     for (var i = 0; i < 6; i++) {
       if (state.progress.gathered & (1 << i) != 0) continue;
       final r = state.map.resource(i);
@@ -1453,9 +1458,10 @@ class WondertailGame extends FlameGame {
                   center: Offset(e.x, e.y - 14), width: 35, height: 33),
               const Radius.circular(12)),
           _paint(const Color(0xffa24e70)));
-      for (final dx in [-7.0, 7.0])
+      for (final dx in [-7.0, 7.0]) {
         canvas.drawCircle(
             Offset(e.x + dx, e.y - 19), 3, _paint(const Color(0xffffe09c)));
+      }
       canvas.drawRect(
           Rect.fromLTWH(e.x - 18, e.y - 40,
               36 * (enemy.health / (60 + state.map.difficulty * 5)), 3),

@@ -290,7 +290,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
   Widget explorers() =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         heading('Choose your explorer',
-            'Rowan: balanced. Luma: taller, faster, higher jumps. Moss: broader, slower, stronger attacks. Switching keeps your progress.'),
+            'Rowan: balanced. Sky: taller, faster, higher jumps. Fern: broader, slower, stronger attacks. Switching keeps your progress.'),
         for (var i = 0; i < 3; i++)
           Padding(
               padding: const EdgeInsets.only(bottom: 8),

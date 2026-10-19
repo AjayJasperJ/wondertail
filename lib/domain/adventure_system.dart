@@ -70,7 +70,9 @@ class ExpeditionBag {
         crystals < c ||
         herbs < h ||
         (recipe == Recipe.tonic && tonics >= 99) ||
-        (recipe == Recipe.booster && boosters >= 99)) return false;
+        (recipe == Recipe.booster && boosters >= 99)) {
+      return false;
+    }
     crystals -= c;
     herbs -= h;
     switch (recipe) {
@@ -170,7 +172,9 @@ class ActionRules {
         p.index != w.islandIndex ||
         !p.solved ||
         w.room != 0 ||
-        w.position.distanceTo(w.map.gate) > 88) return false;
+        w.position.distanceTo(w.map.gate) > 88) {
+      return false;
+    }
     w.progress.puzzleCleared = true;
     unlock(w);
     return true;
@@ -193,7 +197,9 @@ class ActionRules {
     var count = 0;
     for (var i = 0; i < 6; i++) {
       if (w.progress.gathered & (1 << i) != 0 ||
-          w.position.distanceTo(w.map.resource(i)) > 30) continue;
+          w.position.distanceTo(w.map.resource(i)) > 30) {
+        continue;
+      }
       w.progress.gathered |= 1 << i;
       if (i.isEven) {
         w.bag.crystals = math.min(999999, w.bag.crystals + 1);
@@ -217,8 +223,9 @@ class ActionRules {
         enemy.health -= 35 * strength;
         final d = enemy.position - w.position;
         final next = enemy.position + d * (32 / math.max(1, d.length));
-        if (w.map.canStand(next) && groundedClear(w, next))
+        if (w.map.canStand(next) && groundedClear(w, next)) {
           enemy.position = next;
+        }
       }
     }
     return true;
@@ -277,8 +284,9 @@ class ActionRules {
       if (w.room == 1 &&
           w.chamber > 0 &&
           v.z < 26 &&
-          w.position.distanceTo(const Point2(700, 560)) < 34)
+          w.position.distanceTo(const Point2(700, 560)) < 34) {
         return damage(w, 25);
+      }
       return false;
     }
     if (v.z < 20 &&
@@ -377,8 +385,9 @@ class GatewayPuzzle {
   int mazeCell = 0;
   static int edge(int a, int b) => math.min(a, b) * 100 + math.max(a, b);
   bool mazeMove(int next) {
-    if (next < 0 || next >= 25 || !mazeEdges.contains(edge(mazeCell, next)))
+    if (next < 0 || next >= 25 || !mazeEdges.contains(edge(mazeCell, next))) {
       return false;
+    }
     mazeCell = next;
     return true;
   }
@@ -396,7 +405,9 @@ class GatewayPuzzle {
             c = nodes[j],
             d = nodes[(j + 1) % 6];
         if (cross(a, b, c) * cross(a, b, d) <= 0 &&
-            cross(c, d, a) * cross(c, d, b) <= 0) return false;
+            cross(c, d, a) * cross(c, d, b) <= 0) {
+          return false;
+        }
       }
     }
     return true;
