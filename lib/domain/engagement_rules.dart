@@ -3,7 +3,9 @@ part of 'world_state.dart';
 extension IslandVariation on IslandMap {
   IslandMutator get mutator => index < 3
       ? IslandMutator.calm
-      : IslandMutator.values[1 + (index + variationSeed) % 3];
+      : IslandMutator.values[1 +
+          SeededRandom((variationSeed ^ (index * 7919)) & 0x7fffffff)
+              .nextInt(3)];
   int get variant => index < 3 ? 0 : (index + variationSeed) % 3;
   String get condition => [
         'Clear skies',

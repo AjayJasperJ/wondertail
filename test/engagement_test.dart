@@ -8,6 +8,24 @@ void place(WorldState w, Point2 at) {
 
 void main() {
   test(
+      'a restored position inside new vines relocates; live movement can escape outward',
+      () {
+    var index = 3;
+    while (
+        IslandMap.generate(4271, index).mutator != IslandMutator.overgrowth) {
+      index++;
+    }
+    final world = WorldState(
+        islandIndex: index, highestVisited: index, highestUnlocked: index);
+    place(world, world.map.vineGate);
+    final loaded = WorldState.decode(world.encode());
+    expect(EngagementRules.passable(loaded, loaded.position), isTrue);
+    for (var i = 0; i < 40; i++) {
+      WorldRules.move(world, 1, 0, 1 / 60);
+    }
+    expect(world.position.distanceTo(world.map.vineGate), greaterThan(36));
+  });
+  test(
       'wallet imports each pickup and core once; purchases survive serialization',
       () {
     final w = WorldState();

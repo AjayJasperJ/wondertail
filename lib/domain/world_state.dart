@@ -284,7 +284,7 @@ class WorldState {
       progress: IslandProgress.fromJson(progress),
       profile: PlayerProfile.fromJson(json['profile']),
     );
-    if (!world.map.canStand(world.position)) {
+    if (!EngagementRules.passable(world, world.position)) {
       world.x = world.map.arrival.x;
       world.y = world.map.arrival.y;
     }
@@ -878,7 +878,9 @@ class WorldRules {
       consider(encounter, 58);
     }
     final special = EngagementRules.nearby(world);
-    if (special != null) consider(special, double.infinity);
+    if (special != null && (special != Encounter.glide || closest == null)) {
+      consider(special, double.infinity);
+    }
     return closest;
   }
 
@@ -1047,7 +1049,14 @@ class WorldRules {
     for (var i = 0; i < steps; i++) {
       if (world.room == 0) {
         final next = world.map.slide(position, delta);
-        position = EngagementRules.passable(world, next) ? next : position;
+        final escapingVines = world.map.mutator == IslandMutator.overgrowth &&
+            !world.progress.vinesCleared &&
+            position.distanceTo(world.map.vineGate) < 36 &&
+            next.distanceTo(world.map.vineGate) >
+                position.distanceTo(world.map.vineGate);
+        position = EngagementRules.passable(world, next) || escapingVines
+            ? next
+            : position;
       } else {
         final inset = world.map.inset(world.chamber);
         position = Point2(

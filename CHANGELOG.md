@@ -46,6 +46,8 @@ not recorded in the release history.
 - Glider landings search safe bank angles near coastal ponds and reject launches
   from invalid ground; crossings still have to pass through the water area.
 - Later lantern instructions show their generated order instead of the tutorial's.
+- Old positions inside a newly introduced vine gate relocate safely; movement
+  can also back out of a gate without getting trapped.
 
 ## [0.4.0] - 2026-10-19
 
