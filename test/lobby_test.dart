@@ -43,7 +43,8 @@ void main() {
     expect(world.character, 1);
     await tester.tap(find.byKey(const ValueKey('lobby-tab-2')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('music-setting')));
+    await tester.ensureVisible(find.byType(Switch).first);
+    await tester.tap(find.byType(Switch).first);
     await frames(tester);
     expect(world.sound, isFalse);
     final restored = await saves.load();
