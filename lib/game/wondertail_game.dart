@@ -885,9 +885,10 @@ class WondertailGame extends FlameGame {
                   Rect.fromCenter(center: gate, width: 45, height: 65),
                   const Radius.circular(12)),
               _paint(open ? const Color(0xff91cfba) : const Color(0xff79708e)));
-          if (open)
+          if (open) {
             canvas.drawLine(Offset(mirror.x, mirror.y), gate,
                 _paint(const Color(0xaaffe2a1))..strokeWidth = 3);
+          }
           _label(
               canvas,
               gate + const Offset(0, 44),

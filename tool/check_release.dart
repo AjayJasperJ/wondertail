@@ -23,5 +23,5 @@ void main() {
     throw StateError(
         'README must state the current version and link CHANGELOG.md.');
   }
-  print('Release documentation matches $version.');
+  stdout.writeln('Release documentation matches $version.');
 }

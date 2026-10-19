@@ -72,8 +72,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
       _world.run!.finish(_world.profile);
       unawaited(
           widget.saves.saveRunReward(_world.profile).catchError((Object _) {
-        if (mounted)
+        if (mounted) {
           _saveStatus.value = 'Return to lobby to retry saving the run reward';
+        }
       }));
     }
     if (_world.run?.finished ?? false) {
@@ -337,10 +338,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
   String _actionLabel(Encounter? encounter) {
     if (encounter == null) return 'Follow the compass';
-    if (WorldRules.bedIndex(encounter) != null)
+    if (WorldRules.bedIndex(encounter) != null) {
       return _world.map.adventure == Adventure.rain
           ? 'Gather sunseed'
           : 'Plant a little garden';
+    }
     return switch (encounter) {
       Encounter.friend => 'Meet ${_world.map.friendName}',
       Encounter.wonder =>
