@@ -60,8 +60,10 @@ class TacticalHud extends StatelessWidget {
                 '${ThrowableKind.values[l.throwable].name} ${l.supplies[l.throwable]}',
                 Icons.circle_outlined,
                 () => l.throwable = (l.throwable + 1) % 3),
-            slot('${PlayerPower.values[l.power].name} ${l.energy.round()}%',
-                Icons.auto_awesome, () => l.power = (l.power + 1) % 3)
+            slot(
+                '${PlayerPower.values[l.power].name} ${l.powerCooldown > 0 ? "${l.powerCooldown.ceil()}s" : "${l.energy.round()}%"}',
+                Icons.auto_awesome,
+                () => l.power = (l.power + 1) % 3)
           ]),
           if (world.map.biome == Biome.winter || world.vitals.warmth < 99)
             Text(

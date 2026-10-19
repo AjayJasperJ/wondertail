@@ -582,7 +582,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               ),
               Positioned(
                 left: 150,
-                right: 225,
+                right: 150,
                 bottom: 7,
                 child: SafeArea(
                   top: false,
@@ -629,7 +629,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
               if (_panel == null && !_travelling) ...[
                 Positioned(
                     left: 150,
-                    right: 225,
+                    right: 150,
                     bottom: 30,
                     child: SafeArea(
                         top: false,

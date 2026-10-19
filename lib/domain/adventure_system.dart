@@ -247,27 +247,6 @@ class ActionRules {
     return CombatRules.attack(w);
   }
 
-  static bool legacyAttack(WorldState w) {
-    if (w.room != 0) return false;
-    final v = w.vitals;
-    if (v.attackCooldown > 0 || v.stamina < 8) return false;
-    v.stamina -= 8;
-    v.attackCooldown = .45;
-    w.attackFlash = .22;
-    final strength = ExplorerStats.forCharacter(w.character).strength;
-    for (final enemy in w.hostiles) {
-      if (enemy.alive && enemy.position.distanceTo(w.position) < 90) {
-        enemy.health -= 35 * strength;
-        final d = enemy.position - w.position;
-        final next = enemy.position + d * (32 / math.max(1, d.length));
-        if (w.map.canStand(next) && groundedClear(w, next)) {
-          enemy.position = next;
-        }
-      }
-    }
-    return true;
-  }
-
   static bool damage(WorldState w, double amount) {
     if (w.vitals.invulnerable > 0) return false;
     w.vitals.health =

@@ -48,7 +48,7 @@ to aim. Tap bottom-center slots to cycle weapon, throwable and power selection.
 ## What's included
 
 - Three main adventure families, with later ordering and interaction variations.
-- Three biomes, five landform profiles, and seeded island layouts.
+- Seeded island layouts with five landform profiles and larger frontier terrain.
 - Wind currents, visibility-changing mist, and a clearable vine gate from island 4.
 - Two- or three-chamber caves with mirror/rune gate puzzles and saved crystals.
 - Scout lodges, companion skyseed favors, bond ranks, and functional archives.
