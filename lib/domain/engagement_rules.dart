@@ -78,16 +78,28 @@ class EngagementRules {
         !w.profile.owns(WorkshopItem.gliderCape)) {
       return false;
     }
+    if (!passable(w, w.position)) return false;
     for (final pond in w.map.obstacles.where((o) => o.pond)) {
       final delta = w.position - pond.center;
       if (delta.length < pond.radius + 14 || delta.length > pond.radius + 100) {
         continue;
       }
-      final landing = pond.center - delta * ((pond.radius + 35) / delta.length);
-      if (!passable(w, landing)) continue;
-      w.x = landing.x;
-      w.y = landing.y;
-      return true;
+      final direction = delta * (-1 / delta.length);
+      for (final angle in [0.0, 0.35, -0.35, 0.7, -0.7, 1.0, -1.0]) {
+        final rotated = Point2(
+            direction.x * math.cos(angle) - direction.y * math.sin(angle),
+            direction.x * math.sin(angle) + direction.y * math.cos(angle));
+        final landing = pond.center + rotated * (pond.radius + 35);
+        if (!passable(w, landing)) continue;
+        final segment = landing - w.position;
+        final t = (-(delta.x * segment.x + delta.y * segment.y) /
+                (segment.x * segment.x + segment.y * segment.y))
+            .clamp(0.0, 1.0);
+        if ((delta + segment * t).length >= pond.radius - 3) continue;
+        w.x = landing.x;
+        w.y = landing.y;
+        return true;
+      }
     }
     return false;
   }

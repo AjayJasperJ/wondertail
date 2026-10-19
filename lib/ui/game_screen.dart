@@ -814,7 +814,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           : map.story;
       if (map.adventure == Adventure.lantern && p.count < 3) {
         body +=
-            '\n\nFollow the numbered lights: 1, then 2, then 3. The next light sparkles brighter.';
+            '\n\nLight order: ${map.collectionOrder.map((i) => i + 1).join(' → ')}. The next valid light sparkles brighter.';
       }
       button = switch (map.adventure) {
         Adventure.rain => 'Open the crystal',

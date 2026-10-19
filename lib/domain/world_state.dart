@@ -571,7 +571,7 @@ class IslandMap {
         Adventure.rain =>
           'Pip used to water this island. The crystal closed during a storm, and the trees have been dreaming of rain ever since.',
         Adventure.lantern =>
-          'Luma’s lantern fell asleep. Its three stepping lights remember a song: first one, then two, then three. Follow their order to carry the song home.',
+          'Luma’s lantern fell asleep. Follow the lights in this island’s order: ${collectionOrder.map((i) => i + 1).join(' → ')}. Return their song to Luma.',
         Adventure.garden =>
           'Moss carries a whole garden on a tiny shell. A watering can and three little seed beds could make a home for every wandering creature.',
       };
@@ -846,50 +846,40 @@ class WorldRules {
       }
       return null;
     }
+    Encounter? closest;
+    var distance = double.infinity;
+    void consider(Encounter encounter, double radius) {
+      final d = world.position.distanceTo(encounterPoint(world, encounter));
+      if (d < radius && d < distance) {
+        closest = encounter;
+        distance = d;
+      }
+    }
+
+    consider(Encounter.friend, 88);
+    consider(Encounter.wonder, 88);
+    consider(Encounter.gate, 88);
     if ((world.map.adventure == Adventure.garden &&
             world.progress.stage == 2) ||
         (world.map.adventure == Adventure.rain &&
             world.map.variant == 2 &&
             world.progress.stage == 2)) {
       for (var i = 0; i < 3; i++) {
-        if ((world.progress.collected & (1 << i)) == 0 &&
-            world.position.distanceTo(world.map.collectibles[i]) < 70) {
-          return Encounter.values[3 + i];
+        if ((world.progress.collected & (1 << i)) == 0) {
+          consider(Encounter.values[3 + i], 70);
         }
       }
-    }
-    final position = world.position;
-    if (world.progress.stage == 0 &&
-        position.distanceTo(world.map.friend) < 88 &&
-        (world.map.adventure != Adventure.lantern ||
-            world.progress.count == 3)) {
-      return Encounter.friend;
-    }
-    if (position.distanceTo(world.map.wonder) < 88 &&
-        !world.progress.complete &&
-        (world.progress.count == 3 ||
-            (world.map.adventure == Adventure.garden &&
-                world.progress.stage == 1))) {
-      return Encounter.wonder;
-    }
-    if (world.progress.complete && position.distanceTo(world.map.gate) < 88) {
-      return Encounter.gate;
     }
     for (final encounter in [
       Encounter.cave,
       Encounter.lodge,
       Encounter.ruins
     ]) {
-      if (world.position.distanceTo(encounterPoint(world, encounter)) < 58) {
-        return encounter;
-      }
+      consider(encounter, 58);
     }
     final special = EngagementRules.nearby(world);
-    if (special != null) return special;
-    if (position.distanceTo(world.map.friend) < 88) return Encounter.friend;
-    if (position.distanceTo(world.map.wonder) < 88) return Encounter.wonder;
-    if (position.distanceTo(world.map.gate) < 88) return Encounter.gate;
-    return null;
+    if (special != null) consider(special, double.infinity);
+    return closest;
   }
 
   static int? bedIndex(Encounter encounter) =>

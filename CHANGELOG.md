@@ -39,6 +39,14 @@ not recorded in the release history.
   session-only; quitting abandons an unfinished run without changing normal progress.
 - Web audio remains unavailable. Engagement targets have not been measured.
 
+### Fixed
+
+- Nearest-target interaction selection prevents overlapping creature/landmark
+  ranges from hiding archive restoration or required collection actions.
+- Glider landings search safe bank angles near coastal ponds and reject launches
+  from invalid ground; crossings still have to pass through the water area.
+- Later lantern instructions show their generated order instead of the tutorial's.
+
 ## [0.4.0] - 2026-10-19
 
 ### Added

@@ -1,25 +1,39 @@
 # Technical architecture
 
-## Version 0.2
+## Version 0.5
 
 | Boundary | Implementation |
 | --- | --- |
-| Domain | Pure Dart `WorldState`, `IslandProgress`, `IslandMap`, `WorldRules` |
-| Generation | Schema/generator version 2; stable integer PRNG; seed plus island index |
-| Movement | Analog vector; normalized keyboard diagonals; bounded simulation substeps; circular obstacle contact normals/tangents; ellipse shore projection |
+| Domain | Pure Dart world/island rules, `PlayerProfile`, reward receipts, mutators, and `TrailRun` |
+| Generation | Save schema 2, generator 3; stable PRNG; seed/index; compact challenge maps |
+| Movement | Analog input, substeps, circular blockers, irregular shore projection, vine gates, wind and checked glide landings |
 | Real-time drawing | Flame 1.30.1; original Canvas art; one cached `ui.Picture` for static terrain |
 | UI | Flutter; scoped value notifiers for contact, compass, progress and save status; themed in-game cards |
-| Storage | SharedPreferencesAsync 2.5.3; header checkpoint plus separate island-memory keys and recovery copies |
+| Storage | SharedPreferencesAsync 2.5.3; authoritative profile/active-progress snapshot plus historical island caches and backups |
+
+The v0.5 progression, challenge isolation and migration protocol are detailed in
+[ENGAGEMENT_UPDATE.md](ENGAGEMENT_UPDATE.md). Reward receipts grow with exploration;
+the profile checkpoint is no longer strictly constant in size. Run maps are
+session-only; first-win rewards merge into the normal profile without replacing
+its position or island memories.
 
 ## Generated trail and authored mechanics
 
 Island zero remains the cloud/rain adventure so old saves have a meaningful migration. Later islands combine biome selection, a repeating adventure rotation and seeded map variations. Landmark arrangements, obstacles, decoration and names are deterministic. The three authored mechanics are cloud rescue/rain/exploration, a numbered light sequence, and filling a can then planting three beds. The player can keep generating a next island; this does not mean unlimited unique authored mechanics.
 
-The world holds only the active map and its `IslandProgress`. A header records seed, current index, highest unlocked/visited indices and position. Restoring a wonder unlocks the next index. Returning through the paged trail book loads that island’s memory before replacing the active map. Generated scenery is reconstructed; progress bits, choices and timer state persist separately.
+The world holds the active map, island progress, and shared player profile.
+Restoring a wonder unlocks the next index. A lobby atlas or journal loads earlier
+island memory before replacing the map. Generated scenery is reconstructed from
+the seed/index; progress bits, equipment, bond points and reward receipts persist.
 
 ## Movement and rendering costs
 
-Movement subdivides an elapsed frame into steps no longer than 1/90 second, consuming up to 150ms after a stall. Obstacle penetration is projected along the contact normal, and tangential input is retained. A small deterministic assist moves the player around a nearly head-on obstacle. Shoreline projection permits sliding along the ellipse. Landmark spacing avoids unavoidable blockers. Tests verify traversability and collision regressions; they are not a substitute for tactile device playtesting.
+Movement subdivides an elapsed frame into steps no longer than 1/90 second,
+consuming up to 150ms after a stall. Contact projection preserves tangential
+movement along circular blockers and the irregular shore. Vine gates add a
+clearable collision area. Wind modifies movement in its lane; gliding searches
+for a safe landing whose segment crosses a pond. Tests do not replace device
+playtesting.
 
 The renderer retains one static `ui.Picture` until the island, quest stage or planted-bed state changes. Terrain, path, tree, obstacle and label work is recorded once. Character, companion, pickups and at most 42 effect particles remain dynamic. Camera translation follows the player; compass updates are throttled. Contact/progress changes notify their HUD listeners. The game loop does not call screen-wide `setState` as the player walks. The analog knob rebuilds only its own widget during drag. Calm motion reduces animation, particles and camera easing.
 
@@ -27,7 +41,12 @@ One active island, one terrain picture and a bounded particle list keep active r
 
 ## Save protocol and recovery
 
-The save repository snapshots the small header and active island memory before queuing a write. It writes island progress only when the active island or its memory changed, then writes the header. Movement-only checkpoints rewrite no prior island memories. Writes are serialized so delayed older requests cannot win over newer snapshots. Each key has a previous-good recovery copy; corrupt primary island data is not copied over a valid backup.
+The repository snapshots the wallet/receipts and active progress together before
+queueing a write. Historical island cache writes precede the authoritative
+checkpoint. Loading prefers embedded active progress over a possibly newer cache;
+the reward ledger reconciles previously unclaimed caches without duplicate coins.
+Movement-only saves do not rewrite historical island caches. Writes are serialized
+and retain recovery copies; SharedPreferences is not a transactional database.
 
 Version 1 data is explicitly mapped to the redesigned first island. Rescued cloud, learned story, awakened grove, collected seed and completed bridge progress are retained. The arrival position resets because the map changed. The old v1 keys are left in place. Unsupported schema/generator versions are rejected rather than interpreted as current terrain.
 
