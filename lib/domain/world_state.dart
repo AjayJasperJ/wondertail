@@ -464,23 +464,77 @@ class IslandMap {
       lodge,
       ruins
     ];
+    final stats = ExplorerStats.forCharacter(2);
+    final fixedBoxes = [
+      SolidBox(lodge.x - 51, lodge.y - 80, lodge.x + 51, lodge.y - 19),
+      for (final t in trees) SolidBox(t.x - 9, t.y - 10, t.x + 9, t.y + 5),
+    ];
+    bool clearBase(Point2 at) =>
+        onLand(at) &&
+        !fixedBoxes.any((b) => b.contains(at, stats)) &&
+        !obstacles.any((o) => at.distanceTo(o.center) < o.radius + 18);
+    int cell(Point2 at) => (at.y / 20).round() * 96 + (at.x / 20).round();
+    Point2 point(int k) => Point2((k % 96) * 20.0, (k ~/ 96) * 20.0);
+    late final baseCells = {
+      for (var k = 0; k < 96 * 80; k++)
+        if (clearBase(point(k))) k,
+    };
+    bool connected(Point2 candidate) {
+      final box = SolidBox(candidate.x - 120, candidate.y - 45,
+          candidate.x + 130, candidate.y - 22);
+      bool clear(Point2 at) => clearBase(at) && !box.contains(at, stats);
+      final targets = [...marks, candidate];
+      for (final target in targets) {
+        final snapped = point(cell(target));
+        for (var t = 0; t <= 4; t++) {
+          if (!clear(snapped + (target - snapped) * (t / 4))) return false;
+        }
+      }
+      final required = targets.map(cell).toSet();
+      final start = cell(arrival), seen = <int>{start}, queue = <int>[start];
+      required.remove(start);
+      for (var cursor = 0;
+          cursor < queue.length && required.isNotEmpty;
+          cursor++) {
+        final current = queue[cursor];
+        for (final d in [-1, 1, -96, 96]) {
+          final next = current + d;
+          if (seen.contains(next) ||
+              !baseCells.contains(next) ||
+              box.contains(point(next), stats)) {
+            continue;
+          }
+          seen.add(next);
+          queue.add(next);
+          required.remove(next);
+        }
+      }
+      return required.isEmpty;
+    }
+
     // Keep the mountain's solid footprint clear of quest endpoints, including
     // their snapped route cells. Rotation can otherwise bury a light in rock.
-    for (final dy in [0.0, 70.0, 140.0, -70.0, -140.0]) {
-      for (final dx in [0.0, 70.0, -70.0, 140.0, -140.0, -210.0]) {
-        final p = origin + Point2(dx, dy);
-        final footprint = SolidBox(p.x - 150, p.y - 75, p.x + 160, p.y + 8);
-        if (!onLand(p, margin: 45) ||
-            !onLand(p + const Point2(-120, -25), margin: 20) ||
-            !onLand(p + const Point2(130, -25), margin: 20) ||
-            marks.any(
-                (m) => footprint.contains(m, ExplorerStats.forCharacter(2))) ||
-            obstacles.any((o) => p.distanceTo(o.center) < o.radius + 45) ||
-            trees.any((t) => p.distanceTo(t) < 45)) {
-          continue;
-        }
-        return p;
+    final candidates = [
+      for (final dy in [0.0, 70.0, 140.0, -70.0, -140.0])
+        for (final dx in [0.0, 70.0, -70.0, 140.0, -140.0, -210.0])
+          origin + Point2(dx, dy),
+      // Compact islands occasionally exhaust the local placements. Search the
+      // remaining land before accepting any scenery location.
+      for (var y = 260.0; y <= 700; y += 40)
+        for (var x = 300.0; x <= 1000; x += 40) Point2(x, y),
+    ];
+    for (final p in candidates) {
+      final footprint = SolidBox(p.x - 150, p.y - 75, p.x + 160, p.y + 8);
+      if (!onLand(p, margin: 45) ||
+          !onLand(p + const Point2(-160, -25), margin: 40) ||
+          !onLand(p + const Point2(170, -25), margin: 40) ||
+          marks.any(
+              (m) => footprint.contains(m, ExplorerStats.forCharacter(2))) ||
+          obstacles.any((o) => p.distanceTo(o.center) < o.radius + 45) ||
+          trees.any((t) => p.distanceTo(t) < 45)) {
+        continue;
       }
+      if (connected(p)) return p;
     }
     return origin;
   }

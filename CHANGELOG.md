@@ -33,6 +33,8 @@ not recorded in the release history.
 - Campsite artwork follows each generated island's arrival point.
 - Generator 4 places mountain footprints clear of quest targets and reserves
   landmark space when planting solid trees; older generation saves still load.
+- Mountain placement checks route connectivity and uses a wider fallback search
+  on crowded compact islands, preserving continuous cave and quest paths.
 
 ### Known limits
 

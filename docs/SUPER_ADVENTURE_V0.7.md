@@ -117,6 +117,8 @@ These bounds do not establish a frame-rate guarantee on low-end phones.
 
 Schema 2 now records generator 4; generators 2 and 3 remain readable. Mountain
 placement avoids quest endpoints and trees reserve space around landmarks.
+Mountain candidates must also preserve route-grid connectivity to all quest
+targets and their cave entrance; compact maps can search beyond local candidates.
 Added fields have validated defaults.
 Old bag/vitals omissions become an empty bag and 100 health/stamina. Save recovery
 continues using authoritative checkpoint plus backups. Jump velocities, live

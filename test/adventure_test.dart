@@ -4,6 +4,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wondertail/domain/world_state.dart';
 
 void main() {
+  test('crowded compact mountains leave continuous quest and cave routes', () {
+    for (final id in [815, 838, 949]) {
+      final map =
+          IslandMap.generate(4271 + id * 7919, id % 100, compact: id.isOdd);
+      for (final trail in map.trails) {
+        for (var j = 1; j < trail.length; j++) {
+          for (var t = 0; t <= 10; t++) {
+            expect(
+                map.canStand(
+                    trail[j - 1] + (trail[j] - trail[j - 1]) * (t / 10)),
+                isTrue);
+          }
+        }
+      }
+    }
+  });
   test('invalid rope geometry and attacks across room boundaries are rejected',
       () {
     final p = GatewayPuzzle(4271, 0);
