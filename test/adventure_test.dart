@@ -4,6 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wondertail/domain/world_state.dart';
 
 void main() {
+  test('invalid rope geometry and attacks across room boundaries are rejected',
+      () {
+    final p = GatewayPuzzle(4271, 0);
+    for (var i = 0; i < 6; i++) {
+      p.nodes[i] = Point2(.5 + .38 * math.cos(i * math.pi / 3),
+          .5 + .38 * math.sin(i * math.pi / 3));
+    }
+    p.nodes[0] = const Point2(double.nan, .5);
+    expect(p.ropeSolved, isFalse);
+    final w = WorldState()..room = 1;
+    w.hostiles.add(Hostile(w.position, w.position, 100));
+    expect(ActionRules.attack(w), isFalse);
+    expect(w.hostiles.single.health, 100);
+    expect(w.vitals.stamina, 100);
+  });
   test('jump has two impulses, stamina costs, gravity, and safe landing', () {
     final w = WorldState();
     expect(ActionRules.jump(w), isTrue);

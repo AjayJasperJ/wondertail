@@ -212,6 +212,7 @@ class ActionRules {
   }
 
   static bool attack(WorldState w) {
+    if (w.room != 0) return false;
     final v = w.vitals;
     if (v.attackCooldown > 0 || v.stamina < 8) return false;
     v.stamina -= 8;
@@ -395,6 +396,15 @@ class GatewayPuzzle {
   static double cross(Point2 a, Point2 b, Point2 c) =>
       (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
   bool get ropeSolved {
+    if (nodes.any((n) =>
+        !n.x.isFinite ||
+        !n.y.isFinite ||
+        n.x < 0 ||
+        n.x > 1 ||
+        n.y < 0 ||
+        n.y > 1)) {
+      return false;
+    }
     for (var i = 0; i < 6; i++) {
       if (nodes[i].distanceTo(nodes[(i + 1) % 6]) < .08) return false;
       for (var j = i + 1; j < 6; j++) {

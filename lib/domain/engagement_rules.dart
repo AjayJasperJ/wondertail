@@ -14,7 +14,8 @@ extension IslandVariation on IslandMap {
         'Overgrown paths'
       ][mutator.index];
   String get conditionHint => switch (mutator) {
-        IslandMutator.calm => 'Explore at your own pace.',
+        IslandMutator.calm =>
+          'Jump lava and evade chasers. Recover safely at camp.',
         IslandMutator.breeze => 'Blue wind lanes boost movement and push east.',
         IslandMutator.mist =>
           'Visibility is reduced. Your compass still works.',

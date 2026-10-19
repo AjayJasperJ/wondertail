@@ -216,8 +216,11 @@ void main() {
   test('head-on rocks slide smoothly instead of locking either axis', () {
     for (final direction in [-1.0, 1.0]) {
       final world = WorldState();
-      final obstacle =
-          world.map.obstacles.where((o) => !o.structure && !o.pond).last;
+      // Isolate circular sliding from buildings and seeded scenery placement.
+      world.map.obstacles
+        ..clear()
+        ..add(Obstacle(IslandMap.center, 28));
+      final obstacle = world.map.obstacles.single;
       stand(
         world,
         Point2(
