@@ -6,6 +6,10 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.16.0] - 2026-10-20
 
+- Runner publishes successful main builds as GitHub Early Access prereleases,
+  with a directly downloadable, versioned Android APK and SHA-256 checksum.
+  Pull requests cannot publish; reruns preserve existing release assets.
+
 - Fixed missing ocean construction; ocean shading now scales to the sea mesh.
 - Boardable, steerable coastal boat with dock return and unlocked-island travel.
 - Carved river on expanded layouts; hollow camp cabin with usable doorway.

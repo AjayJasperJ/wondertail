@@ -119,6 +119,58 @@ jobs:
           path: three_d/build/*.png
           retention-days: 14
 
+  release-early-access:
+    name: Publish Early Access APK
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    concurrency:
+      group: wondertail-early-access-${{ github.run_id }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: wondertail-3d-android
+          path: early-access
+      - name: Package versioned APK and checksum
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import re; from pathlib import Path; print(re.search(r"config/version=\"([^\"]+)\"", Path("three_d/project.godot").read_text())[1])')
+          tag="3d-v${version}-ea.${GITHUB_RUN_NUMBER}"
+          apk="Wondertail-3D-${version}-Early-Access-${GITHUB_RUN_NUMBER}.apk"
+          test -s early-access/Wondertail-3D.apk
+          mv early-access/Wondertail-3D.apk "early-access/$apk"
+          (cd early-access && sha256sum "$apk" > "$apk.sha256")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Publish installable APK as a GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.package.outputs.tag }}
+          VERSION: ${{ steps.package.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; preserving its APK and signing identity."
+          else
+            gh release create "$TAG" early-access/*.apk early-access/*.sha256 \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Wondertail 3D $VERSION — Early Access build $GITHUB_RUN_NUMBER" \
+              --prerelease --latest=false \
+              --notes "Android Early Access test build. Download the APK below and allow installation from your browser. Gameplay checks, rendering and exports passed for commit $GITHUB_SHA. This APK uses an ephemeral CI test signing key; replacing another build may require uninstalling it, which removes local saves. Back up any important app data first. This is not a Play Store release."
+          fi
+          url=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url)
+          echo "### Android Early Access" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the APK: $url" >> "$GITHUB_STEP_SUMMARY"
+
   deploy-web:
     name: Publish live browser game
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

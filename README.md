@@ -47,6 +47,11 @@ backpack upgrades. Progress and dropped loot persist offline.
 - Uploaded textured trees and rocks, a modelled sword and pistol, first-person
   equipment, bow draw/release and gun recoil. Projectiles use swept collision.
 
+Download installable **Early Access APKs** from [GitHub Releases](https://github.com/AjayJasperJ/wondertail/releases).
+Successful main-branch 3D builds publish a versioned APK and SHA-256 checksum as
+a prerelease automatically. To build manually, open the 3D workflow, choose
+**Run workflow**, and select `main`.
+
 Download `wondertail-3d-android`, `wondertail-3d-desktop` or `wondertail-3d-web`
 from a successful [Wondertail 3D build](https://github.com/AjayJasperJ/wondertail/actions/workflows/godot.yml).
 Android ZIP contains an APK; desktop ZIP contains Windows and Linux executables.
