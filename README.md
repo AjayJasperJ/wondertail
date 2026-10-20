@@ -2,7 +2,11 @@
 
 Recover a lost network of floating islands in an offline action adventure.
 
-**3D version: 0.17.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.18.0** · Godot 4.4.1 · `three_d/`
+
+New: illustrated item slots, a winding difficulty-colored island journey lobby,
+and safer varied route generation for unvisited islands.
+[Journey UI and generator details](docs/JOURNEY_V0.18.md).
 
 Optional repeatable camp contracts earn coins and diamonds. Buy supplies, build
 visible camp improvements, and explore the next island without a three-item gate.

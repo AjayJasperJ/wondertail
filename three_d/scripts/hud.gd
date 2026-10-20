@@ -1,5 +1,6 @@
 extends Control
 const Minimap = preload("res://scripts/minimap.gd")
+const ItemIcon = preload("res://scripts/item_icon.gd")
 var game
 var camera_label: Label
 var hearts: RichTextLabel
@@ -24,9 +25,11 @@ var message_time := 0.0
 var unit := 1.0
 var selected_item := "wood"
 var pack_page := 0
+var map_offset := 0
+var level_points: Array[Vector2] = []
 var bag_tab := "craft"
 var craft_grid: Array = ["", "", "", "", "", "", "", "", ""]
-var title_color := Color("73e3ce")
+var title_color := Color("f5cc83")
 
 
 func setup(owner_game) -> void:
@@ -41,8 +44,8 @@ func setup(owner_game) -> void:
 	theme.default_font = ui_font
 	for type in ["normal", "hover", "pressed", "disabled"]:
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color("142735") if type != "pressed" else Color("245666")
-		style.border_color = Color("3d8593")
+		style.bg_color = Color("302b51") if type != "pressed" else Color("585282")
+		style.border_color = Color("8f88bc")
 		style.set_border_width_all(1)
 		style.set_corner_radius_all(15)
 		style.content_margin_left = 14
@@ -101,40 +104,116 @@ func button(caption: String, rect: Rect2, callback: Callable) -> Button:
 	return b
 
 
+func decorate_item(slot: Button, item: String, amount: int, equipped: bool = false) -> void:
+	slot.text = ""
+	slot.tooltip_text = item.capitalize() + " • " + str(amount)
+	var icon := ItemIcon.new()
+	icon.item = item
+	var icon_side := minf(44.0, slot.size.y - 25.0)
+	icon.position = Vector2((slot.size.x - icon_side) * 0.5, 4)
+	icon.size = Vector2.ONE * icon_side
+	slot.add_child(icon)
+	var quantity := Label.new()
+	quantity.text = str(amount)
+	quantity.position = Vector2(slot.size.x - (24 if amount < 10 else 35), slot.size.y - 24)
+	quantity.add_theme_font_size_override("font_size", 16)
+	quantity.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(quantity)
+	if equipped or selected_item == item:
+		var style := slot.get_theme_stylebox("normal").duplicate() as StyleBoxFlat
+		style.border_color = Color("ffd37e") if equipped else Color("7febd9")
+		style.set_border_width_all(2)
+		slot.add_theme_stylebox_override("normal", style)
+
+
 func show_lobby() -> void:
 	page = "lobby"
+	game.world.visible = false
 	clear()
-	text("A WORLD WORTH WANDERING", Vector2(72, 78), 17, Color("a7d6cb"))
-	text("WONDERTAIL", Vector2(66, 104), 52, title_color)
-	text("THE SKYBOUND EXPEDITION", Vector2(73, 179), 19, Color("b5d6d2"))
-	text("The network has gone silent.", Vector2(74, 237), 22)
-	text(
-		"Trace the signal. Breach the archive.\nSecure your extraction. Choose what comes next.",
-		Vector2(74, 278),
-		17
-	)
-	button("CONTINUE EXPEDITION  →", Rect2(74, 377, 367, 60), game.start_game)
-	button("EXPLORERS", Rect2(74, 453, 174, 51), func(): show_heroes())
-	button("ISLAND ATLAS", Rect2(262, 453, 179, 51), func(): show_atlas())
-	button("SETTINGS", Rect2(74, 521, 174, 51), func(): show_settings())
-	text(
-		"3D EDITION  /  " + str(ProjectSettings.get_setting("application/config/version")),
-		Vector2(76, 655),
-		15,
-		Color("a7c3bf")
-	)
-	text("OFFLINE • NO ADS • YOUR OWN PACE", Vector2(800, 660), 15, Color("d6e9db"))
-	text("YOUR NEXT CHAPTER", Vector2(861, 115), 16, Color("a7d6cb"))
-	text("ISLAND %02d" % (int(game.store.data.island) + 1), Vector2(860, 145), 39, title_color)
-	text(game.island_name(), Vector2(861, 204), 21)
+	map_offset = maxi(0, (int(game.store.data.island) / 8) * 8)
+	build_level_path()
+
+
+func build_level_path() -> void:
+	text("WONDERTAIL", Vector2(62, 48), 42, Color("fff1c7"))
+	text("THE WANDERER'S TRAIL", Vector2(65, 105), 16, Color("b4b5ec"))
+	text("Choose your next story", Vector2(65, 163), 25, Color("fff1e8"))
+	text("ISLAND %02d" % (int(game.store.data.island) + 1), Vector2(65, 222), 30, Color("ffd178"))
+	text(game.island_name(), Vector2(65, 270), 19, Color("e6def5"))
 	text(
 		(
-			"%s  /  %d Starlight"
-			% [game.store.HEROES[int(game.store.data.hero)], game.store.data.coins]
+			"%s\n%d coins • %d diamonds"
+			% [
+				game.store.HEROES[int(game.store.data.hero)],
+				game.store.data.coins,
+				game.living.state().diamonds
+			]
 		),
-		Vector2(861, 245),
+		Vector2(65, 315),
 		18
 	)
+	button("CONTINUE  →", Rect2(65, 405, 315, 58), game.start_game)
+	button("EXPLORERS", Rect2(65, 480, 150, 48), show_heroes)
+	button("SETTINGS", Rect2(230, 480, 150, 48), show_settings)
+	text("Offline. Your pace. Your world.", Vector2(65, 573), 16, Color("b6c7db"))
+	text(
+		"v" + str(ProjectSettings.get_setting("application/config/version")),
+		Vector2(65, 650),
+		13,
+		Color("9baac4")
+	)
+	text("ISLAND JOURNEY", Vector2(465, 65), 23, Color("fff1d8"))
+	level_points.clear()
+	for i in range(8):
+		var at := Vector2(510 + (i % 4) * 202, 275 if i < 4 else 485)
+		if i >= 4:
+			at.x = 1116 - (i % 4) * 202
+		at.y += sin(i * 1.8) * 28
+		level_points.append(at)
+		var index := map_offset + i
+		var unlocked: bool = index <= int(game.store.data.unlocked)
+		var tier: int = game.Terrain.difficulty_for(index)
+		var tint: Color = [Color("50cba0"), Color("55adf1"), Color("f0a45c"), Color("be86ef")][tier]
+		var node := button(
+			str(index + 1),
+			Rect2(at - Vector2(36, 36), Vector2(72, 72)),
+			func():
+				if game.store.transact(func(): game.store.data.island = index):
+					game.build_world()
+					game.start_game()
+				else:
+					tell(game.store.last_error)
+		)
+		var style := StyleBoxFlat.new()
+		style.bg_color = tint if unlocked else Color("44435f")
+		style.border_color = (
+			Color("fff0bb") if index == int(game.store.data.island) else tint.lightened(0.25)
+		)
+		style.set_border_width_all(4 if index == int(game.store.data.island) else 2)
+		style.set_corner_radius_all(36)
+		for state in ["normal", "hover", "pressed", "disabled"]:
+			var feedback := style.duplicate() as StyleBoxFlat
+			if state == "hover":
+				feedback.bg_color = feedback.bg_color.lightened(0.12)
+			elif state == "pressed":
+				feedback.bg_color = feedback.bg_color.darkened(0.18)
+			node.add_theme_stylebox_override(state, feedback)
+		node.disabled = not unlocked
+		node.tooltip_text = (
+			game.island_name(index) + " • " + ["Relaxed", "Adventure", "Tough", "Extreme"][tier]
+		)
+		text(["RELAXED", "ADVENTURE", "TOUGH", "EXTREME"][tier], at + Vector2(-44, 46), 12, tint)
+		var mechanic: String = ["RELAYS", "ARCHIVE", "SENTINELS"][(index + int(index / 3)) % 3]
+		text(mechanic, at + Vector2(-39, 64), 11, Color("d8d1eb"))
+	text(
+		"GREEN: RELAXED   BLUE: ADVENTURE   AMBER: TOUGH   VIOLET: EXTREME",
+		Vector2(465, 150),
+		12,
+		Color("c4cce0")
+	)
+	if map_offset > 0:
+		button("← EARLIER", Rect2(465, 625, 190, 46), func(): show_atlas(map_offset - 8))
+	button("MORE ISLANDS →", Rect2(970, 625, 240, 46), func(): show_atlas(map_offset + 8))
 
 
 func header(title: String, subtitle: String) -> void:
@@ -167,23 +246,10 @@ func show_heroes() -> void:
 
 
 func show_atlas(offset: int = -1) -> void:
-	page = "atlas"
+	page = "lobby"
 	clear()
-	var unlocked := int(game.store.data.unlocked)
-	if offset < 0:
-		offset = maxi(0, int(game.store.data.island) - 2)
-	header("THE ISLAND ATLAS", "Revisit restored places, or continue toward your newest frontier.")
-	for i in range(offset, mini(offset + 6, unlocked + 1)):
-		var memory: Dictionary = game.store.memory(i)
-		var label := (
-			"%02d   %s   %s"
-			% [i + 1, game.island_name(i), "✦ restored" if memory.restored else "unexplored"]
-		)
-		button(label, Rect2(100, 196 + (i - offset) * 60, 1060, 49), func(): game.select_island(i))
-	if offset > 0:
-		button("← EARLIER", Rect2(740, 600, 190, 52), func(): show_atlas(maxi(0, offset - 6)))
-	if offset + 6 <= unlocked:
-		button("LATER →", Rect2(950, 600, 190, 52), func(): show_atlas(offset + 6))
+	map_offset = maxi(0, offset if offset >= 0 else int(game.store.data.island) / 8 * 8)
+	build_level_path()
 
 
 func show_settings() -> void:
@@ -419,6 +485,8 @@ func show_bag() -> void:
 				show_bag()
 		)
 		slot.add_theme_font_size_override("font_size", 10)
+		if item != "":
+			decorate_item(slot, item, int(stacks[index].amount), equipped)
 		slot.disabled = item == ""
 		if count == 0:
 			slot.modulate = Color(0.65, 0.72, 0.72)
@@ -529,6 +597,8 @@ func show_bag() -> void:
 				show_bag()
 		)
 		slot.add_theme_font_size_override("font_size", 12)
+		if ingredient != "":
+			decorate_item(slot, ingredient, 1)
 	var recipe: String = game.store.grid_recipe(craft_grid)
 	text("→", Vector2(990, 322), 32, title_color)
 	var output := button(
@@ -844,10 +914,22 @@ func _draw() -> void:
 			Color(0.035, 0.10, 0.14, 0.18 if page == "lobby" else 0.58)
 		)
 		if page == "lobby":
-			draw_style_panel(Rect2(40, 45, 465, 575), Color(0.035, 0.09, 0.11, 0.90))
-			draw_style_panel(Rect2(830, 86, 390, 220), Color(0.05, 0.14, 0.18, 0.76))
+			draw_rect(Rect2(-1000, -1000, 3300, 2700), Color("191b35"))
+			draw_circle(Vector2(1120, 60), 320, Color("272446"))
+			draw_circle(Vector2(485, 680), 250, Color("1e3545"))
+			draw_style_panel(Rect2(35, 30, 375, 660), Color("252840"))
+			if level_points.size() > 1:
+				var curve := Curve2D.new()
+				for i in range(level_points.size()):
+					curve.add_point(
+						level_points[i],
+						Vector2(-36, 0) if i < 4 else Vector2(36, 0),
+						Vector2(36, 0) if i < 4 else Vector2(-36, 0)
+					)
+				draw_polyline(curve.get_baked_points(), Color("565273"), 14, true)
+				draw_polyline(curve.get_baked_points(), Color("aaa0c1"), 3, true)
 		else:
-			draw_style_panel(Rect2(60, 40, 1160, 640), Color(0.04, 0.12, 0.16, 0.87))
+			draw_style_panel(Rect2(60, 40, 1160, 640), Color(0.12, 0.12, 0.22, 0.94))
 
 
 func draw_style_panel(rect: Rect2, color: Color) -> void:

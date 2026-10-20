@@ -741,6 +741,7 @@ func island_name(index: int = -1) -> String:
 
 
 func start_game(show_contract: bool = true) -> void:
+	world.visible = true
 	playing = true
 	player.arm.spring_length = 9.5
 	player.yaw = 0
@@ -772,6 +773,7 @@ func pause_game() -> void:
 
 
 func resume_game() -> void:
+	world.visible = true
 	playing = true
 	hud.show_game()
 

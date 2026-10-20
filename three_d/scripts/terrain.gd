@@ -33,6 +33,10 @@ var spawn_points: Array[Vector3] = []
 var vertex_style: Dictionary = {}
 
 
+static func difficulty_for(island: int) -> int:
+	return clampi(int(island / 4), 0, 3)
+
+
 func configure(world_seed: int, island: int, layout: int = 0) -> void:
 	layout_version = layout
 	seed_value = world_seed + island * 7919
@@ -90,6 +94,88 @@ func configure(world_seed: int, island: int, layout: int = 0) -> void:
 			],
 			[anchors.camp, anchors.camp.lerp(anchors.ruins, 0.55), anchors.ruins, anchors.ridge]
 		]
+	if layout_version >= 3:
+		configure_frontier()
+
+
+func configure_frontier() -> void:
+	# Landmark sectors are sampled independently, with minimum separation. Route
+	# topology changes with the seed; terrain ramps follow this actual graph.
+	formation = posmod(seed_value + index * 2, 6)
+	landform = [
+		"Crescent Reach",
+		"Long Valley",
+		"Three Capes",
+		"Twin Peaks",
+		"Broken Spine",
+		"Highland Basin"
+	][formation]
+	scale_factor = rng.randf_range(1.05, 1.42)
+	var turn := rng.randf_range(-PI, PI)
+	var keys := ["camp", "cave", "ruins", "ridge", "gate"]
+	var inner_limit := INF
+	for sample in range(64):
+		inner_limit = minf(inner_limit, radius(sample * TAU / 64.0) - 9.0)
+	var placed: Array[Vector2] = []
+	for i in range(keys.size()):
+		var chosen := Vector2.ZERO
+		for attempt in range(50):
+			var angle := turn + i * TAU / 5.0 + rng.randf_range(-0.25, 0.25)
+			chosen = (
+				Vector2.from_angle(angle)
+				* minf(inner_limit, radius(angle) * rng.randf_range(0.43, 0.65))
+			)
+			var valid := true
+			for other in placed:
+				if chosen.distance_to(other) < 16.0:
+					valid = false
+			if valid:
+				break
+		anchors[keys[i]] = chosen
+		placed.append(chosen)
+	var bend := Vector2.from_angle(turn + PI / 2) * rng.randf_range(-4, 4)
+	if formation % 2 == 0:
+		paths = [
+			[
+				anchors.camp,
+				anchors.camp.lerp(anchors.cave, 0.5) + bend,
+				anchors.cave,
+				anchors.ridge,
+				anchors.gate
+			],
+			[
+				anchors.camp,
+				anchors.camp.lerp(anchors.ruins, 0.5) - bend,
+				anchors.ruins,
+				anchors.ridge
+			]
+		]
+	else:
+		paths = [
+			[
+				anchors.camp,
+				anchors.camp.lerp(anchors.ruins, 0.5) + bend,
+				anchors.ruins,
+				anchors.gate
+			],
+			[
+				anchors.camp,
+				anchors.camp.lerp(anchors.cave, 0.5) - bend,
+				anchors.cave,
+				anchors.ridge,
+				anchors.gate
+			]
+		]
+	# A third branch creates a loop for returning via a different route.
+	paths.append([anchors.ruins, anchors.ruins.lerp(anchors.cave, 0.5), anchors.cave])
+
+
+func river_axis(x: float) -> float:
+	return (
+		anchors.ridge.y
+		+ 5.0
+		+ (sin((x - anchors.ridge.x) * 0.10) * 3.0 if layout_version >= 3 else 0.0)
+	)
 
 
 func radius(angle: float) -> float:
@@ -105,6 +191,10 @@ func radius(angle: float) -> float:
 				r += 9 * cos(angle * 3 + phase) + 4 * sin(angle * 5)
 			3:
 				r += 7 * cos(angle * 2 - phase) + 5 * sin(angle * 4)
+			4:
+				r += 10 * cos(angle * 2 + phase) + 5 * sin(angle * 3)
+			5:
+				r += 6 * sin(angle * 4 + phase) - 4 * cos(angle * 2)
 		return r * scale_factor
 	return (
 		(43 + 4 * sin(angle * 3 + phase) + 3 * sin(angle * 5 - phase) + 2 * cos(angle * 7))
@@ -128,7 +218,7 @@ func path_distance(p: Vector2) -> float:
 func height_at(p: Vector2) -> float:
 	var h := ground_height(p)
 	# A shallow riverbed follows the ridge crossing. The timber deck spans its centre.
-	var river_z: float = anchors.ridge.y + 5.0
+	var river_z: float = river_axis(p.x)
 	if layout_version >= 2:
 		h -= (1.0 - smoothstep(1.4, 3.8, absf(p.y - river_z))) * 0.9
 	return h
@@ -139,6 +229,9 @@ func ground_height(p: Vector2) -> float:
 	var hill := 11.0 * exp(-q.distance_squared_to(mountain_a) / 100.0)
 	hill += 7.0 * exp(-q.distance_squared_to(mountain_b) / 95.0)
 	var wave := sin(q.x * 0.09) * cos(q.y * 0.08) * 1.5 + noise.get_noise_2dv(p) * 0.55
+	if layout_version >= 3:
+		hill *= [0.9, 1.35, 0.75, 1.5, 1.2, 0.65][formation]
+		wave += sin(q.x * 0.045 + formation) * cos(q.y * 0.04) * (1.0 + formation * 0.2)
 	# Accessible ramps connect landmarks; steep mountain faces remain off the trail.
 	var distance := path_distance(p)
 	for anchor in anchors.values():
@@ -214,18 +307,18 @@ func build() -> void:
 		water.set_shader_parameter("water_extent", 120.0)
 		water.set_shader_parameter("foam_strength", 0.0)
 		river.set_material(water)
-		var z: float = anchors.ridge.y + 5.0
 		for i in range(-80, 80):
 			var x := float(i)
+			var z: float = river_axis(x)
 			if not inside(Vector2(x, z), 0):
 				continue
 			for v in [
 				Vector2(x, z - 1.5),
 				Vector2(x, z + 1.5),
-				Vector2(x + 1, z - 1.5),
-				Vector2(x + 1, z - 1.5),
+				Vector2(x + 1, river_axis(x + 1) - 1.5),
+				Vector2(x + 1, river_axis(x + 1) - 1.5),
 				Vector2(x, z + 1.5),
-				Vector2(x + 1, z + 1.5)
+				Vector2(x + 1, river_axis(x + 1) + 1.5)
 			]:
 				river.add_vertex(Vector3(v.x, ground_height(v) - 0.35, v.y))
 		var stream := MeshInstance3D.new()

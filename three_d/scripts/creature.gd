@@ -5,6 +5,8 @@ var game
 var home := Vector3.ZERO
 var body = ModelActor.new()
 var health := 60.0
+var max_health := 78.0
+var difficulty := 0
 var elite := false
 var clock := 0.0
 var windup := 0.0
@@ -25,7 +27,9 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	tactic = posmod(roundi(at.x + at.z), 3)
 	spawn_location = at
 	elite = guardian
-	health = 150 if elite else 78
+	difficulty = game.Terrain.difficulty_for(int(game.store.data.island))
+	max_health = (150.0 if elite else 78.0) * (1.0 + difficulty * 0.12)
+	health = max_health
 	collision_layer = 4
 	collision_mask = 7
 	var shape := CapsuleShape3D.new()
@@ -105,7 +109,7 @@ func _physics_process(dt: float) -> void:
 		if not elite:
 			respawn_timer -= dt
 			if respawn_timer <= 0 and game.player.position.distance_to(home) > 14:
-				health = 60
+				health = max_health
 				position = home
 				visible = true
 				collision_layer = 4
@@ -118,7 +122,7 @@ func _physics_process(dt: float) -> void:
 	var alpha := clampf((18.0 - distance) / 3.5, 0, 1)
 	health_label.visible = alpha > 0
 	health_label.modulate.a = alpha
-	var filled := ceili(health / (110.0 if elite else 60.0) * 8)
+	var filled := ceili(health / max_health * 8)
 	health_label.text = "▰".repeat(clampi(filled, 0, 8)) + "▱".repeat(8 - clampi(filled, 0, 8))
 	var direction := Vector3(offset.x, 0, offset.z).normalized()
 	if not elite and tactic == 1 and distance > 4:
@@ -147,7 +151,7 @@ func _physics_process(dt: float) -> void:
 			body.scale = Vector3.ONE * (1 + sin(windup * 20) * 0.08)
 			if windup <= 0 and distance < 2.8:
 				var previous: float = game.player.health
-				game.player.hurt(31 if elite else 18)
+				game.player.hurt((31 if elite else 18) + difficulty * 2)
 				if game.player.health < previous:
 					game.player.apply_status(status_kind)
 		else:
@@ -158,7 +162,7 @@ func _physics_process(dt: float) -> void:
 			var ahead := Vector2(position.x + direction.x * 1.2, position.z + direction.z * 1.2)
 			var safe: bool = game.terrain.walkable(ahead, 4)
 			var target := (
-				direction * (4.8 if elite else 4.2)
+				direction * ((4.8 if elite else 4.2) + difficulty * 0.15)
 				if safe and distance > 1.6 and stun <= 0
 				else Vector3.ZERO
 			)

@@ -245,7 +245,7 @@ func memory(index: int = -1) -> Dictionary:
 	var key := str(index)
 	if not data.islands.has(key):
 		data.islands[key] = {
-			"picked": [], "seeds": [], "cloud": false, "restored": false, "cave": false, "layout": 2
+			"picked": [], "seeds": [], "cloud": false, "restored": false, "cave": false, "layout": 3
 		}
 	data.islands[key].merge({"ground": {}, "drop_serial": 0}, false)
 	return data.islands[key]

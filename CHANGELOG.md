@@ -4,6 +4,18 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.18.0] - 2026-10-20
+
+- Replaced pack and crafting ingredient text tiles with original item artwork
+  and separate counts, selected outlines, equipped highlights and tooltips.
+- Rebuilt the lobby as a winding eight-node island journey with locked previews,
+  mechanic labels, difficulty colors, paging and a plum/blue/gold menu theme.
+- Stopped rendering the hidden 3D world behind the opaque lobby.
+- Generator 3 adds separated landmark sectors, alternate route graphs, return
+  loops, six landform profiles and winding river alignment on unvisited islands.
+- Difficulty tiers scale enemy stats with a cap; fixed respawn and health-bar
+  maxima. Added deterministic generation, route and UI regression checks.
+
 ## [3D 0.17.0] - 2026-10-20
 
 - Optional repeatable material deliveries, marked hunts and explorer rescue

@@ -1,4 +1,7 @@
-# Wondertail 3D — 0.17.0
+# Wondertail 3D — 0.18.0
+
+[Journey UI and generator 3](JOURNEY_V0.18.md) describes the new island path,
+inventory artwork, difficulty scaling and save-compatible terrain changes.
 
 See [living-world contracts, economy and roadmap](LIVING_WORLD_ROADMAP.md) for
 optional progression, camp upgrades and current Android edge-smoothing controls.
