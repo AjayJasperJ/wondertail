@@ -6,6 +6,10 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.16.0] - 2026-10-20
 
+- Performance hotfix: preset-based vegetation draw distance and grass counts,
+  no grass shadows, reduced tree shadows on Low/Medium, primitive rock colliders,
+  and proximity checks before inventory copying during automatic collection.
+
 - Runner publishes successful main builds as GitHub Early Access prereleases,
   with a directly downloadable, versioned Android APK and SHA-256 checksum.
   Pull requests cannot publish; reruns preserve existing release assets.

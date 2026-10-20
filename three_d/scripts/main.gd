@@ -790,6 +790,16 @@ func apply_quality() -> void:
 	environment.environment.adjustment_brightness = [1.0, 1.02, 0.98, 1.04, 1.06][color_mode]
 	for detail in get_tree().get_nodes_in_group("polish_detail"):
 		detail.visible = quality > 0
+	for cover in get_tree().get_nodes_in_group("ground_cover"):
+		cover.multimesh.visible_instance_count = [650, 1100, 1800, 2600, 1100][quality]
+	for mesh in get_tree().get_nodes_in_group("vegetation_mesh"):
+		mesh.visibility_range_end = [32.0, 45.0, 65.0, 85.0, 45.0][quality]
+		mesh.visibility_range_end_margin = 5.0
+		mesh.cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			if quality >= 2
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		)
 	for child in world.get_children():
 		if child.has_meta("distant"):
 			child.visible = quality > 0
@@ -1427,15 +1437,15 @@ func auto_collect(dt: float) -> void:
 	for object in objects:
 		if float(object.get("retry_at", 0.0)) > clock:
 			continue
+		if not is_instance_valid(object.node) or not object.node.visible or not can_collect(object):
+			continue
+		var target: Vector3 = player.position + Vector3.UP * 0.9
+		if object.node.global_position.distance_squared_to(target) > 10.24:
+			continue
 		if (
 			object.kind == "resource"
 			and not store.can_add(["wood", "crystal", "herbs"][object.value], 2)
 		):
-			continue
-		if not is_instance_valid(object.node) or not object.node.visible or not can_collect(object):
-			continue
-		var target: Vector3 = player.position + Vector3.UP * 0.9
-		if object.node.global_position.distance_to(target) > 3.2:
 			continue
 		var ray := PhysicsRayQueryParameters3D.create(
 			target, object.node.global_position + Vector3.UP * 0.35, 1

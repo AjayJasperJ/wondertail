@@ -292,17 +292,17 @@ func decorate() -> void:
 			)
 			rock.position = at
 			rock.rotation.y = rng.randf() * TAU
-			for mesh in rock.find_children("*", "MeshInstance3D", true, false):
-				var solid := StaticBody3D.new()
-				mesh.add_child(solid)
-				var shape := CollisionShape3D.new()
-				shape.shape = mesh.mesh.create_convex_shape()
-				solid.add_child(shape)
+			# One primitive collider per rock instead of a convex hull per GLB mesh.
+			var rock_shape := SphereShape3D.new()
+			rock_shape.radius = 0.65
+			Art.collider(rock, rock_shape, Vector3(0, 0.45, 0))
 		if get_child_count() > before:
 			var resource := get_child(before)
 			resource.add_to_group("harvestable")
 			resource.set_meta("harvest_id", "harvest_%d" % i)
 			resource.set_meta("material", "wood" if i % 5 != 0 else "crystal")
+			for mesh in resource.find_children("*", "MeshInstance3D", true, false):
+				mesh.add_to_group("vegetation_mesh")
 
 	# Instanced grasses/flowers avoid hundreds of independently processed nodes.
 	var flowers := MultiMeshInstance3D.new()
@@ -348,6 +348,8 @@ func decorate() -> void:
 		)
 		mm.set_instance_color(i, Color.WHITE)
 	flowers.multimesh = mm
+	flowers.add_to_group("ground_cover")
+	flowers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(flowers)
 
 
