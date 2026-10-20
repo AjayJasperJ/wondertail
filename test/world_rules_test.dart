@@ -51,11 +51,13 @@ void finish(WorldState world) {
 void main() {
   test('landforms vary and discovery interiors retain progress', () {
     final profiles = <String>{};
+    final landforms = <String>{};
     for (var i = 0; i < 30; i++) {
       final world =
           WorldState(islandIndex: i, highestUnlocked: i, highestVisited: i);
       final map = world.map;
       profiles.add('${map.scaleX}/${map.scaleY}/${map.landform}');
+      landforms.add(map.landform);
       for (final entrance in [map.cave, map.lodge, map.ruins]) {
         expect(map.canStand(entrance), isTrue);
         final path = map.route(map.arrival, entrance);
@@ -98,7 +100,9 @@ void main() {
       expect(WorldRules.act(world, Encounter.ruins), isFalse);
       expect(WorldState.decode(world.encode()).progress.ruinsRestored, isTrue);
     }
-    expect(profiles.length, 5);
+    // Three introductory sizes plus five expanded frontier sizes.
+    expect(profiles.length, 8);
+    expect(landforms.length, 5);
   });
   test('preferences and old generation checkpoints preserve progress', () {
     final world =
@@ -143,7 +147,8 @@ void main() {
     final world = WorldState();
     final memories = <int, IslandProgress>{};
     final combinations = <String>{};
-    for (var index = 0; index < 40; index++) {
+    // Biomes repeat every eight islands and quest families every nine.
+    for (var index = 0; index < 72; index++) {
       expect(world.islandIndex, index);
       combinations.add('${world.map.biome}/${world.map.adventure}');
       finish(world);
@@ -152,11 +157,12 @@ void main() {
       memories[index] = world.progress;
       expect(world.travel(index + 1, IslandProgress()), isTrue);
     }
-    expect(combinations, hasLength(9));
+    expect(
+        combinations, hasLength(Biome.values.length * Adventure.values.length));
     expect(world.travel(3, memories[3]!), isTrue);
     expect(world.progress.complete, isTrue);
-    expect(world.highestUnlocked, 40);
-    expect(world.travel(41, IslandProgress()), isFalse);
+    expect(world.highestUnlocked, 72);
+    expect(world.travel(73, IslandProgress()), isFalse);
   });
 
   test(
