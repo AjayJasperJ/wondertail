@@ -256,10 +256,13 @@ static func model(parent: Node3D, path: String, extent: float, axis: int = 1) ->
 		)
 		bounds = box if first else bounds.merge(box)
 		first = false
-	if path == "equipment/sword":
-		axis = 0
 	if not first:
-		var factor: float = extent / maxf(bounds.size[axis], 0.001)
+		var measured: float = (
+			maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+			if path.begins_with("equipment/")
+			else bounds.size[axis]
+		)
+		var factor: float = extent / maxf(measured, 0.001)
 		source.scale *= factor
 		if path != "equipment/sword":
 			source.position -= (

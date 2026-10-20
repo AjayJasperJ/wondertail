@@ -145,6 +145,20 @@ func run():
 					)
 				)
 			buttons.append(child)
+	for item in [game.player.sword, game.player.gun]:
+		var bounds := AABB()
+		var first := true
+		for mesh in item.find_children("*", "MeshInstance3D", true, false):
+			var local: AABB = (
+				(item.global_transform.affine_inverse() * mesh.global_transform) * mesh.get_aabb()
+			)
+			bounds = local if first else bounds.merge(local)
+			first = false
+		var longest: float = maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+		check(
+			absf(longest - (1.0 if item == game.player.sword else 0.48)) < 0.01,
+			"Weapon model keeps its intended size after import transforms"
+		)
 	game.store.data.bag.gun = true
 	game.store.data.bag.bullets = 12
 	game.store.equip(2)
