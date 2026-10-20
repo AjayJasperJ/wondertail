@@ -31,6 +31,8 @@ var speed := 7.0
 var max_health := 100.0
 var jump_speed := 9.0
 var stick := Vector2.ZERO
+var stick_heading := 0.0
+var stick_engaged := false
 var sprinting := false
 var yaw := 0.0
 var pitch := -0.36
@@ -243,6 +245,8 @@ func apply_status(kind: String) -> void:
 
 func reset_controls() -> void:
 	stick = Vector2.ZERO
+	stick_engaged = false
+	stick_heading = yaw
 	sprinting = false
 	jump_buffer = 0
 	velocity = Vector3.ZERO
@@ -305,7 +309,9 @@ func _physics_process(dt: float) -> void:
 	if stun_time > 0 or cameras.reveal_remaining > 0:
 		input = Vector2.ZERO
 		jump_buffer = 0
-	var direction := Basis(Vector3.UP, yaw) * Vector3(input.x, 0, input.y)
+	# Lock the movement heading while the movement thumb is held; camera orbiting on the other thumb cannot spin the player in place.
+	var heading := stick_heading if stick_engaged and stick.length_squared() > 0.001 else yaw
+	var direction := Basis(Vector3.UP, heading) * Vector3(input.x, 0, input.y)
 	var running := (
 		(sprinting or Input.is_action_pressed("sprint"))
 		and not crouching
@@ -351,7 +357,10 @@ func _physics_process(dt: float) -> void:
 			),
 			true
 		)
-	body.scale.y = lerpf(body.scale.y, 0.7 if crouching else 1.0, 1 - exp(-dt * 12))
+	# The imported GLB has no crouch clip. Lower the rig into the shortened capsule instead of scaling it, avoiding the stretched-body bug.
+	var crouch_offset := -0.42 if crouching else 0.0
+	body.position.y = lerpf(body.position.y, crouch_offset, 1 - exp(-dt * 14))
+	body.scale = Vector3.ONE
 	walking_sound -= dt
 	if horizontal > 0.8 and is_on_floor() and walking_sound <= 0:
 		walking_sound = 0.3 if not running else 0.21

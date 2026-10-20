@@ -595,6 +595,7 @@ func _input(event: InputEvent) -> void:
 				stick_id = -1
 				stick_delta = Vector2.ZERO
 				game.player.stick = Vector2.ZERO
+				game.player.stick_engaged = false
 				queue_redraw()
 			if event.index == look_id:
 				look_id = -1
@@ -609,6 +610,8 @@ func _input(event: InputEvent) -> void:
 func set_stick(p: Vector2) -> void:
 	stick_delta = (p - Vector2(150, 575)).limit_length(65)
 	game.player.stick = stick_delta / 65 if stick_delta.length() > 7 else Vector2.ZERO
+	if game.player.stick.length_squared() < 0.001:
+		game.player.stick_engaged = false
 	queue_redraw()
 
 
