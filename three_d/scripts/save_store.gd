@@ -2,6 +2,9 @@ extends RefCounted
 ## Independent 3D slot. The Flutter application and its data are never touched.
 const PATH := "user://expedition_3d_v1.json"
 const HEROES := ["Rowan", "Sky", "Fern"]
+const RECIPES := {
+	"bow": {"wood": 3, "crystal": 2}, "arrows": {"wood": 1}, "tonic": {"herbs": 2, "crystal": 1}
+}
 var path := PATH
 var data: Dictionary = fresh()
 var last_error := ""
@@ -18,8 +21,13 @@ static func fresh() -> Dictionary:
 		"volume": 0.4,
 		"quality": 1,
 		"sensitivity": 1.0,
-		"islands": {}
+		"islands": {},
+		"bag": starter_bag()
 	}
+
+
+static func starter_bag() -> Dictionary:
+	return {"wood": 0, "crystal": 0, "herbs": 0, "tonic": 0, "arrows": 0, "bow": false, "weapon": 0}
 
 
 func load_save() -> bool:
@@ -29,6 +37,8 @@ func load_save() -> bool:
 		var json := JSON.new()
 		if json.parse(FileAccess.get_file_as_string(file)) == OK and valid(json.data):
 			data = json.data
+			if not data.has("bag"):
+				data.bag = starter_bag()
 			return true
 	return false
 
@@ -49,6 +59,21 @@ static func valid(value: Variant) -> bool:
 		return false
 	if not value.get("islands") is Dictionary:
 		return false
+	if value.has("bag"):
+		var bag = value.bag
+		if not bag is Dictionary or not bag.get("bow") is bool:
+			return false
+		for key in ["wood", "crystal", "herbs", "tonic", "arrows", "weapon"]:
+			var number = bag.get(key)
+			if (
+				not (number is int or number is float)
+				or number < 0
+				or number != floor(number)
+				or number > 10000
+			):
+				return false
+		if bag.weapon > 1 or (bag.weapon == 1 and not bag.bow):
+			return false
 	for key in value.islands:
 		var island = value.islands[key]
 		if (
@@ -118,3 +143,53 @@ func collect(id: String, amount: int, seed_id: int = -1) -> bool:
 			if seed_id >= 0 and not seed_id in memory().seeds:
 				memory().seeds.append(seed_id)
 	)
+
+
+func weight() -> float:
+	var b: Dictionary = data.bag
+	return float(b.wood + b.crystal + b.herbs + b.tonic) + float(b.arrows) * 0.1
+
+
+func capacity() -> float:
+	return [40.0, 30.0, 60.0][int(data.hero)]
+
+
+func gather(id: String, resource: String) -> bool:
+	if resource not in ["wood", "crystal", "herbs"] or id in memory().picked:
+		return false
+	if weight() + 2 > capacity():
+		last_error = "Backpack full. Craft at camp to free some space."
+		return false
+	return transact(
+		func():
+			memory().picked.append(id)
+			data.bag[resource] += 2
+	)
+
+
+func craft(recipe: String) -> bool:
+	if not RECIPES.has(recipe) or (recipe == "bow" and data.bag.bow):
+		last_error = "This equipment is already crafted."
+		return false
+	for ingredient in RECIPES[recipe]:
+		if data.bag[ingredient] < RECIPES[recipe][ingredient]:
+			last_error = "Gather more materials along the trails."
+			return false
+	if recipe == "arrows" and data.bag.arrows > 192:
+		last_error = "Your quiver already holds enough arrows (maximum 200)."
+		return false
+	return transact(
+		func():
+			for ingredient in RECIPES[recipe]:
+				data.bag[ingredient] -= RECIPES[recipe][ingredient]
+			if recipe == "bow":
+				data.bag.bow = true
+			else:
+				data.bag[recipe] += 8 if recipe == "arrows" else 1
+	)
+
+
+func equip(weapon: int) -> bool:
+	if weapon not in [0, 1] or (weapon == 1 and not data.bag.bow):
+		return false
+	return transact(func(): data.bag.weapon = weapon)

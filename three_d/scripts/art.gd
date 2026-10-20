@@ -170,5 +170,20 @@ static func explorer(parent: Node3D, archetype: int) -> Node3D:
 		n.add_child(arm)
 		box(arm, Vector3(0, -0.2, 0), Vector3(0.2, 0.5, 0.23), colors[archetype])
 		if side == 1:
-			box(arm, Vector3(0, -0.46, -0.25), Vector3(0.12, 0.12, 0.9), Color("d8e3db"))
+			var sword := box(
+				arm, Vector3(0, -0.46, -0.25), Vector3(0.12, 0.12, 0.9), Color("d8e3db")
+			)
+			sword.name = "Sword"
+			var bow := Node3D.new()
+			bow.name = "Bow"
+			arm.add_child(bow)
+			var ring := TorusMesh.new()
+			ring.inner_radius = 0.36
+			ring.outer_radius = 0.42
+			ring.rings = 12
+			ring.ring_segments = 5
+			var frame := mesh(bow, ring, Vector3(0, -0.3, -0.3), Color("b89366"))
+			frame.rotation_degrees.z = 90
+			box(bow, Vector3(0, -0.3, -0.3), Vector3(0.02, 0.8, 0.02), Color("efdfbd"))
+			bow.visible = false
 	return n

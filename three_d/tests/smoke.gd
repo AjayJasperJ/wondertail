@@ -65,6 +65,67 @@ func run() -> void:
 	check(not bad.collect("one", 99), "Failed writes report failure")
 	check(bad.data.coins == 0 and bad.memory().picked.is_empty(), "Failed writes roll back rewards")
 	check(not Store.valid({"schema": 1}), "Reject malformed save")
+	var legacy := Store.fresh()
+	legacy.erase("bag")
+	legacy.coins = 77
+	legacy.unlocked = 3
+	var legacy_file := FileAccess.open(store.path, FileAccess.WRITE)
+	legacy_file.store_string(JSON.stringify(legacy))
+	legacy_file.close()
+	check(
+		(
+			restored.load_save()
+			and restored.data.coins == 77
+			and restored.data.unlocked == 3
+			and restored.data.bag.arrows == 0
+		),
+		"Legacy 3D saves migrate without losing progress"
+	)
+	check(
+		restored.gather("resource0", "wood") and not restored.gather("resource0", "wood"),
+		"Resource receipts prevent duplicate gathering"
+	)
+	restored.data.bag.wood = 5
+	restored.data.bag.crystal = 3
+	restored.data.bag.herbs = 2
+	check(
+		restored.craft("bow") and restored.data.bag.bow and restored.data.bag.wood == 2,
+		"Bow crafting debits materials once"
+	)
+	check(
+		not restored.craft("bow") and restored.data.bag.wood == 2,
+		"Owned gear cannot be crafted twice"
+	)
+	check(
+		restored.craft("arrows") and restored.data.bag.arrows == 8,
+		"Quiver recipe gives eight arrows"
+	)
+	check(
+		restored.craft("tonic") and restored.data.bag.tonic == 1,
+		"Tonic recipe uses herbs and crystals"
+	)
+	check(restored.equip(1), "Owned bow can be selected")
+	check(
+		(
+			restored.persist()
+			and store.load_save()
+			and store.data.bag.bow
+			and store.data.bag.weapon == 1
+		),
+		"Equipment round trip persists"
+	)
+	bad.data.bag.wood = 4
+	bad.data.bag.crystal = 3
+	check(
+		not bad.craft("bow") and not bad.data.bag.bow and bad.data.bag.wood == 4,
+		"Failed crafting writes refund materials and gear"
+	)
+	bad.data.hero = 1
+	bad.data.bag.wood = 31
+	check(
+		not bad.gather("full", "wood") and not "full" in bad.memory().picked,
+		"Full bag leaves world resource unclaimed"
+	)
 	var variants: Dictionary = {}
 	for index in range(24):
 		var terrain := Terrain.new()
@@ -166,6 +227,57 @@ func run() -> void:
 	check(scene.store.memory().cave, "Song puzzle persists its completion")
 	scene.leave_cave()
 	check(not scene.in_cave and scene.player.position.z > -100, "Cave exit returns to island")
+	# Ranged damage uses swept collision. A wall must intercept the same shot.
+	scene.player.position = Vector3(0, 0.1, -140)
+	scene.player.body.rotation.y = 0
+	scene.in_cave = true
+	scene.store.data.bag.bow = true
+	scene.store.data.bag.arrows = 3
+	var target = preload("res://scripts/creature.gd").new()
+	scene.world.add_child(target)
+	target.setup(scene, Vector3(0, 0, -148))
+	target.set_physics_process(false)
+	scene.enemies.append(target)
+	check(scene.fire_arrow() and scene.store.data.bag.arrows == 2, "Firing commits one arrow")
+	for i in range(24):
+		await physics_frame
+	check(target.health < 60, "Swept arrow hits enemy")
+	var wall_shape := BoxShape3D.new()
+	wall_shape.size = Vector3(5, 4, 0.3)
+	preload("res://scripts/art.gd").collider(scene.world, wall_shape, Vector3(0, 2, -144))
+	await physics_frame
+	var previous_health: float = target.health
+	scene.fire_arrow()
+	for i in range(24):
+		await physics_frame
+	check(target.health == previous_health, "Solid wall intercepts arrows")
+	var writable_path: String = scene.store.path
+	scene.store.path = "user://missing_shot_directory/save.json"
+	var ammo_before: int = scene.store.data.bag.arrows
+	var arrows_before := get_nodes_in_group("arrows").size()
+	check(
+		(
+			not scene.fire_arrow()
+			and scene.store.data.bag.arrows == ammo_before
+			and get_nodes_in_group("arrows").size() == arrows_before
+		),
+		"Failed shot write neither consumes ammo nor spawns a projectile"
+	)
+	scene.store.path = writable_path
+	scene.open_bag()
+	check(not scene.playing and scene.hud.page == "bag", "Backpack pauses the world")
+	scene.player.health = scene.player.max_health
+	scene.store.data.bag.tonic = 1
+	scene.use_tonic()
+	check(scene.store.data.bag.tonic == 1, "Full health does not consume tonic")
+	scene.player.health -= 60
+	scene.use_tonic()
+	check(
+		scene.store.data.bag.tonic == 0 and scene.player.health == scene.player.max_health - 5,
+		"Tonic heals only after committed consumption"
+	)
+	scene.resume_game()
+	scene.leave_cave()
 	scene.store.memory().cloud = true
 	scene.store.memory().seeds = [0, 1, 2]
 	scene.player.position = scene.terrain.point("gate") + Vector3(0, 0.3, 2)

@@ -2,7 +2,7 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**3D version: 0.9.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.10.0** · Godot 4.4.1 · `three_d/`
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
@@ -21,6 +21,8 @@ the sky beacon to reach the next seeded island. Discoveries and Starlight persis
   trails, proximity cues and an original synthesized looping score.
 - Touch joystick on the left, camera drag over the world, actions on the right,
   compact bottom-center health/stamina and persistent offline progression.
+- Gather wood, crystals and herbs into a saved backpack. Craft a bow, arrows
+  and bottled tonics at camp; swap weapons and fight with swept-collision arrows.
 
 Download `wondertail-3d-android`, `wondertail-3d-desktop` or `wondertail-3d-web`
 from a successful [Wondertail 3D build](https://github.com/AjayJasperJ/wondertail/actions/workflows/godot.yml).
@@ -40,13 +42,14 @@ python3 three_d/tests/check_packaging.py
 ```
 
 Keyboard: WASD/arrows to move, Space to double jump, Shift to sprint, F to strike,
-Q to dash, E to interact, Escape to pause. Drag the mouse to orbit the camera.
+Q to dash, E to interact, B for backpack, Tab to swap weapons, Escape to pause.
+Drag the mouse to orbit the camera.
 On touch, RUN toggles sprint; all menus pause gameplay. Low detail disables
 shadows and distant scenery; new mobile installs default to Low.
 
 This is the first playable 3D conversion, with a smaller feature set than the 2D
 edition. Its six biomes remix a finite landmark/quest library. It does not yet
-port the 2D arsenal, full backpack, three puzzle families or Trailblazer mode.
+port the remaining 2D arsenal, expanded inventory, three puzzle families or Trailblazer mode.
 Old Flutter saves stay in the original app; there is no cross-engine importer.
 See [3D gameplay, build instructions and limits](docs/3D_EDITION.md).
 

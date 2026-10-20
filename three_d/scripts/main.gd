@@ -6,6 +6,7 @@ const Creature = preload("res://scripts/creature.gd")
 const Store = preload("res://scripts/save_store.gd")
 const Hud = preload("res://scripts/hud.gd")
 const Sound = preload("res://scripts/sound.gd")
+const Arrow = preload("res://scripts/arrow.gd")
 var store := Store.new()
 var terrain
 var player
@@ -70,6 +71,8 @@ func bind_inputs() -> void:
 		"interact": [KEY_E],
 		"dash": [KEY_Q],
 		"sprint": [KEY_SHIFT],
+		"bag": [KEY_B],
+		"weapon": [KEY_TAB],
 		"pause": [KEY_ESCAPE]
 	}
 	for action_name in keys:
@@ -302,6 +305,26 @@ func add_object(
 
 
 func build_collectibles() -> void:
+	# Deterministic resource receipts are independent from v0.9.0 coin IDs.
+	for i in range(12):
+		var resource: String = ["wood", "crystal", "herbs"][i % 3]
+		var id := "resource_%d" % i
+		if id in store.memory().picked:
+			continue
+		var route: Array = terrain.paths[i % 2]
+		var p: Vector2 = route[0].lerp(route[1], 0.28 + i * 0.04)
+		p += Vector2(-1.8 if i % 2 == 0 else 1.8, 0)
+		var node := Node3D.new()
+		world.add_child(node)
+		node.position = Vector3(p.x, terrain.height_at(p), p.y)
+		match resource:
+			"wood":
+				Art.box(node, Vector3(0, 0.3, 0), Vector3(0.9, 0.5, 0.35), Color("a17b55"))
+			"crystal":
+				Art.cone(node, Vector3(0, 0.6, 0), 0.4, 0, 1.2, Color("92ced7"))
+			"herbs":
+				Art.sphere(node, Vector3(0, 0.4, 0), 0.45, Color("80b77d"))
+		add_object(id, node, "resource", node.position + Vector3.UP * 0.6, 2.5, i % 3)
 	var count := 0
 	for route in terrain.paths:
 		for i in range(route.size() - 1):
@@ -474,17 +497,29 @@ func action(id: String) -> void:
 			player.dash()
 		"sprint":
 			player.sprinting = not player.sprinting
+		"bag":
+			open_bag()
+		"weapon":
+			if store.equip(1 - int(store.data.bag.weapon)):
+				player.refresh_weapon()
+			else:
+				tell("Craft a bow at camp to unlock ranged combat.")
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		if playing:
 			pause_game()
-		elif hud.page == "pause":
+		elif hud.page == "pause" or hud.page == "bag":
 			resume_game()
 		return
 	if not playing:
 		return
+	if event.is_action_pressed("bag"):
+		open_bag()
+		return
+	if event.is_action_pressed("weapon"):
+		action("weapon")
 	if event.is_action_pressed("jump"):
 		player.request_jump()
 	if event.is_action_pressed("attack"):
@@ -534,6 +569,8 @@ func interaction_prompt() -> String:
 	if obj.is_empty():
 		return ""
 	match obj.kind:
+		"resource":
+			return "E  •  GATHER " + ["WOOD", "CRYSTAL", "HERBS"][obj.value]
 		"cloud":
 			return "E  •  FREE THE CLOUD"
 		"camp":
@@ -591,6 +628,13 @@ func interact() -> void:
 		return
 	var memory := store.memory()
 	match object.kind:
+		"resource":
+			if store.gather(object.id, ["wood", "crystal", "herbs"][object.value]):
+				object.node.visible = false
+				sound.cue(700, 0.15, 0.1)
+				tell("Materials packed. Return to camp to craft equipment.")
+			else:
+				tell(store.last_error)
 		"camp":
 			player.health = player.max_health
 			player.stamina = 100
@@ -739,6 +783,75 @@ func strike(at: Vector3, forward: Vector3, damage: int) -> void:
 	ring.ring_segments = 6
 	Art.mesh(slash, ring, Vector3.ZERO, Color("fbe4ac"), 0.5)
 	effects.append({"node": slash, "time": 0.18})
+
+
+func open_bag() -> void:
+	playing = false
+	player.reset_controls()
+	mouse_drag = false
+	mouse_stick = false
+	hud.show_bag()
+
+
+func at_workbench() -> bool:
+	return not in_cave and player.position.distance_to(terrain.point("camp")) < 6
+
+
+func craft_item(recipe: String) -> void:
+	if not at_workbench():
+		tell("Crafting needs the workbench at camp.")
+		return
+	if store.craft(recipe):
+		hud.show_bag()
+		tell("Crafted " + recipe + ".")
+		sound.cue(800, 0.2, 0.1)
+	else:
+		tell(store.last_error)
+
+
+func use_tonic() -> void:
+	if player.health >= player.max_health or store.data.bag.tonic <= 0:
+		tell("A tonic needs missing health and one bottle in your bag.")
+		return
+	if store.transact(func(): store.data.bag.tonic -= 1):
+		player.health = minf(player.max_health, player.health + 55)
+		hud.show_bag()
+		tell("Tonic used. Restored 55 health.")
+	else:
+		tell(store.last_error)
+
+
+func fire_arrow() -> bool:
+	if world.get_tree().get_nodes_in_group("arrows").size() >= 24:
+		return false
+	if store.data.bag.arrows <= 0:
+		tell("Quiver empty. Craft arrows from wood at camp.")
+		return false
+	var at: Vector3 = player.position + Vector3.UP * 1.3
+	var forward: Vector3 = -player.body.global_basis.z
+	var direction := forward
+	var closest := 23.0
+	# Friendly aim assist stays within the facing cone and checks solid scenery.
+	for enemy in enemies:
+		var offset: Vector3 = enemy.position + Vector3.UP - at
+		if (
+			enemy.health > 0
+			and offset.length() < closest
+			and forward.dot(offset.normalized()) > 0.5
+		):
+			var query := PhysicsRayQueryParameters3D.create(at, at + offset, 1)
+			if get_world_3d().direct_space_state.intersect_ray(query).is_empty():
+				closest = offset.length()
+				direction = offset.normalized()
+	if not store.transact(func(): store.data.bag.arrows -= 1):
+		tell(store.last_error)
+		return false
+	var arrow := Arrow.new()
+	world.add_child(arrow)
+	arrow.add_to_group("arrows")
+	arrow.setup(self, at, direction)
+	sound.cue(510, 0.09, 0.1)
+	return true
 
 
 func celebrate() -> void:

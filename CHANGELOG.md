@@ -4,6 +4,30 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.10.0] - 2026-10-20
+
+### Added
+
+- Persistent backpack for wood, crystals, herbs, bottled tonics and arrows;
+  once-only resource gathering along trails and character carrying capacities.
+- Camp workbench recipes for a bow, eight-arrow bundles and health tonics.
+  Inventory pauses gameplay; tonics can be consumed away from camp.
+- Bow/sword equipment selection with visible held models, touch SWAP and SHOOT
+  controls, arrow count, B backpack and Tab weapon shortcuts.
+- Ranged projectiles with swept scenery/enemy collision, facing-cone aim assist,
+  finite saved ammunition, lifetime and a 24-arrow cap. Menus freeze arrows.
+- Legacy 3D save migration adds an empty bag without resetting discoveries;
+  failed gathering, crafting and firing writes roll back before gameplay effects.
+- Tests for migration, crafting/refunds, capacity, equipment persistence, tonic
+  consumption, paused inventory, ranged hits and walls intercepting arrows.
+
+### Limits
+
+- The 3D edition now has a sword and bow. Guns, throwables, additional powers,
+  remaining puzzle families and challenge runs are still unported.
+- Arrow supplies persist, but arrows already in flight do not survive reload or
+  island travel. The existing Flutter game and its saves remain separate.
+
 ## [3D 0.9.0] - 2026-10-20
 
 ### Added

@@ -37,6 +37,8 @@ func run() -> void:
 	await capture("explorers.png")
 	game.hud.show_settings()
 	await capture("settings.png")
+	game.open_bag()
+	await capture("backpack.png")
 	game.hud.show_game()
 	root.size = Vector2i(640, 360)
 	await capture("phone-640x360.png")

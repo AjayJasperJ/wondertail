@@ -1,4 +1,4 @@
-# Wondertail 3D — 0.9.0
+# Wondertail 3D — 0.10.0
 
 The first playable third-person conversion uses Godot **4.4.1**, GDScript and
 original procedural meshes. Flutter v0.8 remains in the same repository.
@@ -67,6 +67,24 @@ extended playtesting may expose catches despite reserved landmark paths.
 
 ## Controls and interface
 
+The backpack (B or BAG) pauses play. Gather each trail resource once per island
+for two wood, crystals or herbs. Capacity is 40 for Rowan, 30 for Sky and 60 for
+Fern. Materials and tonics weigh one unit each, arrows 0.1. Changing to a smaller
+explorer preserves existing items; gathering resumes after freeing space.
+
+At camp, craft a bow for three wood/two crystals, eight arrows for one wood,
+or a bottled tonic for two herbs/one crystal. A tonic heals 55 health anywhere
+and is not consumed at full health. Camp recovery remains free. Weapon selection,
+materials, ammunition and tonics persist; v0.9 saves receive an empty backpack.
+Crafting and shot consumption commit to disk before effects are applied.
+
+Tab or SWAP changes sword/bow when the bow is owned. F or SHOOT fires the bow
+for six stamina with a 0.65-second cooldown. Each arrow deals 38 damage and
+travels at 30 m/s for up to 2.5 seconds. Up to 24 arrows can exist; swept rays
+test both scenery and enemies. Aim assist selects an unobstructed target within
+23 metres and a forward-facing cone. In-flight arrows pause with menus and are
+cleared on reload/travel; ammunition already spent is not refunded.
+
 | Action | Touch | Keyboard / mouse |
 | --- | --- | --- |
 | Move | Left stick | WASD / arrows |
@@ -97,7 +115,7 @@ Android uses `com.ajayjasper.wondertail3d`, separate from Flutter. The slot is
 Godot's `user://expedition_3d_v1.json`. No Flutter files are read or changed;
 there is no cross-engine save importer, login or cloud synchronization.
 
-Saved: seed, selected/unlocked island, hero, Starlight, settings and per-island
+Saved: seed, selected/unlocked island, hero, Starlight, settings, backpack/equipment and per-island
 coin receipts, seeds, rescue, cavern solution and restoration. Session-only:
 exact position, vitals, enemies, effects and unfinished song attempts. Reload
 resumes at the selected island's camp with full vitals. Storage grows with
@@ -158,7 +176,7 @@ scene and menus, including a 640×360 phone view. These are not frame-rate bench
 
 ## Remaining conversion work
 
-The v0.8 guns/bows, throwables, three powers, full backpack/weight/crafting,
+The v0.8 guns, throwables, additional powers, expanded inventory/crafting,
 workshop and Trailblazer runs are not ported. The song is the only 3D puzzle;
 rope, maze and map coloring remain in Flutter. No brain-development benefits
 are claimed. More quest/encounter layouts, NPCs, interiors, animation and music

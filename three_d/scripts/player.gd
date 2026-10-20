@@ -47,6 +47,7 @@ func setup(owner_game, chosen: int) -> void:
 	col.position.y = capsule.height * 0.5
 	add_child(col)
 	body = Art.explorer(self, hero)
+	refresh_weapon()
 	add_child(pivot)
 	pivot.position.y = 1.6
 	pivot.add_child(arm)
@@ -77,11 +78,22 @@ func request_jump() -> void:
 
 
 func attack() -> void:
+	if int(game.store.data.bag.weapon) == 1:
+		if attack_cooldown <= 0 and stamina >= 6 and game.fire_arrow():
+			stamina -= 6
+			attack_cooldown = 0.65
+		return
 	if attack_cooldown > 0 or stamina < 9:
 		return
 	stamina -= 9
 	attack_cooldown = 0.42
 	game.strike(global_position + Vector3.UP, -body.global_basis.z, [28, 23, 39][hero])
+
+
+func refresh_weapon() -> void:
+	var ranged: bool = int(game.store.data.bag.weapon) == 1
+	body.get_node("Arm1/Sword").visible = not ranged
+	body.get_node("Arm1/Bow").visible = ranged
 
 
 func dash() -> void:

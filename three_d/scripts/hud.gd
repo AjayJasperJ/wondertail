@@ -98,7 +98,12 @@ func show_lobby() -> void:
 	button("EXPLORERS", Rect2(74, 453, 174, 51), func(): show_heroes())
 	button("ISLAND ATLAS", Rect2(262, 453, 179, 51), func(): show_atlas())
 	button("SETTINGS", Rect2(74, 521, 174, 51), func(): show_settings())
-	text("3D EDITION  /  0.9.0", Vector2(76, 655), 15, Color("a7c3bf"))
+	text(
+		"3D EDITION  /  " + str(ProjectSettings.get_setting("application/config/version")),
+		Vector2(76, 655),
+		15,
+		Color("a7c3bf")
+	)
 	text("OFFLINE • NO ADS • YOUR OWN PACE", Vector2(800, 660), 15, Color("d6e9db"))
 	text("YOUR NEXT CHAPTER", Vector2(861, 115), 16, Color("a7d6cb"))
 	text("ISLAND %02d" % (int(game.store.data.island) + 1), Vector2(860, 145), 39, title_color)
@@ -228,6 +233,10 @@ func show_game() -> void:
 	objective = text("", Vector2(36, 27), 24, title_color)
 	text("W O N D E R T A I L", Vector2(36, 63), 14, Color("bed6d0"))
 	button("Ⅱ  CAMP", Rect2(1100, 26, 140, 48), game.pause_game)
+	button("BAG", Rect2(1100, 90, 140, 48), game.open_bag)
+	action_buttons["weapon"] = button(
+		"SWAP", Rect2(900, 520, 94, 70), func(): game.action("weapon")
+	)
 	vitals = text("", Vector2(465, 608), 16)
 	health = bar(Vector2(465, 638), Color("e89e80"))
 	stamina = bar(Vector2(465, 655), Color("91d6c4"))
@@ -246,6 +255,67 @@ func show_game() -> void:
 		if action == "sprint":
 			b.toggle_mode = true
 	text("DRAG THE SKY TO LOOK", Vector2(920, 384), 14, Color("bfd6ce"))
+	text("F  /  E  •  STRIKE / INTERACT", Vector2(36, 96), 14, Color("bed6d0"))
+
+
+func show_bag() -> void:
+	page = "bag"
+	clear()
+	var bag: Dictionary = game.store.data.bag
+	header(
+		"THE WAYFARER'S PACK",
+		"Craft at camp. Carry supplies anywhere. Discoveries stay safe when you fall."
+	)
+	for child in widgets.get_children():
+		if child is Button and child.text == "← BACK":
+			child.pressed.disconnect(show_lobby)
+			child.pressed.connect(game.resume_game)
+	text("LOAD  %.1f / %d" % [game.store.weight(), game.store.capacity()], Vector2(100, 192), 23)
+	text(
+		"WOOD   %d      CRYSTALS   %d      HERBS   %d" % [bag.wood, bag.crystal, bag.herbs],
+		Vector2(100, 246),
+		23
+	)
+	text("ARROWS   %d      TONICS   %d" % [bag.arrows, bag.tonic], Vector2(100, 293), 23)
+	button(
+		"EQUIP SWORD" if int(bag.weapon) == 1 else "SWORD  ✓",
+		Rect2(100, 363, 270, 58),
+		func():
+			if game.store.equip(0):
+				game.player.refresh_weapon()
+				show_bag()
+			else:
+				tell(game.store.last_error)
+	)
+	var equip_bow := button(
+		"EQUIP BOW" if int(bag.weapon) == 0 else "BOW  ✓",
+		Rect2(390, 363, 270, 58),
+		func():
+			if game.store.equip(1):
+				game.player.refresh_weapon()
+				show_bag()
+			else:
+				tell(game.store.last_error)
+	)
+	equip_bow.disabled = not bag.bow
+	button("DRINK TONIC  •  +55 HP", Rect2(100, 447, 380, 58), game.use_tonic)
+	text(
+		"CAMP WORKBENCH" if game.at_workbench() else "RETURN TO CAMP TO CRAFT",
+		Vector2(760, 192),
+		21,
+		title_color
+	)
+	var recipes := [
+		["BOW  •  3 WOOD + 2 CRYSTALS", "bow"],
+		["8 ARROWS  •  1 WOOD", "arrows"],
+		["TONIC  •  2 HERBS + 1 CRYSTAL", "tonic"]
+	]
+	for i in range(recipes.size()):
+		var recipe: String = recipes[i][1]
+		var b := button(
+			recipes[i][0], Rect2(750, 253 + i * 82, 430, 62), func(): game.craft_item(recipe)
+		)
+		b.disabled = not game.at_workbench() or (recipe == "bow" and bag.bow)
 
 
 func show_pause() -> void:
@@ -303,6 +373,7 @@ func _input(event: InputEvent) -> void:
 				if (
 					child is Button
 					and child.visible
+					and not child.disabled
 					and Rect2(child.position, child.size).has_point(p)
 				):
 					child.pressed.emit()
@@ -345,6 +416,11 @@ func set_stick(p: Vector2) -> void:
 func _process(dt: float) -> void:
 	if page == "game":
 		message_time = maxf(0, message_time - dt)
+		var ranged: bool = int(game.store.data.bag.weapon) == 1
+		action_buttons.attack.text = "SHOOT" if ranged else "STRIKE"
+		action_buttons.weapon.text = (
+			"BOW %d\nSWAP" % game.store.data.bag.arrows if ranged else "SWORD\nSWAP"
+		)
 		health.value = game.player.health / game.player.max_health * 100
 		stamina.value = game.player.stamina
 		vitals.text = (
