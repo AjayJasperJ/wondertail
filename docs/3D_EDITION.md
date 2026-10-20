@@ -1,4 +1,7 @@
-# Wondertail 3D — 0.16.0
+# Wondertail 3D — 0.17.0
+
+See [living-world contracts, economy and roadmap](LIVING_WORLD_ROADMAP.md) for
+optional progression, camp upgrades and current Android edge-smoothing controls.
 
 Current coastal sailing, harvesting, backpack and display rules supersede older
 weight-based descriptions below: [Coastal frontier](FRONTIER_V0.16.md).

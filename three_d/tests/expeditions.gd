@@ -99,13 +99,15 @@ func run():
 		game.player.set_physics_process(false)
 		game.start_game()
 		check(
-			not game.playing and game.hud.page == "brief",
-			"New contract opens a clear briefing before play"
+			game.playing and game.hud.page == "game",
+			"New island permits free exploration without a mandatory briefing"
 		)
 		game.resume_game()
 		var contract = game.expedition
 		check(contract.kind == index, "Distinct contract types in first three islands")
 		check(not game.cloud_node.visible, "Cloud rescue removed from active expedition")
+		game.hud.show_brief()
+		game.resume_game()
 		game._process(0.01)
 		check(game.objective().contains(contract.TITLES[index]), "HUD names active contract")
 		if index == 0:

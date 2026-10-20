@@ -2,7 +2,11 @@
 
 Recover a lost network of floating islands in an offline action adventure.
 
-**3D version: 0.16.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.17.0** · Godot 4.4.1 · `three_d/`
+
+Optional repeatable camp contracts earn coins and diamonds. Buy supplies, build
+visible camp improvements, and explore the next island without a three-item gate.
+[Living-world features and approved roadmap](docs/LIVING_WORLD_ROADMAP.md).
 
 [Coastal sailing, harvesting, stack storage and display settings](docs/FRONTIER_V0.16.md).
 

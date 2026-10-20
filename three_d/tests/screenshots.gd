@@ -60,6 +60,8 @@ func run() -> void:
 	await capture("explorers.png")
 	game.hud.show_settings()
 	await capture("settings.png")
+	game.hud.show_camp()
+	await capture("living-camp.png")
 	game.player.position = game.terrain.point("camp") + Vector3.UP
 	game.store.data.bag.wood = 12
 	game.store.data.bag.crystal = 12

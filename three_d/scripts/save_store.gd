@@ -68,6 +68,44 @@ func load_save() -> bool:
 static func valid(value: Variant) -> bool:
 	if not value is Dictionary or value.get("schema") != 1:
 		return false
+	if value.has("antialiasing"):
+		if not (value.antialiasing is int or value.antialiasing is float):
+			return false
+		if (
+			value.antialiasing < 0
+			or value.antialiasing > 2
+			or value.antialiasing != floor(value.antialiasing)
+		):
+			return false
+	if value.has("living"):
+		var living = value.living
+		if (
+			not living is Dictionary
+			or not living.get("camp") is Array
+			or not living.get("active") is Dictionary
+		):
+			return false
+		for key in ["diamonds", "completed"]:
+			if not (living.get(key) is float or living.get(key) is int):
+				return false
+			if living[key] < 0 or living[key] != floor(living[key]):
+				return false
+		for feature in living.camp:
+			if (
+				feature not in ["workshop", "garden", "telescope", "forge", "storage"]
+				or living.camp.count(feature) != 1
+			):
+				return false
+		if not living.active.is_empty():
+			if not living.active.get("done") is bool:
+				return false
+			for key in ["kind", "island"]:
+				if not (living.active.get(key) is int or living.active.get(key) is float):
+					return false
+				if living.active[key] < 0 or living.active[key] != floor(living.active[key]):
+					return false
+			if living.active.kind > 4:
+				return false
 	for key in ["color_mode", "fps_mode"]:
 		if value.has(key):
 			if not (value[key] is int or value[key] is float):
@@ -280,7 +318,8 @@ func can_add(item: String, amount: int) -> bool:
 
 func capacity() -> float:
 	# 27 boxes, each with up to 50 identical items. Existing pack upgrades add rows.
-	return maxf(27 + 9 * int(data.get("pack_level", 0)), weight())
+	var bonus := 9 if "storage" in data.get("living", {}).get("camp", []) else 0
+	return maxf(27 + bonus + 9 * int(data.get("pack_level", 0)), weight())
 
 
 func gather(id: String, resource: String) -> bool:

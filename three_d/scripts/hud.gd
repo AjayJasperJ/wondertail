@@ -213,6 +213,16 @@ func show_settings() -> void:
 			show_settings()
 	)
 	text("COLOR", Vector2(100, 510), 23)
+	button(
+		(
+			"EDGE SMOOTHING "
+			+ ["OFF", "2×", "4×"][clampi(int(game.store.data.get("antialiasing", 1)), 0, 2)]
+		),
+		Rect2(850, 450, 330, 48),
+		func():
+			game.save_setting("antialiasing", (int(game.store.data.get("antialiasing", 1)) + 1) % 3)
+			show_settings()
+	)
 	if int(game.store.data.quality) == 4:
 		button(
 			"SHADOWS " + ("ON" if game.store.data.get("custom_shadows", true) else "OFF"),
@@ -301,6 +311,14 @@ func show_game() -> void:
 	text("N", Vector2(1146, 16), 12, Color("b7cebd"))
 	camera_label = text("", Vector2(1076, 195), 12, Color("d0ddd2"))
 	button("TOOLS", Rect2(730, 84, 110, 44), func(): game.action("tool"))
+	button(
+		"CAMP",
+		Rect2(850, 84, 110, 44),
+		func():
+			game.playing = false
+			game.player.reset_controls()
+			show_camp()
+	)
 	view_button = button("VIEW", Rect2(1104, 222, 120, 44), func(): game.action("camera_mode"))
 	shoulder_button = button("L / R", Rect2(1006, 222, 78, 44), func(): game.action("shoulder"))
 	hearts = RichTextLabel.new()
@@ -588,16 +606,81 @@ func show_pause() -> void:
 	button("RETURN TO THE TRAIL", Rect2(100, 220, 440, 62), game.resume_game)
 	button("EXPEDITION BRIEF  •  OBJECTIVES & REWARD", Rect2(100, 305, 550, 62), show_brief)
 	button("RETURN TO LOBBY", Rect2(100, 390, 440, 62), game.return_lobby)
-	text(
-		"WASD / arrows  move     Space  double jump     Shift  run\nF  strike     Q  dash     E  interact     Esc  pause\nDrag mouse / right thumb over the world to orbit camera.",
-		Vector2(700, 250),
-		19
-	)
-	# The header back button is also safe: it resumes to lobby through the controller.
+	button("CAMP & CONTRACTS", Rect2(100, 475, 440, 62), show_camp)
 	for child in widgets.get_children():
 		if child is Button and child.text == "← BACK":
 			child.pressed.disconnect(show_lobby)
 			child.pressed.connect(game.return_lobby)
+
+
+func show_camp() -> void:
+	page = "camp"
+	clear()
+	var state: Dictionary = game.living.state()
+	header(
+		"THE LIVING CAMP",
+		"Optional work. Explore the next island whenever you choose; no contract timer."
+	)
+	for child in widgets.get_children():
+		if child is Button and child.text == "← BACK":
+			child.pressed.disconnect(show_lobby)
+			child.pressed.connect(game.resume_game)
+	text(
+		"COINS %d   •   DIAMONDS %d" % [game.store.data.coins, state.diamonds],
+		Vector2(100, 180),
+		22,
+		title_color
+	)
+	if state.active.is_empty():
+		text("CHOOSE A REPEATABLE CONTRACT", Vector2(100, 230), 18)
+		for i in range(game.living.TASKS.size()):
+			var index := i
+			button(
+				game.living.TASKS[i],
+				Rect2(100, 268 + i * 52, 540, 44),
+				func(): game.camp_action("accept", str(index))
+			)
+	else:
+		text(
+			(
+				game.living.TASKS[int(state.active.kind)]
+				+ (
+					"\nReward: %d coins + 2 diamonds\nProgress survives travel and reload."
+					% (30 + int(state.active.kind) * 5)
+				)
+			),
+			Vector2(100, 240),
+			19
+		)
+		button(
+			"DELIVER / CLAIM PAYMENT", Rect2(100, 350, 540, 48), func(): game.camp_action("claim")
+		)
+		button("ABANDON CONTRACT", Rect2(100, 410, 540, 42), func(): game.camp_action("abandon"))
+	text(game.living.rumour(), Vector2(100, 535), 15, title_color)
+	text("CAMP IMPROVEMENTS", Vector2(720, 230), 18, title_color)
+	var names := ["workshop", "garden", "telescope", "forge", "storage"]
+	for i in range(names.size()):
+		var feature: String = names[i]
+		var owned: bool = feature in state.camp
+		var b := button(
+			(
+				feature.to_upper()
+				+ (" • BUILT" if owned else " • %d DIAMONDS" % game.living.UPGRADES[feature])
+			),
+			Rect2(720, 268 + i * 44, 430, 38),
+			func(): game.camp_action("upgrade", feature)
+		)
+		b.disabled = owned
+	text("SUPPLIES • COINS", Vector2(720, 500), 17, title_color)
+	button("8 ARROWS • 5", Rect2(720, 530, 210, 42), func(): game.camp_action("buy", "arrows"))
+	button("TONIC • 10", Rect2(945, 530, 205, 42), func(): game.camp_action("buy", "tonic"))
+	button("12 ROUNDS • 8", Rect2(720, 581, 210, 42), func(): game.camp_action("buy", "bullets"))
+	button("EXPLORE NEXT ISLAND", Rect2(100, 605, 540, 48), func(): game.camp_action("explore"))
+	text(
+		"Workshop: cheaper supplies • Garden: herbs per contract\nForge: stronger melee • Storage: +9 boxes\nTelescope: reveals the island's field cache locations.",
+		Vector2(720, 630),
+		12
+	)
 
 
 func tell(caption: String) -> void:
@@ -710,16 +793,12 @@ func _process(dt: float) -> void:
 		health.value = game.player.health / game.player.max_health * 100
 		stamina.value = game.player.stamina
 		vitals.text = (
-			"%s  •  %d HP     ✦ %d     SECURED %d/3"
+			"%s • %d HP   COINS %d   DIAMONDS %d"
 			% [
 				game.store.HEROES[int(game.store.data.hero)],
 				int(game.player.health),
 				game.store.data.coins,
-				(
-					game.expedition.completed().size()
-					if game.use_expeditions
-					else game.store.memory().seeds.size()
-				)
+				int(game.living.state().diamonds) if game.living != null else 0
 			]
 		)
 		var goal: PackedStringArray = game.objective().split(" / ", true, 1)
@@ -767,6 +846,7 @@ func draw_style_panel(rect: Rect2, color: Color) -> void:
 
 
 func show_brief() -> void:
+	game.track_expedition = true
 	game.playing = false
 	game.player.reset_controls()
 	page = "brief"

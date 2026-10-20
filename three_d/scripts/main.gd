@@ -1,4 +1,46 @@
 extends Node3D
+const LivingWorld = preload("res://scripts/living_world.gd")
+var living
+var track_expedition := false
+
+
+func camp_action(action_name: String, value: String = "") -> void:
+	if in_cave or player.position.distance_to(terrain.point("camp")) > 14:
+		tell("Return to the campsite to use the contract board and services.")
+		return
+	var ok := false
+	match action_name:
+		"accept":
+			ok = living.accept(int(value))
+		"claim":
+			ok = living.claim()
+		"abandon":
+			ok = store.transact(func(): living.state().active = {})
+			if ok:
+				living.build()
+		"buy":
+			ok = living.purchase(value)
+		"upgrade":
+			ok = living.upgrade(value)
+		"explore":
+			if not store.transact(
+				func():
+					store.data.unlocked = maxi(int(store.data.unlocked), int(store.data.island) + 1)
+			):
+				tell(store.last_error)
+				return
+			travel_next()
+			return
+	hud.show_camp()
+	tell(
+		(
+			"Camp updated. Your progress is saved."
+			if ok
+			else "Not ready: check materials, currency, space or active contract."
+		)
+	)
+
+
 const Expedition = preload("res://scripts/expedition.gd")
 var use_expeditions := true
 var expedition
@@ -170,6 +212,7 @@ func build_ocean() -> void:
 
 
 func build_world() -> void:
+	track_expedition = false
 	sailing = false
 	objects.clear()
 	enemies.clear()
@@ -223,6 +266,8 @@ func build_world() -> void:
 	if use_expeditions:
 		expedition = Expedition.new()
 		expedition.setup(self)
+	living = LivingWorld.new()
+	living.setup(self)
 	apply_quality()
 
 
@@ -776,6 +821,9 @@ func apply_quality() -> void:
 		if quality >= 2
 		else (Viewport.MSAA_2X if quality == 1 else Viewport.MSAA_DISABLED)
 	)
+	# 2x MSAA smooths silhouettes without forcing expensive 4x sampling on Low.
+	var aa := clampi(int(store.data.get("antialiasing", 1)), 0, 2)
+	get_viewport().msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][aa]
 	light.shadow_enabled = shadows
 	light.directional_shadow_max_distance = [35, 55, 80, 110, 80][quality]
 	get_viewport().scaling_3d_scale = [
@@ -846,7 +894,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		if playing:
 			pause_game()
-		elif hud.page == "pause" or hud.page == "bag":
+		elif hud.page in ["pause", "bag", "camp"]:
 			resume_game()
 		return
 	if not playing:
@@ -917,6 +965,10 @@ func interaction_prompt() -> String:
 	if obj.is_empty():
 		return ""
 	match obj.kind:
+		"camp_board":
+			return "E • CAMP CONTRACTS & SERVICES"
+		"living_rescue":
+			return "E • RESCUE EXPLORER"
 		"boat":
 			return "E • BOARD BOAT"
 		"field_cache":
@@ -956,6 +1008,19 @@ func interaction_prompt() -> String:
 
 
 func objective() -> String:
+	if use_expeditions and living != null and not track_expedition:
+		var active: Dictionary = living.state().active
+		if active.is_empty():
+			return "FREE EXPLORATION / Visit CAMP for optional contracts, supplies and the next island."
+		return (
+			"OPTIONAL CONTRACT / "
+			+ living.TASKS[int(active.kind)]
+			+ (
+				" • return to camp for payment"
+				if active.done
+				else " • island %d" % (int(active.island) + 1)
+			)
+		)
 	if use_expeditions and expedition != null:
 		return expedition.objective()
 	var memory := store.memory()
@@ -1011,6 +1076,13 @@ func interact_object(object: Dictionary) -> void:
 		expedition.extract()
 		return
 	match object.kind:
+		"camp_board":
+			pause_game()
+			hud.show_camp()
+		"living_rescue":
+			if living.mark_encounter(object.id):
+				object.node.visible = false
+				tell("Explorer rescued. Return to camp to claim your contract reward.")
 		"boat":
 			sailing_return = terrain.point("gate") + Vector3(0, 0.5, 3)
 			sailing = true
@@ -1215,6 +1287,8 @@ func respawn() -> void:
 
 
 func strike(at: Vector3, forward: Vector3, damage: int) -> void:
+	if living != null and "forge" in living.state().camp:
+		damage += 5
 	sound.cue(240, 0.1, 0.07)
 	for enemy in enemies:
 		var offset: Vector3 = enemy.position + Vector3.UP - at
@@ -1335,10 +1409,14 @@ func tell(caption: String) -> void:
 
 
 func _process(dt: float) -> void:
-	clock += dt
+	if playing:
+		clock += dt
 	# A slow solar cycle keeps the island alive without interrupting the expedition.
-	light.rotation_degrees = Vector3(-42.0 - sin(clock * 0.018) * 18.0, -35.0 + clock * 0.018, 0)
-	light.light_energy = 0.82 + sin(clock * 0.018) * 0.16
+	var daylight := clampf(sin(clock * TAU / 720.0 + 0.6) * 0.65 + 0.45, 0.0, 1.0)
+	light.rotation_degrees = Vector3(-12.0 - daylight * 55.0, -35.0 + clock * 0.018, 0)
+	light.light_energy = lerpf(0.18, 1.0, daylight)
+	light.light_color = Color("91b5df").lerp(Color("ffe4b0"), daylight)
+	environment.environment.ambient_light_energy = lerpf(0.28, 0.55, daylight)
 	for i in range(pickup_effects.size() - 1, -1, -1):
 		var effect: Dictionary = pickup_effects[i]
 		if not is_instance_valid(effect.node):
@@ -1370,6 +1448,11 @@ func _process(dt: float) -> void:
 	if use_expeditions and expedition != null:
 		expedition.tick(dt)
 	nav_marker.visible = not in_cave
+	if use_expeditions and not track_expedition:
+		nav_marker.visible = false
+		expedition.guide.visible = false
+	elif use_expeditions:
+		expedition.guide.visible = true
 	nav_marker.rotation.y += dt
 	proximity_timer -= dt
 	pickup_clock -= dt
@@ -1484,6 +1567,9 @@ func auto_collect(dt: float) -> void:
 
 
 func spawn_drop(enemy) -> void:
+	if living != null and enemy.has_meta("living_id"):
+		if living.mark_encounter(enemy.get_meta("living_id")):
+			tell("Stalker defeated. Return to camp for payment.")
 	var id := "mob_drop_%d_%d" % [roundi(enemy.home.x * 10), roundi(enemy.home.z * 10)]
 	if id in store.memory().picked:
 		return
@@ -1604,4 +1690,6 @@ func buy_pack_upgrade() -> void:
 func brief_if_new() -> void:
 	if use_expeditions and not store.memory().expedition.get("brief_seen", false):
 		store.memory().expedition.brief_seen = true
-		hud.show_brief()
+		tell(
+			"Explore freely. Visit the CAMP board for work and upgrades; BRIEF tracks an optional expedition."
+		)

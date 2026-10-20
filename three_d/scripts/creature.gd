@@ -15,12 +15,14 @@ var spawn_location := Vector3.ZERO
 var health_label: Label3D
 var status_kind := ""
 var ranged_timer := 2.5
+var tactic := 0
 
 
 func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	game = owner_game
 	position = at
 	home = at
+	tactic = posmod(roundi(at.x + at.z), 3)
 	spawn_location = at
 	elite = guardian
 	health = 150 if elite else 78
@@ -55,7 +57,13 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	status_kind = "burn" if biome == 4 else ("slow" if biome == 2 else "")
 	# Hostiles read as threats at a glance: emissive warning eyes and a more deliberate pursuit cadence.
 	for side in [-1, 1]:
-		Art.sphere(self, Vector3(side * 0.16, 1.35 if not elite else 1.95, -0.42), 0.055, Color("ff604d"), 1.4)
+		Art.sphere(
+			self,
+			Vector3(side * 0.16, 1.35 if not elite else 1.95, -0.42),
+			0.055,
+			Color("ff604d"),
+			1.4
+		)
 	if elite:
 		Art.label(self, "VAULT WARDEN", Vector3(0, 2.6, 0), Color("ffd293"))
 
@@ -63,6 +71,9 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 func hit(amount: float, direction: Vector3) -> void:
 	if health <= 0:
 		return
+	# Wardens resist frontal hits. Flanking their telegraphed strike is rewarded.
+	if elite and windup <= 0 and (-body.global_basis.z).dot(-direction.normalized()) > 0.45:
+		amount *= 0.35
 	health -= amount
 	stun = 0.35
 	windup = 0
@@ -110,6 +121,8 @@ func _physics_process(dt: float) -> void:
 	var filled := ceili(health / (110.0 if elite else 60.0) * 8)
 	health_label.text = "▰".repeat(clampi(filled, 0, 8)) + "▱".repeat(8 - clampi(filled, 0, 8))
 	var direction := Vector3(offset.x, 0, offset.z).normalized()
+	if not elite and tactic == 1 and distance > 4:
+		direction = direction.rotated(Vector3.UP, 0.4 if home.x > 0 else -0.4)
 	ranged_timer -= dt
 	if elite and distance > 4 and distance < 17 and ranged_timer <= 0 and stun <= 0:
 		ranged_timer = 3.5

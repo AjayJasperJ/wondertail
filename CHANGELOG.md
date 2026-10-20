@@ -4,6 +4,17 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.17.0] - 2026-10-20
+
+- Optional repeatable material deliveries, marked hunts and explorer rescue
+  contracts; transactional coin/diamond rewards and an open exploration option.
+- Coin supply shop and five diamond-funded visible camp improvements with
+  discounts, herb rewards, cache rumours, melee bonus and additional pack boxes.
+- Day/night lighting paused by menus, flanking hunters and frontal warden defense.
+- Selectable Off/2x/4x edge smoothing, default 2x for Android silhouette aliasing.
+- Added living-world save/rollback/reward tests and approved roadmap with explicit
+  shipped-versus-planned status for all requested feature families.
+
 ## [3D 0.16.0] - 2026-10-20
 
 - Capped imported external textures at 256px with mipmaps (source assets retained),
