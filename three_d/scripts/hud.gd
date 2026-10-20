@@ -22,6 +22,9 @@ var stick_delta := Vector2.ZERO
 var message := ""
 var message_time := 0.0
 var unit := 1.0
+var selected_item := "wood"
+var bag_tab := "craft"
+var craft_grid: Array = ["", "", "", "", "", "", "", "", ""]
 var title_color := Color("ffe5ab")
 
 
@@ -32,6 +35,9 @@ func setup(owner_game) -> void:
 	widgets.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var theme := Theme.new()
 	theme.default_font_size = 18
+	var ui_font := SystemFont.new()
+	ui_font.font_names = PackedStringArray(["DejaVu Sans", "Noto Sans", "Arial"])
+	theme.default_font = ui_font
 	for type in ["normal", "hover", "pressed", "disabled"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("244954") if type != "pressed" else Color("537c77")
@@ -83,11 +89,14 @@ func text(
 func button(caption: String, rect: Rect2, callback: Callable) -> Button:
 	var b := Button.new()
 	b.text = caption
+	b.add_theme_font_size_override("font_size", 18)
+	b.clip_text = true
 	b.position = rect.position
 	b.size = rect.size
 	b.pressed.connect(callback)
 	widgets.add_child(b)
 	b.size = rect.size
+	b.set_deferred("size", rect.size)
 	return b
 
 
@@ -261,7 +270,7 @@ func show_game() -> void:
 	hearts.add_theme_font_size_override("normal_font_size", 22)
 	widgets.add_child(hearts)
 	action_buttons["weapon"] = button(
-		"SWAP", Rect2(696, 594, 108, 42), func(): game.action("weapon")
+		"SWAP", Rect2(650, 594, 170, 42), func(): game.action("weapon")
 	)
 	vitals = text("", Vector2(472, 637), 14, Color("dce3d4"))
 	health = bar(Vector2(472, 664), Color("d8a583"))
@@ -306,63 +315,201 @@ func show_bag() -> void:
 	clear()
 	var bag: Dictionary = game.store.data.bag
 	header(
-		"THE WAYFARER'S PACK",
-		"Craft at camp. Carry supplies anywhere. Discoveries stay safe when you fall."
+		"EXPEDITION PACK",
+		"Select a stack. Equip, craft or drop it. Quest discoveries never use bag space."
 	)
 	for child in widgets.get_children():
 		if child is Button and child.text == "← BACK":
+			child.position = Vector2(1060, 68)
 			child.pressed.disconnect(show_lobby)
 			child.pressed.connect(game.resume_game)
-	text("LOAD  %.1f / %d" % [game.store.weight(), game.store.capacity()], Vector2(100, 192), 23)
 	text(
-		"MATERIALS: WOOD %d   CRYSTALS %d   HERBS %d" % [bag.wood, bag.crystal, bag.herbs],
-		Vector2(100, 246),
-		23
-	)
-	text(
-		"AMMO: ARROWS   %d      SUPPLIES: TONICS   %d" % [bag.arrows, bag.tonic],
-		Vector2(100, 293),
-		23
-	)
-	button(
-		"EQUIP SWORD" if int(bag.weapon) == 1 else "SWORD  ✓",
-		Rect2(100, 363, 270, 58),
-		func():
-			if game.store.equip(0):
-				game.player.refresh_weapon()
-				show_bag()
-			else:
-				tell(game.store.last_error)
-	)
-	var equip_bow := button(
-		"EQUIP BOW" if int(bag.weapon) == 0 else "BOW  ✓",
-		Rect2(390, 363, 270, 58),
-		func():
-			if game.store.equip(1):
-				game.player.refresh_weapon()
-				show_bag()
-			else:
-				tell(game.store.last_error)
-	)
-	equip_bow.disabled = not bag.bow
-	button("DRINK TONIC  •  +55 HP", Rect2(100, 447, 380, 58), game.use_tonic)
-	text(
-		"CAMP WORKBENCH" if game.at_workbench() else "RETURN TO CAMP TO CRAFT",
-		Vector2(760, 192),
-		21,
+		"BACKPACK  •  %.1f / %d" % [game.store.weight(), game.store.capacity()],
+		Vector2(80, 190),
+		22,
 		title_color
 	)
-	var recipes := [
-		["BOW  •  3 WOOD + 2 CRYSTALS", "bow"],
-		["8 ARROWS  •  1 WOOD", "arrows"],
-		["TONIC  •  2 HERBS + 1 CRYSTAL", "tonic"]
-	]
-	for i in range(recipes.size()):
-		var recipe: String = recipes[i][1]
-		var b := button(
-			recipes[i][0], Rect2(750, 253 + i * 82, 430, 62), func(): game.craft_item(recipe)
+	var items := ["wood", "crystal", "herbs", "arrows", "tonic", "bullets", "sword", "bow", "gun"]
+	for i in range(items.size()):
+		var item: String = items[i]
+		var count: int = game.store.item_count(item)
+		var equipped: bool = item == ["sword", "bow", "gun"][int(bag.weapon)]
+		var slot := button(
+			(
+				("● " if selected_item == item else "")
+				+ item.to_upper()
+				+ ("  ✓" if equipped else "")
+				+ "  × "
+				+ str(count)
+			),
+			Rect2(80 + (i % 3) * 190, 238 + (i / 3) * 88, 178, 76),
+			func():
+				selected_item = item
+				show_bag()
 		)
-		b.disabled = not game.at_workbench() or (recipe == "bow" and bag.bow)
+		slot.add_theme_font_size_override("font_size", 17)
+		if count == 0:
+			slot.modulate = Color(0.65, 0.72, 0.72)
+	text(
+		selected_item.to_upper() + "  •  " + str(game.store.item_count(selected_item)) + " CARRIED",
+		Vector2(80, 514),
+		20
+	)
+	var action := button(
+		"EQUIP" if selected_item in ["sword", "bow", "gun"] else "USE TONIC",
+		Rect2(80, 554, 178, 50),
+		func():
+			if selected_item in ["sword", "bow", "gun"]:
+				if game.store.equip(["sword", "bow", "gun"].find(selected_item)):
+					game.player.refresh_weapon()
+					show_bag()
+				else:
+					tell("Craft or pick up this weapon first.")
+			else:
+				game.use_tonic()
+	)
+	action.disabled = (
+		selected_item not in ["sword", "bow", "gun", "tonic"]
+		or game.store.item_count(selected_item) == 0
+	)
+	var one := button(
+		"DROP ONE", Rect2(270, 554, 178, 50), func(): game.drop_inventory(selected_item, 1)
+	)
+	var stack := button(
+		"DROP STACK",
+		Rect2(460, 554, 178, 50),
+		func(): game.drop_inventory(selected_item, game.store.item_count(selected_item))
+	)
+	one.disabled = selected_item == "sword" or game.store.item_count(selected_item) == 0
+	stack.disabled = one.disabled
+	text(
+		"Starter sword stays in your pack as a fallback.\nSkyseeds and Starlight are protected discoveries.",
+		Vector2(80, 627),
+		16,
+		Color("b5d6d2")
+	)
+	button(
+		"CRAFTING",
+		Rect2(730, 178, 210, 44),
+		func():
+			bag_tab = "craft"
+			show_bag()
+	)
+	button(
+		"NEARBY LOOT",
+		Rect2(956, 178, 230, 44),
+		func():
+			bag_tab = "nearby"
+			show_bag()
+	)
+	if bag_tab == "nearby":
+		var nearby: Array = game.nearby_ground()
+		text("DROPPED STACKS  •  WITHIN 4m", Vector2(730, 242), 18, title_color)
+		if nearby.is_empty():
+			text(
+				"No dropped items nearby.\nDrop a stack to free space.\nIt stays here when you leave.",
+				Vector2(730, 300),
+				20
+			)
+		for i in range(mini(nearby.size(), 5)):
+			var id: String = nearby[i]
+			var entry: Dictionary = game.store.memory().ground[id]
+			button(
+				"PICK UP  •  %s × %d" % [String(entry.item).to_upper(), entry.amount],
+				Rect2(730, 282 + i * 68, 456, 56),
+				func(): game.reclaim_inventory(id)
+			)
+		if nearby.size() > 5:
+			text("Pick up a stack to reveal more.", Vector2(730, 636), 17)
+		return
+	text(
+		"CAMP TABLE" if game.at_workbench() else "CRAFT AT CAMP  •  PREVIEW ANYWHERE",
+		Vector2(730, 238),
+		17,
+		title_color
+	)
+	for i in range(9):
+		var index := i
+		var ingredient: String = craft_grid[i]
+		var slot := button(
+			(
+				("CRYST." if ingredient == "crystal" else ingredient.to_upper())
+				if ingredient != ""
+				else "+"
+			),
+			Rect2(730 + (i % 3) * 82, 274 + (i / 3) * 70, 74, 62),
+			func():
+				if craft_grid[index] != "":
+					craft_grid[index] = ""
+				elif (
+					selected_item in ["wood", "crystal", "herbs"]
+					and craft_grid.count(selected_item) < game.store.item_count(selected_item)
+				):
+					craft_grid[index] = selected_item
+				show_bag()
+		)
+		slot.add_theme_font_size_override("font_size", 12)
+	var recipe: String = game.store.grid_recipe(craft_grid)
+	text("→", Vector2(990, 322), 32, title_color)
+	var output := button(
+		(
+			(recipe.to_upper() if recipe != "" else "OUTPUT")
+			+ (
+				(
+					" OWNED"
+					if recipe in ["bow", "gun"] and game.store.item_count(recipe) > 0
+					else " CRAFT"
+				)
+				if recipe != ""
+				else " —"
+			)
+		),
+		Rect2(1036, 306, 150, 96),
+		func(): game.craft_item(recipe)
+	)
+	output.add_theme_font_size_override("font_size", 17)
+	output.disabled = (
+		recipe == ""
+		or not game.at_workbench()
+		or (recipe in ["bow", "gun"] and game.store.item_count(recipe) > 0)
+	)
+	button(
+		"CLEAR GRID",
+		Rect2(1036, 416, 150, 44),
+		func():
+			craft_grid.fill("")
+			show_bag()
+	)
+	text("RECIPE BOOK  •  TAP TO FILL THE GRID", Vector2(730, 488), 17, title_color)
+	var recipes := ["bow", "arrows", "tonic", "gun", "bullets"]
+	for i in range(recipes.size()):
+		var key: String = recipes[i]
+		var label: String = {
+			"bow": "BOW • 3W + 2C",
+			"arrows": "8 ARROWS • 1W",
+			"tonic": "TONIC • 2H + 1C",
+			"gun": "PISTOL • 4W + 5C",
+			"bullets": "12 ROUNDS • 1C"
+		}[key]
+		var book := button(
+			label,
+			Rect2(730 + (i % 2) * 234, 523 + (i / 2) * 50, 222, 42),
+			func():
+				craft_grid.fill("")
+				var cell := 0
+				for item in game.store.RECIPES[key]:
+					for count in range(game.store.RECIPES[key][item]):
+						craft_grid[cell] = item
+						cell += 1
+				show_bag()
+		)
+		book.add_theme_font_size_override("font_size", 13)
+	text(
+		"W: wood  C: crystal  H: herbs  •  Tap filled cells to clear",
+		Vector2(730, 682),
+		14,
+		Color("b5d6d2")
+	)
 
 
 func show_pause() -> void:
@@ -475,10 +622,16 @@ func _process(dt: float) -> void:
 		action_buttons.crouch.modulate = Color("edcf94") if game.player.crouching else Color.WHITE
 		action_buttons.sprint.modulate = Color("edcf94") if game.player.sprinting else Color.WHITE
 		queue_redraw()
-		var ranged: bool = int(game.store.data.bag.weapon) == 1
+		var ranged: bool = int(game.store.data.bag.weapon) != 0
 		action_buttons.attack.text = "SHOOT" if ranged else "STRIKE"
 		action_buttons.weapon.text = (
-			"BOW · %d" % game.store.data.bag.arrows if ranged else "SWORD"
+			(
+				"PISTOL · %d" % game.store.data.bag.get("bullets", 0)
+				if int(game.store.data.bag.weapon) == 2
+				else "BOW · %d" % game.store.data.bag.arrows
+			)
+			if ranged
+			else "SWORD"
 		)
 		health.value = game.player.health / game.player.max_health * 100
 		stamina.value = game.player.stamina

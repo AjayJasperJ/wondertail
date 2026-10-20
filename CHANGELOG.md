@@ -4,6 +4,43 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.13.0] - 2026-10-20
+
+### Added
+
+- Stack-grid backpack, equipment selection, drop-one/drop-stack actions and a
+  nearby loot panel. Dropped stacks persist per island and cave/surface realm,
+  with transactional saves, reclaim receipts and a starter-sword fallback.
+- Camp crafting table with a 3×3 shapeless ingredient grid, recipe autofill and
+  output preview. Existing bow, arrow and tonic recipes remain; a pistol and
+  crystal ammunition are now craftable. Weapons and ammo can be dropped/reclaimed.
+- Uploaded Quaternius sword and pistol meshes, first-person equipped models,
+  bow string draw/release, nocked arrows, gun recoil and separate pistol rounds.
+- Selected textured oak/pine variants and rocks from the uploaded nature archive,
+  normalized in world units with trunk/rock collision. Original uploads retained.
+- Reproducible asset extraction with archive/node provenance and runtime hashes.
+
+### Fixed
+
+- Full-bag resources no longer stop the auto-collection loop before quest seeds.
+  Failed pickups retry individually; unavailable resources do not mask interactions.
+- Crafting and mob ammunition rewards respect carrying capacity. Dropping an
+  equipped weapon safely selects the starter sword.
+- Inventory checks cover save failure rollback, reloads, repeated reclaim,
+  full-bag quest collection, cave isolation and control bounds/overlap.
+
+### Compatibility and limits
+
+- Existing schema-1 saves migrate the optional gun/ammo/ground-loot fields.
+  Quest discoveries and Starlight stay protected and do not occupy bag space.
+- This is a weight-based stack inventory inspired by Minecraft/PUBG; it does not
+  implement their full drag/drop, armor or shaped-recipe systems. The starter
+  sword is protected. Dropped stacks are reclaimed whole, with 128 per island.
+- Art stays stylized. Bow draw and gun recoil are procedural; character combat
+  uses the available shared clips rather than bespoke motion capture or hand IK.
+- New environment/equipment models are generated from the preserved archives by
+  the preparation script before local runs and CI exports.
+
 ## [3D 0.12.1] - 2026-10-20
 
 ### Changed
@@ -333,4 +370,5 @@ Older dates are omitted where they were not recorded in the release history.
 
 - First playable Flutter/Flame prototype with player movement, the lost-cloud
   adventure, world interactions, and local persistence.
+
 

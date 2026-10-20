@@ -1,5 +1,5 @@
 extends RefCounted
-## Original procedural low-poly models. No external art or textures.
+## Shared procedural helpers and normalized uploaded art instances.
 
 static var materials: Dictionary = {}
 static var rounded_boxes: Dictionary = {}
@@ -201,7 +201,18 @@ static func biome_prop(
 	parent: Node3D, at: Vector3, rng: RandomNumberGenerator, biome: int, tint: Color
 ) -> void:
 	if biome == 0 or biome == 2:
-		tree(parent, at, rng, tint, biome == 2 or rng.randf() < 0.32)
+		var pine := biome == 2 or rng.randf() < 0.32
+		var path := (
+			"nature/tree_" + ("pine" if pine else "oak") + ("_b" if rng.randf() < 0.5 else "")
+		)
+		var height := rng.randf_range(4.2, 6.4)
+		var tree_model := model(parent, path, height)
+		tree_model.position = at
+		tree_model.rotation.y = rng.randf() * TAU
+		var trunk := CylinderShape3D.new()
+		trunk.radius = 0.38
+		trunk.height = height * 0.65
+		collider(tree_model, trunk, Vector3(0, trunk.height / 2, 0))
 		return
 	var n := Node3D.new()
 	n.position = at
@@ -228,3 +239,30 @@ static func biome_prop(
 	shape.radius = 0.45
 	shape.height = h
 	collider(n, shape, Vector3(0, h / 2, 0))
+
+
+static func model(parent: Node3D, path: String, extent: float, axis: int = 1) -> Node3D:
+	var root := Node3D.new()
+	parent.add_child(root)
+	var source: Node3D = load("res://assets/models/" + path + ".glb").instantiate()
+	root.add_child(source)
+	if path == "equipment/pistol":
+		source.rotation.y = PI / 2
+	var bounds := AABB()
+	var first := true
+	for node in source.find_children("*", "MeshInstance3D", true, false):
+		var box: AABB = (
+			(root.global_transform.affine_inverse() * node.global_transform) * node.get_aabb()
+		)
+		bounds = box if first else bounds.merge(box)
+		first = false
+	if path == "equipment/sword":
+		axis = 0
+	if not first:
+		var factor: float = extent / maxf(bounds.size[axis], 0.001)
+		source.scale *= factor
+		if path != "equipment/sword":
+			source.position -= (
+				Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z) * factor
+			)
+	return root

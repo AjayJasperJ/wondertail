@@ -454,6 +454,7 @@ func polish_checks(scene) -> void:
 		"Failed auto-collection preserves item and receipt"
 	)
 	scene.store.path = writable
+	scene.clock += 2.0
 	scene.pickup_clock = 0
 	scene.auto_collect(1)
 	check(

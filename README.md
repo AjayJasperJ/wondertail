@@ -2,7 +2,7 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**3D version: 0.12.1** · Godot 4.4.1 · `three_d/`
+**3D version: 0.13.0** · Godot 4.4.1 · `three_d/`
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
@@ -34,8 +34,11 @@ the sky beacon to reach the next seeded island. Discoveries and Starlight persis
   compact bottom-center health/stamina and persistent offline progression.
 - Nearby unlocked loot pulls into the backpack with wall checks and durable receipts.
   New games start with a bow and 24 arrows; mobs drop ammo, crystal and Starlight.
-- Gather wood, crystals and herbs into a saved backpack. Craft a bow, arrows
-  and bottled tonics at camp; swap weapons and fight with swept-collision arrows.
+- Stack-grid backpack with drop-one/drop-stack actions and saved nearby loot.
+  Quest discoveries bypass capacity. Camp crafting uses a 3×3 ingredient grid,
+  recipe book and output preview; make bows, arrows, tonics, a pistol and rounds.
+- Uploaded textured trees and rocks, a modelled sword and pistol, first-person
+  equipment, bow draw/release and gun recoil. Projectiles use swept collision.
 
 Download `wondertail-3d-android`, `wondertail-3d-desktop` or `wondertail-3d-web`
 from a successful [Wondertail 3D build](https://github.com/AjayJasperJ/wondertail/actions/workflows/godot.yml).
@@ -44,16 +47,20 @@ The Android package is separate from the Flutter app, so both can be installed.
 CI APKs are release-mode test builds signed with an ephemeral debug key;
 in-place updates between CI builds may require matching signing keys.
 
-Open `three_d/project.godot` with **Godot 4.4.1**, then press F5 to play.
+Run `python3 tool/prepare_3d_assets.py` to generate the selected runtime models,
+then open `three_d/project.godot` with **Godot 4.4.1** and press F5.
 Selected models are bundled; no asset downloads, plugins or network services are required.
+[Inventory, crafting and asset details](docs/INVENTORY_V0.13.md) ·
 [Camera/combat features and limits](docs/3D_POLISH_V0.12.md) ·
 [Art credits and source licenses](three_d/assets/ASSET_CREDITS.md) ·
 [Organized original uploads](source_assets/README.md)
 
 ```sh
+python3 tool/prepare_3d_assets.py
 godot --path three_d
 godot --headless --path three_d --editor --quit
 godot --headless --path three_d --script tests/smoke.gd
+godot --headless --path three_d --script tests/inventory.gd
 python3 three_d/tests/check_packaging.py
 ```
 
@@ -105,4 +112,5 @@ flutter test
 
 Automated checks do not establish fun, retention or real-device frame pacing.
 Distribution licensing is undecided; this repository grants no open-source license.
+
 

@@ -5,3 +5,9 @@ build/
 *.pck
 *.keystore
 export_credentials.cfg
+
+
+# Generated from preserved source archives by tool/prepare_3d_assets.py
+assets/models/nature/
+assets/models/equipment/
+assets/models/shared/

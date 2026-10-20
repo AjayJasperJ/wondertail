@@ -14,6 +14,13 @@ var standing_height := 1.9
 var body
 var sword: Node3D
 var bow: Node3D
+var gun: Node3D
+var bow_string: MeshInstance3D
+var bow_arrow: Node3D
+var shot_kick := 0.0
+var bow_draw := 0.0
+var eye_equipment := Node3D.new()
+var eye_items: Array[Node3D] = []
 var pivot := Node3D.new()
 var arm := SpringArm3D.new()
 var camera := Camera3D.new()
@@ -69,10 +76,13 @@ func setup(owner_game, chosen: int) -> void:
 		[Vector3(1, 1.05, 1), Vector3(0.94, 1.1, 0.94), Vector3(1.17, 1.02, 1.17)][hero]
 	)
 	var socket: Node3D = body.weapon_socket()
-	sword = Node3D.new()
-	socket.add_child(sword)
-	Art.box(sword, Vector3(0, 0.4, 0), Vector3(0.10, 0.85, 0.07), Color("d8e3db"))
-	Art.box(sword, Vector3(0, 0, 0), Vector3(0.35, 0.07, 0.12), Color("d4b77b"))
+	sword = Art.model(socket, "equipment/sword", 1.0)
+	# Preserve the sword model's authored wrist/grip pivot.
+	sword.position = Vector3.ZERO
+	gun = Art.model(socket, "equipment/pistol", 0.48, 2)
+	gun.rotation.x = 0
+	gun.position = Vector3(0, -0.06, -0.08)
+
 	bow = Node3D.new()
 	socket.add_child(bow)
 	for segment in range(10):
@@ -84,7 +94,17 @@ func setup(owner_game, chosen: int) -> void:
 			bow, (start + finish) * 0.5, 0.028, 0.025, start.distance_to(finish), Color("926a43")
 		)
 		limb.quaternion = Quaternion(Vector3.UP, (finish - start).normalized())
-	Art.box(bow, Vector3.ZERO, Vector3(0.012, 1.2, 0.012), Color("d2c9ad"))
+	bow_string = Art.box(bow, Vector3.ZERO, Vector3(0.008, 1.2, 0.008), Color("d2c9ad"))
+	bow_string.visible = false
+	for part in ["UpperString", "LowerString"]:
+		var thread := Art.box(bow, Vector3.ZERO, Vector3(0.008, 1, 0.008), Color("d2c9ad"))
+		thread.name = part
+	Art.box(bow, Vector3(0.22, 0, 0), Vector3(0.06, 0.22, 0.06), Color("4b3828"))
+	bow_arrow = Node3D.new()
+	bow.add_child(bow_arrow)
+	Art.box(bow_arrow, Vector3(0.12, 0, -0.2), Vector3(0.014, 0.014, 0.65), Color("b99360"))
+	var tip := Art.cone(bow_arrow, Vector3(0.12, 0, -0.55), 0.035, 0, 0.1, Color("cbd4d0"))
+	tip.rotation.x = -PI / 2
 
 	refresh_weapon()
 	add_child(pivot)
@@ -98,6 +118,13 @@ func setup(owner_game, chosen: int) -> void:
 	arm.shape = camera_shape
 	arm.add_excluded_object(get_rid())
 	arm.add_child(camera)
+	camera.add_child(eye_equipment)
+	eye_equipment.visible = false
+	eye_equipment.position = Vector3(0.28, -0.34, -0.65)
+	for item in [sword, bow, gun]:
+		var copy: Node3D = item.duplicate()
+		eye_equipment.add_child(copy)
+		eye_items.append(copy)
 	camera.fov = 64
 	camera.near = 0.06
 	camera.far = 240
@@ -128,9 +155,19 @@ func attack() -> void:
 	if stun_time > 0 or cameras.reveal_remaining > 0:
 		return
 	if int(game.store.data.bag.weapon) == 1:
+		if attack_cooldown <= 0 and stamina >= 6:
+			if game.store.data.bag.arrows <= 0:
+				game.tell("Quiver empty. Craft arrows from wood at camp.")
+				return
+			bow_draw = 0.22
+			attack_cooldown = 0.65
+			stamina -= 6
+		return
+	if int(game.store.data.bag.weapon) == 2:
 		if attack_cooldown <= 0 and stamina >= 6 and game.fire_arrow():
 			stamina -= 6
-			attack_cooldown = 0.65
+			attack_cooldown = 0.65 if int(game.store.data.bag.weapon) == 1 else 0.32
+			shot_kick = 1.0
 		return
 	if attack_cooldown > 0 or stamina < 9:
 		return
@@ -140,9 +177,11 @@ func attack() -> void:
 
 
 func refresh_weapon() -> void:
-	var ranged: bool = int(game.store.data.bag.weapon) == 1
-	sword.visible = not ranged
-	bow.visible = ranged
+	bow_draw = 0
+	var weapon := int(game.store.data.bag.weapon)
+	sword.visible = weapon == 0
+	bow.visible = weapon == 1
+	gun.visible = weapon == 2
 
 
 func dash() -> void:
@@ -219,6 +258,28 @@ func _physics_process(dt: float) -> void:
 		hurt(5)
 	invulnerable = maxf(0, invulnerable - dt)
 	attack_cooldown = maxf(0, attack_cooldown - dt)
+	if bow_draw > 0:
+		bow_draw = maxf(0, bow_draw - dt)
+		if bow_draw == 0 and int(game.store.data.bag.weapon) == 1:
+			if game.fire_arrow():
+				shot_kick = 1.0
+	var pull: float = (1.0 - bow_draw / 0.22) * 0.18 if bow_draw > 0 else 0.0
+	pose_bow(bow, pull)
+	if eye_items.size() > 1:
+		pose_bow(eye_items[1], pull)
+	shot_kick = maxf(0, shot_kick - dt * 7)
+	eye_equipment.visible = cameras.mode == 1
+	eye_equipment.position.y = -0.34 + sin(animation_time * 0.5) * 0.008
+	for i in range(eye_items.size()):
+		eye_items[i].visible = int(game.store.data.bag.weapon) == i
+		if i == 2:
+			eye_items[i].rotation.x = -shot_kick * 0.16
+			eye_items[i].position.z = -0.08 + shot_kick * 0.06
+	gun.rotation.x = -shot_kick * 0.16
+	gun.position.z = -0.08 + shot_kick * 0.06
+	bow_arrow.visible = int(game.store.data.bag.arrows) > 0 and attack_cooldown < 0.3
+	bow_string.position.z = sin(animation_time * 40) * shot_kick * 0.025
+	bow.rotation.z = sin(animation_time * 2) * 0.02
 	dash_cooldown = maxf(0, dash_cooldown - dt)
 	jump_buffer = maxf(0, jump_buffer - dt)
 	if is_on_floor():
@@ -275,7 +336,18 @@ func _physics_process(dt: float) -> void:
 			clampf(horizontal / (7 if running else 3.5), 0.7, 1.6)
 		)
 	else:
-		body.play(["Idle_Neutral", "Idle"], true)
+		body.play(
+			(
+				["Idle_Gun_Pointing", "Idle_Gun", "Idle_Neutral"]
+				if int(game.store.data.bag.weapon) == 2
+				else (
+					["Idle_Sword", "Idle_Neutral"]
+					if int(game.store.data.bag.weapon) == 0
+					else ["Idle_Neutral", "Idle"]
+				)
+			),
+			true
+		)
 	body.scale.y = lerpf(body.scale.y, 0.7 if crouching else 1.0, 1 - exp(-dt * 12))
 	walking_sound -= dt
 	if horizontal > 0.8 and is_on_floor() and walking_sound <= 0:
@@ -283,3 +355,13 @@ func _physics_process(dt: float) -> void:
 		game.sound.cue(95 + horizontal * 4, 0.035, 0.035)
 	if global_position.y < -9:
 		game.respawn()
+
+
+func pose_bow(root: Node3D, pull: float) -> void:
+	for side in [-1, 1]:
+		var thread: MeshInstance3D = root.get_node("UpperString" if side > 0 else "LowerString")
+		var start := Vector3(0, side * 0.6, 0)
+		var end := Vector3(0, 0, pull)
+		thread.position = (start + end) * 0.5
+		thread.scale.y = start.distance_to(end)
+		thread.quaternion = Quaternion(Vector3.UP, (start - end).normalized())

@@ -51,11 +51,12 @@ jobs:
         run: |
           set -o pipefail
           timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/smoke.gd 2>&1 | tee /tmp/tests.log
+          timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/inventory.gd 2>&1 | tee -a /tmp/tests.log
           if grep -E 'SCRIPT ERROR|^ERROR:' /tmp/tests.log; then exit 1; fi
       - name: Render actual gameplay and menus
         run: |
           set -o pipefail
-          timeout 90 xvfb-run -a godot --path three_d --rendering-method gl_compatibility --audio-driver Dummy --script tests/screenshots.gd 2>&1 | tee /tmp/render.log
+          timeout 180 xvfb-run -a godot --path three_d --rendering-method gl_compatibility --audio-driver Dummy --script tests/screenshots.gd 2>&1 | tee /tmp/render.log
           if grep -E 'SCRIPT ERROR|^ERROR:' /tmp/render.log; then exit 1; fi
       - name: Export desktop and web
         run: |
@@ -150,3 +151,4 @@ jobs:
         env:
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: echo "Play Wondertail at $PAGE_URL" >> "$GITHUB_STEP_SUMMARY"
+

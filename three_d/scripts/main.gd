@@ -54,6 +54,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	canvas.add_child(hud)
 	hud.setup(self)
+	sync_ground()
 	apply_quality()
 	get_tree().auto_accept_quit = false
 	if "--preview" in OS.get_cmdline_user_args():
@@ -536,6 +537,7 @@ func resume_game() -> void:
 
 func return_lobby() -> void:
 	playing = false
+	player.eye_equipment.visible = false
 	player.cameras.mode = 0
 	player.cameras.aiming = false
 	player.cameras.reveal_remaining = 0
@@ -602,7 +604,7 @@ func action(id: String) -> void:
 		"bag":
 			open_bag()
 		"weapon":
-			if store.equip(1 - int(store.data.bag.weapon)):
+			if store.equip(next_weapon()):
 				player.refresh_weapon()
 			else:
 				tell("Craft a bow at camp to unlock ranged combat.")
@@ -662,6 +664,8 @@ func nearest() -> Dictionary:
 			continue
 		if object.kind == "cloud" and store.memory().cloud:
 			continue
+		if object.kind == "resource" and store.weight() + 2 > store.capacity():
+			continue
 		var distance: float = player.position.distance_to(object.base)
 		if distance < float(object.radius) and distance < best:
 			best = distance
@@ -674,6 +678,8 @@ func interaction_prompt() -> String:
 	if obj.is_empty():
 		return ""
 	match obj.kind:
+		"ground":
+			return "E  •  OPEN DROPPED LOOT"
 		"resource":
 			return "E  •  GATHER " + ["WOOD", "CRYSTAL", "HERBS"][obj.value]
 		"cloud":
@@ -737,6 +743,10 @@ func interact() -> void:
 func interact_object(object: Dictionary) -> void:
 	var memory := store.memory()
 	match object.kind:
+		"ground":
+			open_bag()
+			hud.bag_tab = "nearby"
+			hud.show_bag()
 		"resource":
 			if store.gather(object.id, ["wood", "crystal", "herbs"][object.value]):
 				object.node.visible = false
@@ -940,8 +950,10 @@ func use_tonic() -> void:
 func fire_arrow() -> bool:
 	if world.get_tree().get_nodes_in_group("arrows").size() >= 24:
 		return false
-	if store.data.bag.arrows <= 0:
-		tell("Quiver empty. Craft arrows from wood at camp.")
+	var using_gun: bool = int(store.data.bag.weapon) == 2
+	var ammo := "bullets" if using_gun else "arrows"
+	if store.item_count(ammo) <= 0:
+		tell("Ammo empty. Craft " + ammo + " at camp.")
 		return false
 	var at: Vector3 = player.position + Vector3.UP * 1.3
 	var forward: Vector3 = (
@@ -972,14 +984,14 @@ func fire_arrow() -> bool:
 			if get_world_3d().direct_space_state.intersect_ray(query).is_empty():
 				closest = offset.length()
 				direction = offset.normalized()
-	if not store.transact(func(): store.data.bag.arrows -= 1):
+	if not store.transact(func(): store.data.bag[ammo] -= 1):
 		tell(store.last_error)
 		return false
 	var arrow := Arrow.new()
 	world.add_child(arrow)
 	arrow.add_to_group("arrows")
-	arrow.setup(self, at, direction)
-	sound.cue(510, 0.09, 0.1)
+	arrow.setup(self, at, direction, using_gun)
+	sound.cue(160 if using_gun else 510, 0.09, 0.1)
 	return true
 
 
@@ -1009,6 +1021,12 @@ func _process(dt: float) -> void:
 			player.yaw += dt * 0.065
 			player.pivot.rotation.y = player.yaw
 		return
+	for object in objects:
+		if object.kind == "ground" and is_instance_valid(object.node):
+			object.node.visible = (
+				store.memory().ground.has(object.id)
+				and store.memory().ground[object.id].cave == in_cave
+			)
 	nav_marker.visible = not in_cave
 	nav_marker.rotation.y += dt
 	proximity_timer -= dt
@@ -1076,9 +1094,11 @@ func can_collect(object: Dictionary) -> bool:
 
 
 func auto_collect(dt: float) -> void:
-	if pickup_clock > 0:
-		return
 	for object in objects:
+		if float(object.get("retry_at", 0.0)) > clock:
+			continue
+		if object.kind == "resource" and store.weight() + 2 > store.capacity():
+			continue
 		if not is_instance_valid(object.node) or not object.node.visible or not can_collect(object):
 			continue
 		var target: Vector3 = player.position + Vector3.UP * 0.9
@@ -1110,10 +1130,9 @@ func auto_collect(dt: float) -> void:
 			# Leave the item and retry slowly after failed saves / full inventory.
 			object.node.position = object.base
 			object.pulling = false
-			pickup_clock = 0.8
+			object.retry_at = clock + 1.5
 			if not store.last_error.is_empty():
 				tell(store.last_error)
-			break
 
 
 func spawn_drop(enemy) -> void:
@@ -1128,3 +1147,81 @@ func spawn_drop(enemy) -> void:
 	node.position = enemy.position + Vector3.UP * 0.5
 	Art.cone(node, Vector3.ZERO, 0.25, 0, 0.6, Color("9fe4e0"))
 	add_object(id, node, "drop", node.position, 3, 1 if enemy.elite else 0)
+
+
+func sync_ground() -> void:
+	for object in objects:
+		if object.kind == "ground" and is_instance_valid(object.node):
+			object.node.visible = false
+	for id in store.memory().ground:
+		var entry: Dictionary = store.memory().ground[id]
+		var existing := false
+		for object in objects:
+			if object.id == id and object.kind == "ground":
+				object.node.visible = entry.cave == in_cave
+				existing = true
+		if existing:
+			continue
+		var node := Node3D.new()
+		world.add_child(node)
+		node.position = Vector3(entry.at[0], entry.at[1], entry.at[2])
+		Art.box(node, Vector3.ZERO, Vector3(0.5, 0.4, 0.4), Color("a78552"))
+		Art.box(node, Vector3(0, 0.05, 0), Vector3(0.52, 0.08, 0.42), Color("e6cc8f"))
+		node.visible = entry.cave == in_cave
+		add_object(id, node, "ground", node.position, 3)
+
+
+func nearby_ground() -> Array:
+	var result := []
+	for id in store.memory().ground:
+		var entry: Dictionary = store.memory().ground[id]
+		var at := Vector3(entry.at[0], entry.at[1], entry.at[2])
+		if entry.cave == in_cave and player.position.distance_to(at) < 4:
+			var sight := PhysicsRayQueryParameters3D.create(
+				player.position + Vector3.UP, at + Vector3.UP * 0.35, 1
+			)
+			if get_world_3d().direct_space_state.intersect_ray(sight).is_empty():
+				result.append(id)
+	return result
+
+
+func drop_inventory(item: String, amount: int) -> void:
+	# Put the stack on the floor beneath the explorer, not in a wall or in mid-air.
+	var floor_ray := PhysicsRayQueryParameters3D.create(
+		player.position + Vector3.UP * 0.5, player.position - Vector3.UP * 5.0, 1
+	)
+	var floor_hit := get_world_3d().direct_space_state.intersect_ray(floor_ray)
+	if floor_hit.is_empty():
+		tell("Land on solid ground before dropping items.")
+		return
+	var drop_at: Vector3 = floor_hit.position + Vector3.UP * 0.3
+	if store.drop_item(item, amount, drop_at, in_cave):
+		player.refresh_weapon()
+		sync_ground()
+		hud.show_bag()
+		tell("Dropped %d %s. Reclaim from NEARBY." % [amount, item])
+	else:
+		tell(store.last_error)
+
+
+func reclaim_inventory(id: String) -> void:
+	if id not in nearby_ground():
+		return
+	if store.reclaim(id):
+		sync_ground()
+		hud.show_bag()
+		sound.cue(880, 0.08, 0.07)
+	else:
+		tell(store.last_error)
+
+
+func next_weapon() -> int:
+	for offset in range(1, 4):
+		var candidate := (int(store.data.bag.weapon) + offset) % 3
+		if (
+			candidate == 0
+			or (candidate == 1 and store.data.bag.bow)
+			or (candidate == 2 and store.data.bag.get("gun", false))
+		):
+			return candidate
+	return 0

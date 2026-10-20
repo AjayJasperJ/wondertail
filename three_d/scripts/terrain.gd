@@ -208,13 +208,18 @@ func decorate() -> void:
 		if i % 4 != 0:
 			Art.biome_prop(self, at, rng, index % 6, palette[1])
 		else:
-			var rock := Art.sphere(
-				self, at + Vector3(0, 0.5, 0), rng.randf_range(0.7, 1.3), palette[2]
+			var rock := Art.model(
+				self, "nature/rock" + ("_b" if i % 2 else ""), rng.randf_range(0.7, 1.3)
 			)
-			rock.scale.y = 0.8
-			var shape := SphereShape3D.new()
-			shape.radius = 0.8
-			Art.collider(self, shape, at + Vector3(0, 0.4, 0))
+			rock.position = at
+			rock.rotation.y = rng.randf() * TAU
+			for mesh in rock.find_children("*", "MeshInstance3D", true, false):
+				var solid := StaticBody3D.new()
+				mesh.add_child(solid)
+				var shape := CollisionShape3D.new()
+				shape.shape = mesh.mesh.create_convex_shape()
+				solid.add_child(shape)
+
 	# Instanced grasses/flowers avoid hundreds of independently processed nodes.
 	var flowers := MultiMeshInstance3D.new()
 	var mm := MultiMesh.new()

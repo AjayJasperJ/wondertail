@@ -26,6 +26,8 @@ func run() -> void:
 	for enemy in game.enemies:
 		enemy.set_physics_process(false)
 	await capture("lobby.png")
+	game.store.data.quality = 0
+	game.apply_quality()
 	game.start_game()
 	for i in range(30):
 		await physics_frame
@@ -52,8 +54,38 @@ func run() -> void:
 	await capture("explorers.png")
 	game.hud.show_settings()
 	await capture("settings.png")
+	game.player.position = game.terrain.point("camp") + Vector3.UP
+	game.store.data.bag.wood = 12
+	game.store.data.bag.crystal = 12
+	game.store.data.bag.herbs = 4
 	game.open_bag()
+	game.hud.selected_item = "wood"
+	game.hud.craft_grid = ["wood", "wood", "wood", "crystal", "crystal", "", "", "", ""]
+	game.hud.show_bag()
 	await capture("backpack.png")
+	game.drop_inventory("wood", 3)
+	game.hud.bag_tab = "nearby"
+	game.hud.show_bag()
+	await capture("nearby-loot.png")
+	game.store.data.bag.gun = true
+	game.store.data.bag.bullets = 12
+	game.store.equip(2)
+	game.player.refresh_weapon()
+	game.resume_game()
+	game.player.cameras.mode = 1
+	for i in range(12):
+		await physics_frame
+	await capture("pistol-eye.png")
+	game.store.equip(0)
+	game.player.refresh_weapon()
+	game.player.cameras.mode = 0
+	game.player.set_physics_process(false)
+	game.hud.visible = false
+	game.player.arm.spring_length = 3.5
+	game.player.pivot.rotation = Vector3(-0.1, PI, 0)
+	await capture("sword-equipped.png")
+	game.player.set_physics_process(true)
+	game.hud.visible = true
 	game.hud.show_game()
 	game.hud.visible = false
 	for hero in range(3):

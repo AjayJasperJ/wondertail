@@ -7,11 +7,21 @@ var damage := 38.0
 var hostile := false
 
 
-func setup(owner_game, at: Vector3, direction: Vector3) -> void:
+func setup(owner_game, at: Vector3, direction: Vector3, bullet: bool = false) -> void:
 	game = owner_game
 	position = at
-	velocity = direction.normalized() * 30
-	Art.box(self, Vector3.ZERO, Vector3(0.06, 0.06, 0.8), Color("e3c68d"))
+	velocity = direction.normalized() * (65 if bullet else 30)
+	damage = 27 if bullet else 38
+	Art.box(
+		self,
+		Vector3.ZERO,
+		Vector3(0.018, 0.018, 0.25 if bullet else 0.8),
+		Color("ffe4ad") if bullet else Color("b99761")
+	)
+	if not bullet:
+		var head := Art.cone(self, Vector3(0, 0, -0.44), 0.045, 0, 0.12, Color("c6d1ce"))
+		head.rotation.x = -PI / 2
+		Art.box(self, Vector3(0, 0, 0.3), Vector3(0.11, 0.012, 0.15), Color("e3dfcf"))
 	if direction.length_squared() > 0:
 		look_at(position + direction, Vector3.UP)
 

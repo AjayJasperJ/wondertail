@@ -18,6 +18,7 @@ SELECTION = [
  ('packs/ultimate_monsters_glb.zip', 'Cactoro.glb', 'creatures/cactoro.glb'),
  ('packs/ultimate_monsters_glb.zip', 'Yeti.glb', 'creatures/yeti.glb'),
  ('packs/ultimate_monsters_glb.zip', 'Goleling Evolved.glb', 'creatures/goleling.glb'),
+ ('packs/ultimate_guns_glb.zip', 'Pistol.glb', 'equipment/pistol.glb'),
 ]
 
 
@@ -90,6 +91,78 @@ def compact(raw):
     return result, [a['name'] for a in doc['animations']]
 
 
+
+
+def external_textures(raw):
+    length = struct.unpack_from('<I', raw, 12)[0]
+    doc = json.loads(raw[20:20+length])
+    size = struct.unpack_from('<I', raw, 20+length)[0]
+    binary = raw[28+length:28+length+size]
+    shared = OUTPUT / 'shared'
+    shared.mkdir(parents=True, exist_ok=True)
+    for image in doc.get('images', []):
+        if 'bufferView' not in image:
+            continue
+        view = doc['bufferViews'][image.pop('bufferView')]
+        start = view.get('byteOffset', 0)
+        data = binary[start:start+view['byteLength']]
+        extension = '.jpg' if image.get('mimeType') == 'image/jpeg' else '.png'
+        name = hashlib.sha256(data).hexdigest() + extension
+        (shared / name).write_bytes(data)
+        image['uri'] = '../shared/' + name
+        image.pop('mimeType', None)
+    encoded = json.dumps(doc, separators=(',', ':')).encode()
+    encoded += b' ' * (-len(encoded) % 4)
+    return struct.pack('<4sII', b'glTF', 2, 28+len(encoded)+len(binary)) + struct.pack('<II',len(encoded),0x4E4F534A) + encoded + struct.pack('<II',len(binary),0x004E4942) + binary
+
+def isolate(raw, name):
+    length = struct.unpack_from('<I', raw, 12)[0]
+    doc = json.loads(raw[20:20+length])
+    node = dict(next(n for n in doc['nodes'] if n.get('name') == name))
+    mesh = doc['meshes'][node['mesh']]
+    node['mesh'] = 0
+    node.pop('children', None)
+    node.pop('skin', None)
+    doc['nodes'] = [node]
+    doc['meshes'] = [mesh]
+    doc['scenes'] = [{'nodes': [0]}]
+    doc['scene'] = 0
+    doc.pop('skins', None)
+    doc.pop('animations', None)
+    binary_size = struct.unpack_from('<I', raw, 20+length)[0]
+    binary = raw[28+length:28+length+binary_size]
+    encoded = json.dumps(doc, separators=(',', ':')).encode()
+    encoded += b' ' * (-len(encoded) % 4)
+    total = 28 + len(encoded) + len(binary)
+    return struct.pack('<4sII', b'glTF', 2, total) + struct.pack('<II',len(encoded),0x4E4F534A) + encoded + struct.pack('<II',len(binary),0x004E4942) + binary
+
+
+NATURE_SELECTION = [
+    ('Trees.glb', 'NormalTree_1', 'tree_oak'),
+    ('Trees.glb', 'NormalTree_3', 'tree_oak_b'),
+    ('Pine Trees.glb', 'PineTree_1', 'tree_pine'),
+    ('Pine Trees.glb', 'PineTree_3', 'tree_pine_b'),
+    ('Rocks.glb', 'Rock_1', 'rock'),
+    ('Rocks.glb', 'Rock_3', 'rock_b'),
+]
+
+
+def extra_assets(records):
+    archive_path = SOURCE / 'packs/Ultimate Stylized Nature Pack-glb.zip'
+    with zipfile.ZipFile(archive_path) as archive:
+        for member, node, destination in NATURE_SELECTION:
+            raw = archive.read(member)
+            packed, animations = compact(external_textures(isolate(raw, node)))
+            target = OUTPUT / ('nature/' + destination + '.glb')
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(packed)
+            records.append({'runtime': str(target.relative_to(ROOT)), 'source': str(archive_path.relative_to(SOURCE)), 'archive_member': member, 'selected_node': node, 'runtime_sha256': hashlib.sha256(packed).hexdigest(), 'runtime_bytes': len(packed), 'source_sha256': hashlib.sha256(raw).hexdigest()})
+    raw = (SOURCE / 'characters/hooded_adventurer.glb').read_bytes()
+    packed, _ = compact(external_textures(isolate(raw, 'Sword')))
+    target = OUTPUT / 'equipment/sword.glb'
+    target.write_bytes(packed)
+    records.append({'runtime': str(target.relative_to(ROOT)), 'source': 'characters/hooded_adventurer.glb', 'selected_node': 'Sword', 'runtime_sha256': hashlib.sha256(packed).hexdigest(), 'runtime_bytes': len(packed), 'source_sha256': hashlib.sha256(raw).hexdigest()})
+
 def main():
     records = []
     for source, member, destination in SELECTION:
@@ -98,7 +171,7 @@ def main():
                 raw = archive.read(member)
         else:
             raw = (SOURCE / source).read_bytes()
-        packed, animations = compact(raw)
+        packed, animations = compact(external_textures(raw) if destination.startswith("equipment/") else raw)
         target = OUTPUT / destination
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(packed)
@@ -107,8 +180,15 @@ def main():
                         'runtime_sha256': hashlib.sha256(packed).hexdigest(),
                         'source_bytes': len(raw), 'runtime_bytes': len(packed), 'animations': animations})
         print(destination, len(raw), '->', len(packed))
+    extra_assets(records)
+    for target in sorted((OUTPUT / 'shared').glob('*')):
+        if target.suffix not in ['.png', '.jpg']:
+            continue
+        raw = target.read_bytes()
+        records.append({'runtime': str(target.relative_to(ROOT)), 'runtime_sha256': hashlib.sha256(raw).hexdigest(), 'runtime_bytes': len(raw), 'source': 'shared embedded textures from selected uploaded GLBs'})
     (ROOT / 'three_d/assets/manifest.json').write_text(json.dumps(records, indent=2)+'\n')
 
 
 if __name__ == '__main__':
     main()
+

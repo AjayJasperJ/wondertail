@@ -1,9 +1,9 @@
-# Wondertail 3D — 0.12.1
+# Wondertail 3D — 0.13.0
 
 The 3D action-adventure edition uses Godot **4.4.1**, GDScript and
 procedural environments and bundled Quaternius character/creature models. Flutter
 v0.8 remains in the same repository.
-This document describes implemented behavior, not the entire v0.12.1 blueprint.
+This document describes implemented behavior, not the entire v0.13.0 blueprint.
 
 ## The expedition
 
@@ -71,7 +71,7 @@ extended playtesting may expose catches despite reserved landmark paths.
 
 The backpack (B or BAG) pauses play. Gather each trail resource once per island
 for two wood, crystals or herbs. Capacity is 40 for Rowan, 30 for Sky and 60 for
-Fern. Materials and tonics weigh one unit each, arrows 0.1. Changing to a smaller
+Fern. Materials and tonics weigh one unit each, arrows and rounds 0.1. Changing to a smaller
 explorer preserves existing items; gathering resumes after freeing space.
 
 At camp, craft a bow for three wood/two crystals, eight arrows for one wood,
@@ -81,7 +81,7 @@ materials, ammunition and tonics persist; v0.9 saves receive an empty backpack.
 Crafting and shot consumption commit to disk before effects are applied.
 
 New games start with a bow and 24 arrows; existing bags retain their loadout.
-Tab or SWAP changes sword/bow when the bow is owned. F or SHOOT fires the bow
+Tab or SWAP cycles owned sword/bow/pistol. F or SHOOT fires the bow
 for six stamina with a 0.65-second cooldown. Each arrow deals 38 damage and
 travels at 30 m/s for up to 2.5 seconds. Up to 24 arrows can exist; swept rays
 test both scenery and enemies. Aim assist selects an unobstructed target within
@@ -183,8 +183,9 @@ scene and menus, including a 640×360 phone view. These are not frame-rate bench
 
 ## Remaining conversion work
 
-The v0.8 guns, throwables, additional powers, expanded inventory/crafting,
-workshop and Trailblazer runs are not ported. The song is the only 3D puzzle;
+The full v0.8 arsenal, throwables, additional powers, armor,
+workshop and Trailblazer runs are not ported. The 3D pistol and grid inventory
+are described in the linked v0.13 inventory guide. The song is the only 3D puzzle;
 rope, maze and map coloring remain in Flutter. No brain-development benefits
 are claimed. More quest/encounter layouts, NPCs, interiors, animation and music
 are needed beyond this first complete loop.
@@ -197,7 +198,7 @@ Prioritize device playtests before adding more systems.
 ## v0.11 visual assets and smooth surfaces
 
 Original uploads live under `source_assets/characters/` and `source_assets/packs/`.
-The SWAT model and gun archive are retained but not shipped in gameplay. Runtime
+The SWAT model is retained but not shipped. The pistol is now selected from the gun archive. Runtime
 models are a reproducible subset under `three_d/assets/models/`: Adventurer for
 Rowan, Hooded Adventurer for Sky, Farmer for Fern; Mushnub, Cactoro, Yeti and
 Goleling Evolved for hunters/guardian. See the asset credits and SHA-256 manifest
@@ -218,13 +219,17 @@ rock and path colors per vertex rather than shading each triangle independently.
 Cliff undersides use smoother bands. Cosmetic scenery placement is revised.
 Props use cached rounded-edge meshes while retaining their solid collision boxes;
 rounded appearance is not a promise of rounded collision at every structure.
-Forest trees use clustered round crowns; winter pines retain a conifer silhouette.
-Foliage uses a camera-only collision layer, so the camera retracts from leaves
-without blocking player movement or projectiles. Standard detail enables 2x MSAA;
+Forest and winter scenery now use individually selected textured oak/pine models
+with solid trunk colliders. Other biomes retain their procedural identities.
+Leaf surfaces are visual and do not block arrows; trunks and rocks do. Standard detail enables 2x MSAA;
 Low disables it along with shadows/distant scenery. Real-phone thermal and
 frame-pacing measurements remain outstanding.
 
 
 ## Camera, navigation and collection polish
 
-See [v0.12.1 controls, shipped changes and explicit limits](3D_POLISH_V0.12.md).
+See [v0.12 camera controls, shipped changes and explicit limits](3D_POLISH_V0.12.md).
+
+
+
+See [inventory, crafting and equipment in 0.13.0](INVENTORY_V0.13.md) for current backpack rules.
