@@ -2,9 +2,9 @@ name: Wondertail 3D
 on:
   push:
     branches: [main]
-    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'README.md', 'CHANGELOG.md']
+    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'docs/LIVE_WEB.md', 'tool/prepare_web_preview.py', 'README.md', 'CHANGELOG.md']
   pull_request:
-    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md']
+    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'docs/LIVE_WEB.md', 'tool/prepare_web_preview.py']
   workflow_dispatch:
 permissions:
   contents: read
@@ -62,7 +62,8 @@ jobs:
           mkdir -p three_d/build/web
           godot --headless --path three_d --export-release Linux
           godot --headless --path three_d --export-release Windows
-          godot --headless --path three_d --export-release Web
+          godot --headless --path three_d --export-release Web "build/web/play-${GITHUB_SHA}.html"
+          python3 tool/prepare_web_preview.py three_d/build/web "$GITHUB_SHA"
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
@@ -114,3 +115,38 @@ jobs:
           name: wondertail-3d-screenshots
           path: three_d/build/*.png
           retention-days: 14
+
+  deploy-web:
+    name: Publish live browser game
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: wondertail-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: wondertail-3d-web
+          path: web
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Package only the playable web export
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - name: Publish
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Report live link
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: echo "Play Wondertail at $PAGE_URL" >> "$GITHUB_STEP_SUMMARY"

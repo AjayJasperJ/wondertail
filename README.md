@@ -6,6 +6,13 @@ An offline floating-island adventure where kindness opens new paths.
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
+## Play in your browser
+
+[Browser preview](https://ajayjasperj.github.io/wondertail/) — available after
+[one-time GitHub Pages activation](docs/LIVE_WEB.md). Successful builds on
+`main` then update this same link automatically. Refresh to test the latest
+deployment on your phone or computer; no APK installation needed.
+
 ## Play the new 3D edition
 
 Explore irregular floating highlands with physical hills, cliffs, trees, ruins,

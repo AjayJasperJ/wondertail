@@ -4,6 +4,17 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [Unreleased]
+
+### Deployment
+
+- Added automatic GitHub Pages publishing of the 3D browser game after successful
+  main-branch builds, with deployment permissions isolated from the build job.
+- Web assets use commit-specific filenames to avoid mixing cached builds.
+  Export validation checks the required files and non-threaded configuration.
+- Documented one-time Pages activation, stable browser testing, local browser
+  saves, mobile requirements and private-repository hosting limitations.
+
 ## [3D 0.11.0] - 2026-10-20
 
 ### Added
