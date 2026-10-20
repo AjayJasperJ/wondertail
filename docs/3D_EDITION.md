@@ -1,4 +1,7 @@
-# Wondertail 3D — 0.14.0
+# Wondertail 3D — 0.16.0
+
+Current coastal sailing, harvesting, backpack and display rules supersede older
+weight-based descriptions below: [Coastal frontier](FRONTIER_V0.16.md).
 
 The 3D action-adventure edition uses Godot **4.4.1**, GDScript and
 procedural environments and bundled Quaternius character/creature models. Flutter

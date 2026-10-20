@@ -23,9 +23,10 @@ var message := ""
 var message_time := 0.0
 var unit := 1.0
 var selected_item := "wood"
+var pack_page := 0
 var bag_tab := "craft"
 var craft_grid: Array = ["", "", "", "", "", "", "", "", ""]
-var title_color := Color("ffe5ab")
+var title_color := Color("73e3ce")
 
 
 func setup(owner_game) -> void:
@@ -40,8 +41,8 @@ func setup(owner_game) -> void:
 	theme.default_font = ui_font
 	for type in ["normal", "hover", "pressed", "disabled"]:
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color("244954") if type != "pressed" else Color("537c77")
-		style.border_color = Color("79938b")
+		style.bg_color = Color("142735") if type != "pressed" else Color("245666")
+		style.border_color = Color("3d8593")
 		style.set_border_width_all(1)
 		style.set_corner_radius_all(15)
 		style.content_margin_left = 14
@@ -49,7 +50,7 @@ func setup(owner_game) -> void:
 		style.content_margin_bottom = 8
 		style.content_margin_right = 14
 		theme.set_stylebox(type, "Button", style)
-	theme.set_color("font_color", "Button", Color("fff1d5"))
+	theme.set_color("font_color", "Button", Color("e2f4f5"))
 	theme.set_color("font_hover_color", "Button", Color("ffffff"))
 	widgets.theme = theme
 	get_viewport().size_changed.connect(resize)
@@ -189,8 +190,8 @@ func show_settings() -> void:
 	page = "settings"
 	clear()
 	header(
-		"TRAVEL LIGHT",
-		"Settings apply immediately. Low detail disables shadows and distant scenery."
+		"DISPLAY & SOUND",
+		"Settings save immediately. FPS is a cap; device performance determines actual FPS."
 	)
 	text("MUSIC & SOUND", Vector2(100, 220), 23)
 	var volume := HSlider.new()
@@ -205,10 +206,48 @@ func show_settings() -> void:
 	widgets.add_child(volume)
 	text("GRAPHICS", Vector2(100, 322), 23)
 	button(
-		"LOW" if int(game.store.data.quality) == 0 else "STANDARD",
+		["LOW", "MEDIUM", "HIGH", "ULTRA", "CUSTOM"][clampi(int(game.store.data.quality), 0, 4)],
 		Rect2(450, 315, 300, 54),
 		func():
-			game.save_setting("quality", 1 - int(game.store.data.quality))
+			game.save_setting("quality", (int(game.store.data.quality) + 1) % 5)
+			show_settings()
+	)
+	text("COLOR", Vector2(100, 510), 23)
+	if int(game.store.data.quality) == 4:
+		button(
+			"SHADOWS " + ("ON" if game.store.data.get("custom_shadows", true) else "OFF"),
+			Rect2(850, 315, 330, 48),
+			func():
+				game.save_setting("custom_shadows", not game.store.data.get("custom_shadows", true))
+				show_settings()
+		)
+		button(
+			"RESOLUTION %.0f%%" % (100 * float(game.store.data.get("custom_scale", 1.0))),
+			Rect2(850, 374, 330, 48),
+			func():
+				game.save_setting(
+					"custom_scale",
+					0.65 if float(game.store.data.get("custom_scale", 1.0)) >= 1.0 else 1.0
+				)
+				show_settings()
+		)
+	button(
+		["NORMAL", "BALANCED", "REALISTIC", "COLORFUL", "PRO"][int(
+			game.store.data.get("color_mode", 0)
+		)],
+		Rect2(450, 502, 300, 48),
+		func():
+			game.save_setting("color_mode", (int(game.store.data.get("color_mode", 0)) + 1) % 5)
+			show_settings()
+	)
+	text("FPS LIMIT", Vector2(100, 580), 23)
+	button(
+		["LOW · 30", "MEDIUM · 45", "HIGH · 60", "EXTREME · 90", "MAX · 120"][int(
+			game.store.data.get("fps_mode", 2)
+		)],
+		Rect2(450, 572, 300, 48),
+		func():
+			game.save_setting("fps_mode", (int(game.store.data.get("fps_mode", 2)) + 1) % 5)
 			show_settings()
 	)
 	text("CAMERA SENSITIVITY", Vector2(100, 423), 23)
@@ -261,6 +300,7 @@ func show_game() -> void:
 	widgets.add_child(radar)
 	text("N", Vector2(1146, 16), 12, Color("b7cebd"))
 	camera_label = text("", Vector2(1076, 195), 12, Color("d0ddd2"))
+	button("TOOLS", Rect2(730, 84, 110, 44), func(): game.action("tool"))
 	view_button = button("VIEW", Rect2(1104, 222, 120, 44), func(): game.action("camera_mode"))
 	shoulder_button = button("L / R", Rect2(1006, 222, 78, 44), func(): game.action("shoulder"))
 	hearts = RichTextLabel.new()
@@ -325,32 +365,53 @@ func show_bag() -> void:
 			child.pressed.disconnect(show_lobby)
 			child.pressed.connect(game.resume_game)
 	text(
-		"BACKPACK  •  %.1f / %d" % [game.store.weight(), game.store.capacity()],
+		"PACK  •  %d / %d BOXES  •  50 PER STACK" % [game.store.weight(), game.store.capacity()],
 		Vector2(80, 190),
 		22,
 		title_color
 	)
 	var items := ["wood", "crystal", "herbs", "arrows", "tonic", "bullets", "sword", "bow", "gun"]
-	for i in range(items.size()):
-		var item: String = items[i]
+	var stacks: Array = []
+	for item in items:
+		var remaining: int = game.store.item_count(item)
+		while remaining > 0:
+			stacks.append({"item": item, "amount": mini(50, remaining)})
+			remaining -= mini(50, remaining)
+	var boxes := maxi(int(game.store.capacity()), stacks.size())
+	pack_page = clampi(pack_page, 0, maxi(0, ceili(float(boxes) / 27.0) - 1))
+	for i in range(27):
+		var index := pack_page * 27 + i
+		var item: String = stacks[index].item if index < stacks.size() else ""
 		var count: int = game.store.item_count(item)
 		var equipped: bool = item == ["sword", "bow", "gun"][int(bag.weapon)]
 		var slot := button(
 			(
-				("● " if selected_item == item else "")
-				+ item.to_upper()
-				+ ("  ✓" if equipped else "")
-				+ "  × "
-				+ str(count)
+				(
+					item.left(4).to_upper()
+					+ ("*" if equipped else "")
+					+ "\n"
+					+ str(stacks[index].amount if index < stacks.size() else 0)
+				)
+				if item != ""
+				else "·"
 			),
-			Rect2(80 + (i % 3) * 190, 238 + (i / 3) * 88, 178, 76),
+			Rect2(80 + (i % 9) * 63, 238 + (i / 9) * 84, 59, 76),
 			func():
 				selected_item = item
 				show_bag()
 		)
-		slot.add_theme_font_size_override("font_size", 17)
+		slot.add_theme_font_size_override("font_size", 10)
+		slot.disabled = item == ""
 		if count == 0:
 			slot.modulate = Color(0.65, 0.72, 0.72)
+	if boxes > 27:
+		button(
+			"BOXES →",
+			Rect2(460, 494, 178, 42),
+			func():
+				pack_page = (pack_page + 1) % ceili(float(boxes) / 27.0)
+				show_bag()
+		)
 	text(
 		selected_item.to_upper() + "  •  " + str(game.store.item_count(selected_item)) + " CARRIED",
 		Vector2(80, 514),
@@ -379,7 +440,7 @@ func show_bag() -> void:
 	var stack := button(
 		"DROP STACK",
 		Rect2(460, 554, 178, 50),
-		func(): game.drop_inventory(selected_item, game.store.item_count(selected_item))
+		func(): game.drop_inventory(selected_item, mini(50, game.store.item_count(selected_item)))
 	)
 	one.disabled = selected_item == "sword" or game.store.item_count(selected_item) == 0
 	stack.disabled = one.disabled
@@ -506,7 +567,7 @@ func show_bag() -> void:
 		)
 		book.add_theme_font_size_override("font_size", 13)
 	(
-		button("PACK +10 • 50 STARLIGHT", Rect2(964, 623, 222, 42), game.buy_pack_upgrade)
+		button("+9 BOXES • 50 STARLIGHT", Rect2(964, 623, 222, 42), game.buy_pack_upgrade)
 		. add_theme_font_size_override("font_size", 12)
 	)
 	text(
@@ -587,6 +648,8 @@ func _input(event: InputEvent) -> void:
 			if page == "game":
 				if p.distance_to(Vector2(150, 575)) < 135 and stick_id < 0:
 					stick_id = event.index
+					game.player.stick_heading = game.player.yaw
+					game.player.stick_engaged = true
 					set_stick(p)
 				elif look_id < 0:
 					look_id = event.index
@@ -609,6 +672,9 @@ func _input(event: InputEvent) -> void:
 
 func set_stick(p: Vector2) -> void:
 	stick_delta = (p - Vector2(150, 575)).limit_length(65)
+	if not game.player.stick_engaged and stick_delta.length() > 7:
+		game.player.stick_heading = game.player.yaw
+		game.player.stick_engaged = true
 	game.player.stick = stick_delta / 65 if stick_delta.length() > 7 else Vector2.ZERO
 	if game.player.stick.length_squared() < 0.001:
 		game.player.stick_engaged = false

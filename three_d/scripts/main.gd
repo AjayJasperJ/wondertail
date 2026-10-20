@@ -41,6 +41,39 @@ var mouse_stick := false
 var lava_position := Vector3.ZERO
 var preview := false
 var pickup_clock := 0.0
+var vessel: Node3D
+var sailing := false
+var sailing_return := Vector3.ZERO
+var harvest_tool := ""
+
+
+func harvest() -> void:
+	var target: Node3D
+	var distance := 3.8
+	for candidate in get_tree().get_nodes_in_group("harvestable"):
+		if not candidate.visible:
+			continue
+		var d: float = player.position.distance_to(candidate.global_position)
+		if d < distance:
+			distance = d
+			target = candidate
+	if target == null:
+		tell("Move within 3m of a tree with AXE or a rock with HAMMER.")
+		return
+	var material: String = target.get_meta("material")
+	if (material == "wood") != (harvest_tool == "axe"):
+		tell("Use AXE for trees and HAMMER for rocks.")
+		return
+	var id: String = target.get_meta("harvest_id")
+	if store.gather(id, material):
+		target.visible = false
+		for solid in target.find_children("*", "CollisionObject3D", true, false):
+			solid.collision_layer = 0
+		celebrate_pickup(target.global_position + Vector3.UP, Color("73e3ce"))
+		sound.cue(220, 0.12, 0.15)
+		tell("+2 " + material.to_upper())
+	else:
+		tell(store.last_error)
 
 
 func _ready() -> void:
@@ -128,6 +161,8 @@ func build_ocean() -> void:
 	var sea := Art.cone(world, Vector3(0, -9.5, 0), 170.0, 170.0, 0.18, Color("4f9fb7"))
 	var sea_material := ShaderMaterial.new()
 	sea_material.shader = preload("res://shaders/water.gdshader")
+	sea_material.set_shader_parameter("water_extent", 170.0)
+	sea_material.set_shader_parameter("foam_strength", 0.0)
 	sea.material_override = sea_material
 	sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var ring := Art.cone(world, Vector3(0, -9.35, 0), 68.0, 68.0, 0.08, Color("79c9ca"), 0.12)
@@ -135,6 +170,7 @@ func build_ocean() -> void:
 
 
 func build_world() -> void:
+	sailing = false
 	objects.clear()
 	enemies.clear()
 	effects.clear()
@@ -153,6 +189,12 @@ func build_world() -> void:
 	)
 	world.add_child(terrain)
 	terrain.build()
+	build_ocean()
+	for resource in get_tree().get_nodes_in_group("harvestable"):
+		if resource.get_meta("harvest_id") in store.memory().picked:
+			resource.visible = false
+			for solid in resource.find_children("*", "CollisionObject3D", true, false):
+				solid.collision_layer = 0
 	cave_sequence = [0, 2, 1] if int(store.data.island) % 2 == 0 else [2, 1, 0]
 	if use_expeditions:
 		cave_sequence = [[0, 2, 1], [1, 0, 2], [2, 1, 0], [1, 2, 0]][int(store.data.island) % 4]
@@ -207,8 +249,14 @@ func rebuild_hero() -> void:
 func build_expedition_boat(at: Vector3) -> void:
 	# A visual travel vessel makes island-to-island progression feel continuous.
 	var boat := Node3D.new()
+	vessel = boat
 	world.add_child(boat)
-	boat.position = at
+	var coast := Vector2(at.x, at.z).normalized()
+	boat.position = Vector3(
+		coast.x * (terrain.radius(coast.angle()) + 8),
+		-8.9,
+		coast.y * (terrain.radius(coast.angle()) + 8)
+	)
 	boat.rotation.y = -0.35
 	Art.box(boat, Vector3.ZERO, Vector3(4.4, 0.7, 2.1), Color("76543d"), true)
 	Art.box(boat, Vector3(0, 0.42, 0), Vector3(3.5, 0.18, 1.55), Color("b88b5f"))
@@ -218,6 +266,10 @@ func build_expedition_boat(at: Vector3) -> void:
 	sail.rotation.z = -0.12
 	Art.box(boat, Vector3(0, 0.72, 1.45), Vector3(5.2, 0.22, 0.3), Color("8b6949"))
 	Art.label(boat, "EXPEDITION BOAT", Vector3(0, 2.7, 0), Color("f2d69a"))
+	add_object("boat", boat, "boat", terrain.point("gate") + Vector3(3, 0, 0), 6)
+	Art.label(
+		world, "DOCK • BOARD / SAIL", terrain.point("gate") + Vector3(4, 2, 0), Color("73e3ce")
+	)
 
 
 func landmark(key: String) -> Node3D:
@@ -234,7 +286,17 @@ func build_landmarks() -> void:
 	if terrain.layout_version >= 2:
 		var forward: Vector2 = (terrain.anchors.ruins - terrain.anchors.camp).normalized()
 		camp.rotation.y = atan2(-forward.y, forward.x)
-	Art.box(camp, Vector3(-3, 1.0, 0), Vector3(3.8, 2.0, 3.6), Color("8b8270"), true)
+	# Hollow cabin with a usable doorway and interior; no solid box blocking entry.
+	Art.box(camp, Vector3(-3, 0.08, 0), Vector3(3.8, 0.16, 3.6), Color("80644b"), true)
+	Art.box(camp, Vector3(-3, 1.0, -1.7), Vector3(3.8, 2.0, 0.18), Color("8b8270"), true)
+	for side in [-1, 1]:
+		Art.box(
+			camp, Vector3(-3 + side * 1.8, 1.0, 0), Vector3(0.18, 2.0, 3.6), Color("8b8270"), true
+		)
+		Art.box(
+			camp, Vector3(-3 + side * 1.3, 1.0, 1.7), Vector3(1.0, 2.0, 0.18), Color("8b8270"), true
+		)
+	Art.box(camp, Vector3(-3, 1.95, 1.7), Vector3(1.6, 0.16, 0.18), Color("8b8270"), true)
 	var gable_shape := PrismMesh.new()
 	gable_shape.size = Vector3(3.8, 1.3, 3.6)
 	var gable := Art.mesh(camp, gable_shape, Vector3(-3, 2.65, 0), Color("8b8270"))
@@ -359,14 +421,23 @@ func build_landmarks() -> void:
 	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
 	var channel_center := Vector2(bridge_center.x, bridge_center.z)
 	var channel_y: float = terrain.height_at(channel_center) - 0.42
-	var channel := Art.box(world, Vector3(channel_center.x, channel_y, channel_center.y), Vector3(5.6, 0.08, 9.5), Color("4eafc4"))
+	var channel := Art.box(
+		world,
+		Vector3(channel_center.x, channel_y, channel_center.y),
+		Vector3(5.6, 0.08, 9.5),
+		Color("4eafc4")
+	)
 	var channel_water := ShaderMaterial.new()
 	channel_water.shader = preload("res://shaders/water.gdshader")
 	channel.material_override = channel_water
 	# A pair of irregular banks makes the crossing read as a stream carved through the island.
 	for side in [-1, 1]:
 		for i in range(7):
-			var bank_at := Vector3(channel_center.x + side * (3.15 + sin(i * 1.8) * 0.25), terrain.height_at(channel_center) + 0.02, channel_center.y + (i - 3) * 1.35)
+			var bank_at := Vector3(
+				channel_center.x + side * (3.15 + sin(i * 1.8) * 0.25),
+				terrain.height_at(channel_center) + 0.02,
+				channel_center.y + (i - 3) * 1.35
+			)
 			var bank := Art.sphere(world, bank_at, 0.45 + float(i % 3) * 0.12, Color("78877f"))
 			bank.scale = Vector3(1.25, 0.7, 0.8)
 	for i in range(10):
@@ -598,7 +669,10 @@ func build_sky() -> void:
 		)
 		for j in range(5):
 			var part := Art.sphere(
-				cloud, Vector3((j - 2) * 3.2, sin(j * 1.7) * 0.8, cos(j * 2.1) * 1.2), rng.randf_range(2.4, 4.8), Color("eef7f2")
+				cloud,
+				Vector3((j - 2) * 3.2, sin(j * 1.7) * 0.8, cos(j * 2.1) * 1.2),
+				rng.randf_range(2.4, 4.8),
+				Color("eef7f2")
 			)
 			part.scale = Vector3(1.35, 0.28 + rng.randf_range(0.08, 0.18), 0.85)
 			var cloud_material := StandardMaterial3D.new()
@@ -693,21 +767,43 @@ func save_setting(key: String, value: Variant) -> void:
 
 
 func apply_quality() -> void:
-	get_viewport().msaa_3d = (
-		Viewport.MSAA_2X if int(store.data.quality) == 1 else Viewport.MSAA_DISABLED
+	var quality := clampi(int(store.data.quality), 0, 4)
+	var shadows: bool = (
+		quality > 0 if quality != 4 else bool(store.data.get("custom_shadows", true))
 	)
-	light.shadow_enabled = int(store.data.quality) == 1
+	Engine.max_fps = [30, 45, 60, 90, 120][clampi(int(store.data.get("fps_mode", 2)), 0, 4)]
+	get_viewport().msaa_3d = (
+		Viewport.MSAA_4X
+		if quality >= 2
+		else (Viewport.MSAA_2X if quality == 1 else Viewport.MSAA_DISABLED)
+	)
+	light.shadow_enabled = shadows
+	light.directional_shadow_max_distance = [35, 55, 80, 110, 80][quality]
+	get_viewport().scaling_3d_scale = [
+		0.65, 0.8, 1.0, 1.0, float(store.data.get("custom_scale", 1.0))
+	][quality]
+	var color_mode := clampi(int(store.data.get("color_mode", 0)), 0, 4)
+	environment.environment.adjustment_enabled = true
+	environment.environment.adjustment_saturation = [1.0, 0.92, 0.78, 1.3, 1.08][color_mode]
+	environment.environment.adjustment_contrast = [1.0, 1.04, 1.12, 1.06, 1.18][color_mode]
+	environment.environment.adjustment_brightness = [1.0, 1.02, 0.98, 1.04, 1.06][color_mode]
 	for detail in get_tree().get_nodes_in_group("polish_detail"):
-		detail.visible = int(store.data.quality) == 1
+		detail.visible = quality > 0
 	for child in world.get_children():
 		if child.has_meta("distant"):
-			child.visible = int(store.data.quality) == 1
+			child.visible = quality > 0
 
 
 func action(id: String) -> void:
 	if not playing:
 		return
 	match id:
+		"tool":
+			harvest_tool = (
+				"axe" if harvest_tool == "" else ("hammer" if harvest_tool == "axe" else "")
+			)
+			player.refresh_weapon()
+			tell("Tool: " + (harvest_tool.to_upper() if harvest_tool != "" else "WEAPON"))
 		"camera_mode":
 			player.cameras.cycle()
 		"crouch":
@@ -787,7 +883,10 @@ func nearest() -> Dictionary:
 			continue
 		if object.kind == "cloud" and store.memory().cloud:
 			continue
-		if object.kind == "resource" and store.weight() + 2 > store.capacity():
+		if (
+			object.kind == "resource"
+			and not store.can_add(["wood", "crystal", "herbs"][object.value], 2)
+		):
 			continue
 		var distance: float = player.position.distance_to(object.base)
 		if use_expeditions and object.kind == "expedition":
@@ -799,10 +898,14 @@ func nearest() -> Dictionary:
 
 
 func interaction_prompt() -> String:
+	if sailing:
+		return "E • RETURN TO DOCK"
 	var obj := nearest()
 	if obj.is_empty():
 		return ""
 	match obj.kind:
+		"boat":
+			return "E • BOARD BOAT"
 		"field_cache":
 			return "E  •  OPEN FIELD CACHE"
 		"expedition":
@@ -876,6 +979,13 @@ func objective() -> String:
 func interact() -> void:
 	if not playing:
 		return
+	if sailing:
+		sailing = false
+		player.position = sailing_return
+		player.collision_layer = 2
+		player.collision_mask = 5
+		player.reset_controls()
+		return
 	var object := nearest()
 	if object.is_empty():
 		return
@@ -888,6 +998,15 @@ func interact_object(object: Dictionary) -> void:
 		expedition.extract()
 		return
 	match object.kind:
+		"boat":
+			sailing_return = terrain.point("gate") + Vector3(0, 0.5, 3)
+			sailing = true
+			player.collision_layer = 0
+			player.collision_mask = 0
+			player.reset_controls()
+			tell(
+				"Steer with movement. Sail beyond the coast to travel after securing the island. E returns to dock."
+			)
 		"field_cache":
 			if object.id in memory.picked:
 				return
@@ -896,8 +1015,8 @@ func interact_object(object: Dictionary) -> void:
 					store.memory().picked.append(object.id)
 					store.data.coins += 15
 					var ammo := "bullets" if store.data.bag.get("gun", false) else "arrows"
-					var room := maxi(0, floori((store.capacity() - store.weight()) * 10))
-					store.data.bag[ammo] = mini(200, store.item_count(ammo) + mini(8, room))
+					if store.can_add(ammo, 8):
+						store.data.bag[ammo] += 8
 			):
 				object.node.visible = false
 				celebrate_pickup(object.base, Color("ffc14c"))
@@ -1307,7 +1426,10 @@ func auto_collect(dt: float) -> void:
 	for object in objects:
 		if float(object.get("retry_at", 0.0)) > clock:
 			continue
-		if object.kind == "resource" and store.weight() + 2 > store.capacity():
+		if (
+			object.kind == "resource"
+			and not store.can_add(["wood", "crystal", "herbs"][object.value], 2)
+		):
 			continue
 		if not is_instance_valid(object.node) or not object.node.visible or not can_collect(object):
 			continue
@@ -1460,7 +1582,7 @@ func buy_pack_upgrade() -> void:
 		return
 	if store.upgrade_pack():
 		hud.show_bag()
-		tell("Backpack upgraded • +10 capacity. Your supplies stay with you.")
+		tell("Backpack upgraded • +9 boxes. Your supplies stay with you.")
 		sound.cue(1046, 0.3, 0.14)
 	else:
 		tell(store.last_error)

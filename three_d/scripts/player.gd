@@ -14,6 +14,7 @@ var standing_height := 1.9
 var body
 var sword: Node3D
 var bow: Node3D
+var tool_model := Node3D.new()
 var gun: Node3D
 var bow_string: MeshInstance3D
 var bow_arrow: Node3D
@@ -78,6 +79,9 @@ func setup(owner_game, chosen: int) -> void:
 		[Vector3(1, 1.05, 1), Vector3(0.94, 1.1, 0.94), Vector3(1.17, 1.02, 1.17)][hero]
 	)
 	var socket: Node3D = body.weapon_socket()
+	socket.add_child(tool_model)
+	Art.box(tool_model, Vector3(0, 0.3, 0), Vector3(0.07, 0.85, 0.07), Color("855d3b"))
+	Art.box(tool_model, Vector3(0.12, 0.67, 0), Vector3(0.42, 0.25, 0.18), Color("92b0ba"))
 	sword = Art.model(socket, "equipment/sword", 1.0)
 	# Preserve the sword model's authored wrist/grip pivot.
 	sword.position = Vector3.ZERO
@@ -157,6 +161,11 @@ func request_jump() -> void:
 
 
 func attack() -> void:
+	if game.harvest_tool != "":
+		if attack_cooldown <= 0:
+			attack_cooldown = 0.6
+			game.harvest()
+		return
 	if stun_time > 0 or cameras.reveal_remaining > 0:
 		return
 	if int(game.store.data.bag.weapon) == 1:
@@ -182,11 +191,16 @@ func attack() -> void:
 
 
 func refresh_weapon() -> void:
+	tool_model.visible = game.harvest_tool != ""
 	bow_draw = 0
 	var weapon := int(game.store.data.bag.weapon)
 	sword.visible = weapon == 0
 	bow.visible = weapon == 1
 	gun.visible = weapon == 2
+	if tool_model.visible:
+		sword.visible = false
+		bow.visible = false
+		gun.visible = false
 
 
 func dash() -> void:
@@ -254,6 +268,23 @@ func reset_controls() -> void:
 
 func _physics_process(dt: float) -> void:
 	if game == null or not game.playing:
+		return
+	if game.sailing:
+		cameras.tick(dt)
+		var helm := (Input.get_vector("left", "right", "forward", "back") + stick).limit_length()
+		var course := Basis(Vector3.UP, yaw) * Vector3(helm.x, 0, helm.y)
+		var next: Vector3 = game.vessel.position + course * dt * 10
+		var p := Vector2(next.x, next.z)
+		if not game.terrain.inside(p, -4):
+			game.vessel.position = next
+		if course.length_squared() > 0.01:
+			game.vessel.rotation.y = lerp_angle(
+				game.vessel.rotation.y, atan2(-course.x, -course.z), dt * 5
+			)
+		position = game.vessel.position + Vector3(0, 0.8, 0)
+		velocity = Vector3.ZERO
+		if p.length() > 135 and int(game.store.data.unlocked) > int(game.store.data.island):
+			game.travel_next()
 		return
 	cameras.tick(dt)
 	slow_time = maxf(0, slow_time - dt)

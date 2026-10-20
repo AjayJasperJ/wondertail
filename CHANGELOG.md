@@ -4,6 +4,17 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.16.0] - 2026-10-20
+
+- Fixed missing ocean construction; ocean shading now scales to the sea mesh.
+- Boardable, steerable coastal boat with dock return and unlocked-island travel.
+- Carved river on expanded layouts; hollow camp cabin with usable doorway.
+- Axe/hammer selection and persistent tree/rock harvest receipts.
+- Replaced weight with 27 boxes and 50-item stacks; upgrades add nine boxes.
+- Navy/teal menus, stack grid, graphics/color/FPS presets and custom controls.
+- Added slot-limit, failed-harvest rollback and boat-state regression checks.
+- See docs/FRONTIER_V0.16.md for controls and current limits.
+
 ## [3D 0.14.0] - 2026-10-20
 
 ### Adventure loop

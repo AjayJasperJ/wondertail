@@ -126,6 +126,15 @@ func path_distance(p: Vector2) -> float:
 
 
 func height_at(p: Vector2) -> float:
+	var h := ground_height(p)
+	# A shallow riverbed follows the ridge crossing. The timber deck spans its centre.
+	var river_z: float = anchors.ridge.y + 5.0
+	if layout_version >= 2:
+		h -= (1.0 - smoothstep(1.4, 3.8, absf(p.y - river_z))) * 0.9
+	return h
+
+
+func ground_height(p: Vector2) -> float:
 	var q := p / scale_factor
 	var hill := 11.0 * exp(-q.distance_squared_to(mountain_a) / 100.0)
 	hill += 7.0 * exp(-q.distance_squared_to(mountain_b) / 95.0)
@@ -197,6 +206,29 @@ func build() -> void:
 	add_child(cliff_mesh)
 	cliff_mesh.create_trimesh_collision()
 	decorate()
+	if layout_version >= 2:
+		var river := SurfaceTool.new()
+		river.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var water := ShaderMaterial.new()
+		water.shader = load("res://shaders/water.gdshader")
+		river.set_material(water)
+		var z: float = anchors.ridge.y + 5.0
+		for i in range(-80, 80):
+			var x := float(i)
+			if not inside(Vector2(x, z), 0):
+				continue
+			for v in [
+				Vector2(x, z - 1.5),
+				Vector2(x, z + 1.5),
+				Vector2(x + 1, z - 1.5),
+				Vector2(x + 1, z - 1.5),
+				Vector2(x, z + 1.5),
+				Vector2(x + 1, z + 1.5)
+			]:
+				river.add_vertex(Vector3(v.x, ground_height(v) - 0.35, v.y))
+		var stream := MeshInstance3D.new()
+		stream.mesh = river.commit()
+		add_child(stream)
 
 
 func radial(angle: float, fraction: float) -> Vector3:
@@ -249,6 +281,7 @@ func decorate() -> void:
 		if reserved:
 			continue
 		var at := Vector3(p.x, height_at(p), p.y)
+		var before := get_child_count()
 		if i % 5 != 0:
 			Art.biome_prop(self, at, rng, index % 6, palette[1])
 		else:
@@ -263,6 +296,11 @@ func decorate() -> void:
 				var shape := CollisionShape3D.new()
 				shape.shape = mesh.mesh.create_convex_shape()
 				solid.add_child(shape)
+		if get_child_count() > before:
+			var resource := get_child(before)
+			resource.add_to_group("harvestable")
+			resource.set_meta("harvest_id", "harvest_%d" % i)
+			resource.set_meta("material", "wood" if i % 5 != 0 else "crystal")
 
 	# Instanced grasses/flowers avoid hundreds of independently processed nodes.
 	var flowers := MultiMeshInstance3D.new()
@@ -288,8 +326,8 @@ func decorate() -> void:
 	var flower_mesh := grass.commit()
 
 	mm.mesh = flower_mesh
-	mm.instance_count = 1400
-	for i in range(1400):
+	mm.instance_count = 2600
+	for i in range(2600):
 		var p := Vector2(rng.randf_range(-40, 40), rng.randf_range(-40, 40)) * scale_factor
 		var at := (
 			Vector3(p.x, height_at(p) + 0.015, p.y)

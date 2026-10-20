@@ -53,6 +53,7 @@ jobs:
           timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/smoke.gd 2>&1 | tee /tmp/tests.log
           timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/inventory.gd 2>&1 | tee -a /tmp/tests.log
           timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/expeditions.gd 2>&1 | tee -a /tmp/tests.log
+          timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/frontier.gd 2>&1 | tee -a /tmp/tests.log
           if grep -E 'SCRIPT ERROR|^ERROR:' /tmp/tests.log; then exit 1; fi
       - name: Render actual gameplay and menus
         run: |

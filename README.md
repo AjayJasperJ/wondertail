@@ -2,7 +2,9 @@
 
 Recover a lost network of floating islands in an offline action adventure.
 
-**3D version: 0.14.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.16.0** · Godot 4.4.1 · `three_d/`
+
+[Coastal sailing, harvesting, stack storage and display settings](docs/FRONTIER_V0.16.md).
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 

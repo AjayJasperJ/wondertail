@@ -65,7 +65,7 @@ func run():
 	check(
 		(
 			economy.upgrade_pack()
-			and economy.capacity() == initial_capacity + 10
+			and economy.capacity() == initial_capacity + 9
 			and economy.data.coins == 150
 		),
 		"Contract currency buys persistent capacity"
@@ -76,7 +76,7 @@ func run():
 		(
 			not economy.upgrade_pack()
 			and economy.data.coins == 150
-			and economy.capacity() == initial_capacity + 10
+			and economy.capacity() == initial_capacity + 9
 		),
 		"Failed upgrade rolls back currency and capacity"
 	)
@@ -134,7 +134,7 @@ func run():
 				"Failed cache save preserves unopened reward"
 			)
 			game.store.path = valid_path
-			game.store.data.bag.wood = 40
+			game.store.data.bag.wood = 1300
 			game.store.data.bag.arrows = 0
 			game.interact_object(caches[2])
 			check(

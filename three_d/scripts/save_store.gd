@@ -68,6 +68,12 @@ func load_save() -> bool:
 static func valid(value: Variant) -> bool:
 	if not value is Dictionary or value.get("schema") != 1:
 		return false
+	for key in ["color_mode", "fps_mode"]:
+		if value.has(key):
+			if not (value[key] is int or value[key] is float):
+				return false
+			if value[key] < 0 or value[key] > 4 or value[key] != floor(value[key]):
+				return false
 	for key in ["seed", "island", "unlocked", "hero", "coins", "volume", "quality", "sensitivity"]:
 		if not value.get(key) is float and not value.get(key) is int:
 			return false
@@ -254,20 +260,33 @@ func collect(id: String, amount: int, seed_id: int = -1) -> bool:
 
 
 func weight() -> float:
-	var b: Dictionary = data.bag
-	return (
-		float(b.wood + b.crystal + b.herbs + b.tonic) + float(b.arrows + b.get("bullets", 0)) * 0.1
-	)
+	return float(stack_slots(data.bag))
+
+
+func stack_slots(bag: Dictionary) -> int:
+	var used := 1  # Protected starter sword.
+	for item in ["wood", "crystal", "herbs", "tonic", "arrows", "bullets"]:
+		used += ceili(float(bag.get(item, 0)) / 50.0)
+	for item in ["bow", "gun"]:
+		used += 1 if bag.get(item, false) else 0
+	return used
+
+
+func can_add(item: String, amount: int) -> bool:
+	var next: Dictionary = data.bag.duplicate(true)
+	next[item] = int(next.get(item, 0)) + amount
+	return stack_slots(next) <= int(capacity())
 
 
 func capacity() -> float:
-	return [40.0, 30.0, 60.0][int(data.hero)] + 10.0 * int(data.get("pack_level", 0))
+	# 27 boxes, each with up to 50 identical items. Existing pack upgrades add rows.
+	return maxf(27 + 9 * int(data.get("pack_level", 0)), weight())
 
 
 func gather(id: String, resource: String) -> bool:
 	if resource not in ["wood", "crystal", "herbs"] or id in memory().picked:
 		return false
-	if weight() + 2 > capacity():
+	if not can_add(resource, 2):
 		last_error = "Backpack full. Open PACK to drop items or craft at camp."
 		return false
 	return transact(
@@ -285,21 +304,14 @@ func craft(recipe: String) -> bool:
 		if data.bag[ingredient] < RECIPES[recipe][ingredient]:
 			last_error = "Gather more materials along the trails."
 			return false
-	if (
-		recipe in ["arrows", "bullets"]
-		and data.bag.get(recipe, 0) > (192 if recipe == "arrows" else 188)
-	):
-		last_error = "Your quiver already holds enough arrows (maximum 200)."
-		return false
-	var next_weight := weight()
+	var next_bag: Dictionary = data.bag.duplicate(true)
 	for ingredient in RECIPES[recipe]:
-		next_weight -= float(RECIPES[recipe][ingredient])
-	next_weight += (
-		0.8
-		if recipe == "arrows"
-		else (1.2 if recipe == "bullets" else (1.0 if recipe == "tonic" else 0.0))
-	)
-	if next_weight > capacity() + 0.001:
+		next_bag[ingredient] -= RECIPES[recipe][ingredient]
+	if recipe in ["bow", "gun"]:
+		next_bag[recipe] = true
+	else:
+		next_bag[recipe] += 8 if recipe == "arrows" else (12 if recipe == "bullets" else 1)
+	if stack_slots(next_bag) > int(capacity()):
 		last_error = "Drop a stack before crafting more ammunition."
 		return false
 	return transact(
@@ -329,15 +341,10 @@ func claim_drop(id: String, elite: bool) -> bool:
 	return transact(
 		func():
 			memory().picked.append(id)
-			data.bag.arrows = mini(
-				200,
-				(
-					int(data.bag.arrows)
-					+ mini(8 if elite else 3, maxi(0, floori((capacity() - weight()) * 10)))
-				)
-			)
+			if can_add("arrows", 8 if elite else 3):
+				data.bag.arrows += 8 if elite else 3
 			data.coins += 10 if elite else 2
-			if weight() + 1 <= capacity():
+			if can_add("crystal", 1):
 				data.bag.crystal += 1
 	)
 
@@ -384,14 +391,12 @@ func reclaim(id: String) -> bool:
 	if item in ["bow", "gun"] and item_count(item) > 0:
 		last_error = "You already carry this weapon."
 		return false
-	var added_weight := (
-		float(amount)
-		* (0.1 if item in ["arrows", "bullets"] else (0.0 if item in ["bow", "gun"] else 1.0))
-	)
-	if (
-		weight() + added_weight > capacity() + 0.001
-		or (item in ["arrows", "bullets"] and item_count(item) + amount > 200)
-	):
+	var next_bag: Dictionary = data.bag.duplicate(true)
+	if item in ["bow", "gun"]:
+		next_bag[item] = true
+	else:
+		next_bag[item] = item_count(item) + amount
+	if stack_slots(next_bag) > int(capacity()):
 		last_error = "Not enough space for this stack. Drop another item first."
 		return false
 	return transact(

@@ -92,7 +92,7 @@ func run():
 	game.store = copy
 	game.use_expeditions = false
 	game.store.data = Store.fresh()
-	game.store.data.bag.wood = 40
+	game.store.data.bag.wood = 1250
 	game.store.data.bag.arrows = 0
 	game.store.memory().cloud = true
 	game.build_world()
