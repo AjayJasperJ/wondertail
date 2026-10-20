@@ -330,7 +330,7 @@ func build_landmarks() -> void:
 	# The ridge crossing now spans a real water channel instead of floating over dry land.
 	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
 	var channel_center := Vector2(bridge_center.x, bridge_center.z)
-	var channel_y := terrain.height_at(channel_center) - 0.42
+	var channel_y: float = terrain.height_at(channel_center) - 0.42
 	var channel := Art.box(world, Vector3(channel_center.x, channel_y, channel_center.y), Vector3(5.6, 0.08, 9.5), Color("4eafc4"))
 	var channel_water := ShaderMaterial.new()
 	channel_water.shader = preload("res://shaders/water.gdshader")
