@@ -6,6 +6,9 @@ Recover a lost network of floating islands in an offline action adventure.
 
 [Coastal sailing, harvesting, stack storage and display settings](docs/FRONTIER_V0.16.md).
 
+Performance update: surrounding ocean and sailing are suspended. Island rivers
+remain; the viewport fills the screen aspect ratio with distance fog.
+
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
 ## Play in your browser

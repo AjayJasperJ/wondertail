@@ -14,6 +14,10 @@ func _initialize() -> void:
 
 
 func run() -> void:
+	for file in DirAccess.get_files_at("res://assets/models/shared"):
+		if file.ends_with(".png"):
+			var texture: Texture2D = load("res://assets/models/shared/" + file)
+			check(texture.get_width() <= 256 and texture.get_height() <= 256, "External texture respects mobile size budget")
 	var store := Store.new()
 	store.path = "user://frontier_test_%d.json" % Time.get_ticks_usec()
 	store.data.bag.wood = 50
@@ -42,14 +46,11 @@ func run() -> void:
 	for object in game.objects:
 		if object.kind == "boat":
 			obj = object
-	check(not obj.is_empty(), "Boat has a boarding interaction")
-	game.interact_object(obj)
-	check(game.sailing and game.player.collision_mask == 0, "Boarding enables sailing")
-	game.interact()
-	check(
-		not game.sailing and game.player.collision_mask == 5,
-		"Dock return restores walking collisions"
-	)
+	check(obj.is_empty(), "Ocean-free world does not offer sailing into the void")
+	game.store.data.quality = 0
+	game.apply_quality()
+	check(game.player.camera.far == 70.0, "Low detail limits the camera rendering horizon")
+	check(game.environment.environment.fog_density > 0.02, "Fog covers the short rendering horizon")
 	game.queue_free()
 	await process_frame
 	print("FRONTIER: %d failures" % failures)

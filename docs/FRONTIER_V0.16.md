@@ -1,5 +1,18 @@
 # Coastal frontier — 3D 0.16.0
 
+## Current performance revision
+
+External texture imports are capped at 256 pixels with mipmaps. Original source
+images are preserved. Low draws 400 grass tufts and culls vegetation at 26 metres;
+Medium uses 800 and 36 metres. High/Ultra retain larger scenery budgets.
+
+Surrounding ocean and coastal sailing are suspended following performance
+feedback. Rivers and pools remain. The game viewport expands with the display
+aspect ratio and Android uses immersive mode. HUD proportions remain intact.
+Distance fog accompanies shorter tree and camera draw distances; fog alone does
+not reduce geometry rendering. The sailing description below records the earlier
+0.16 implementation and does not describe currently enabled travel.
+
 The ocean is built on every world load. Board the expedition boat from the dock
 interaction beside the gate. Movement steers on the sea; interact returns to the
 dock. Sailing beyond 135 metres travels to the next unlocked island. This is

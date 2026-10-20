@@ -189,7 +189,6 @@ func build_world() -> void:
 	)
 	world.add_child(terrain)
 	terrain.build()
-	build_ocean()
 	for resource in get_tree().get_nodes_in_group("harvestable"):
 		if resource.get_meta("harvest_id") in store.memory().picked:
 			resource.visible = false
@@ -415,7 +414,6 @@ func build_landmarks() -> void:
 	portal.material_override = portal_material
 	portal.visible = store.memory().restored
 	Art.label(beacon, "THE SKY BEACON", Vector3(0, 8, 0))
-	build_expedition_boat(terrain.point("gate") + Vector3(6.5, -0.25, 0))
 	add_object("beacon", beacon, "beacon", beacon.position + Vector3(0, 1, 2), 4)
 	# The ridge crossing now spans a real water channel instead of floating over dry land.
 	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
@@ -784,6 +782,10 @@ func apply_quality() -> void:
 		0.65, 0.8, 1.0, 1.0, float(store.data.get("custom_scale", 1.0))
 	][quality]
 	var color_mode := clampi(int(store.data.get("color_mode", 0)), 0, 4)
+	# Fog masks the shorter rendering horizon; draw-distance culling saves GPU work.
+	environment.environment.fog_density = [0.025, 0.018, 0.012, 0.008, 0.018][quality]
+	if is_instance_valid(player):
+		player.camera.far = [70.0, 90.0, 120.0, 160.0, 90.0][quality]
 	environment.environment.adjustment_enabled = true
 	environment.environment.adjustment_saturation = [1.0, 0.92, 0.78, 1.3, 1.08][color_mode]
 	environment.environment.adjustment_contrast = [1.0, 1.04, 1.12, 1.06, 1.18][color_mode]
@@ -791,9 +793,9 @@ func apply_quality() -> void:
 	for detail in get_tree().get_nodes_in_group("polish_detail"):
 		detail.visible = quality > 0
 	for cover in get_tree().get_nodes_in_group("ground_cover"):
-		cover.multimesh.visible_instance_count = [650, 1100, 1800, 2600, 1100][quality]
+		cover.multimesh.visible_instance_count = [400, 800, 1400, 2000, 800][quality]
 	for mesh in get_tree().get_nodes_in_group("vegetation_mesh"):
-		mesh.visibility_range_end = [32.0, 45.0, 65.0, 85.0, 45.0][quality]
+		mesh.visibility_range_end = [26.0, 36.0, 50.0, 65.0, 36.0][quality]
 		mesh.visibility_range_end_margin = 5.0
 		mesh.cast_shadow = (
 			GeometryInstance3D.SHADOW_CASTING_SETTING_ON

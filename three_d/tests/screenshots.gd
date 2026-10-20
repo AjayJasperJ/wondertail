@@ -107,6 +107,9 @@ func run() -> void:
 	root.size = Vector2i(640, 360)
 	await capture("phone-640x360.png")
 	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(2340, 1080)
+	await capture("phone-wide-2340x1080.png")
+	root.size = Vector2i(1280, 720)
 	for index in [1, 2]:
 		game.store.data = game.store.fresh()
 		game.store.data.island = index
