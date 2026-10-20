@@ -1,8 +1,43 @@
 # Changelog
 
-User-visible changes for each application version belong here. The app version
-in `pubspec.yaml` is the source of truth. Older dates are omitted where they were
-not recorded in the release history.
+User-visible changes for each application version belong here. Flutter versions
+come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
+Older dates are omitted where they were not recorded in the release history.
+
+## [3D 0.9.0] - 2026-10-20
+
+### Added
+
+- Playable Godot 4.4.1 third-person 3D edition in `three_d/`, with original
+  procedural low-poly meshes, lit sky, floating cliffs, variable coastlines
+  and island sizes, mountain slopes, landmark trails, ridge bridge and waterfall.
+- Physical capsule movement with slope limits, sliding, jump buffering, coyote
+  time, double jumps, sprinting, collision-resolved dashes and a retracting camera.
+- Landscape lobby, Rowan/Sky/Fern body and stat differences, unlocked island
+  atlas, sound/detail/sensitivity settings, pause, touch joystick/camera/actions.
+- A complete rescue-to-beacon loop: cloud companion, ruins skyseed, physical
+  Echo Cavern with songstone puzzle, ridge guardian and next-island travel.
+- Six biome identities with woodland, cacti, frost pines, mushroom groves,
+  basalt spires and celestial columns; a modular seeded island sequence.
+- Sword combat, telegraphed attacks, health/stamina, volcanic hot-spring damage,
+  free camp recovery and a Starlight-funded instant health-tonic recipe.
+- Once-only coins/skyseeds/restoration rewards, atomic offline checkpoints,
+  backup recovery, failed-write rollback and an independent Android/save namespace.
+- Synthesized music and movement/jump/combat/discovery cues, objective marker,
+  bottom-center vitals and in-theme inline feedback.
+- Headless terrain, physics, camera, progression and save tests; rendered desktop
+  and small-phone screenshots; Android/Windows/Linux/web export workflow.
+
+### Migration and limits
+
+- Flutter v0.8 remains intact. The 3D edition starts its own expedition and cannot
+  import old Flutter saves. It installs alongside the existing Android package.
+- This is a playable 3D foundation, not a feature-complete v0.8 port. The full
+  arsenal, backpack, three brain-puzzle families, challenge runs and workshop
+  unlock economy remain in the 2D edition. No real-device performance claim.
+- Six visual biomes reuse one quest structure and finite procedural models;
+  this is not a seamless voxel world. Health, enemy state and exact position
+  reset on reload; committed discoveries and Starlight persist.
 
 ## [0.8.0] - 2026-10-20
 

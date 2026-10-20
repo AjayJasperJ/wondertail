@@ -1,0 +1,169 @@
+# Wondertail 3D — 0.9.0
+
+The first playable third-person conversion uses Godot **4.4.1**, GDScript and
+original procedural meshes. Flutter v0.8 remains in the same repository.
+This document describes implemented behavior, not the complete v0.8 wish list.
+
+## The expedition
+
+1. Choose Rowan, Sky or Fern in the landscape lobby. Continue or select an
+   already unlocked island in the atlas.
+2. Follow sandy trails and the floating objective marker to the ruins. Free Pip,
+   the cloud creature. Pip follows you and awakens the ruins skyseed.
+3. Enter Echo Cavern through the mountain arch. Read its three-symbol song, then
+   interact with the Sun, Moon and Star songstones in the indicated order. A wrong
+   note resets the attempt. Completion permanently awakens the cavern skyseed.
+4. Cross the ridge approach and face the warden. Its visible windup gives time
+   to step away or dash. Defeat it to gather the third seed.
+5. Bring three seeds and the rescued friendship to the sky beacon. Restoration
+   awards 30 Starlight once and unlocks the next island. Interact again to travel.
+   Revisit old islands from the atlas.
+
+Coins are picked up by proximity. Seeds and landmarks use the context action.
+Each seed also awards five Starlight once. Ordinary enemies grant no farmable
+currency. They recover after 30 active seconds when the player is far away.
+The warden stays defeated for the current visit; collecting its seed removes it
+from future visits. Progression is untimed and fully offline.
+
+New islands vary scale, coastline, terrain noise and visual biome. Six identities
+cycle: Mosswake Highlands, Amber Dunes, Frostbell Reach, Moonveil Wilds, Emberfall
+Crags and Cloudgarden. Shared landmarks, trails and quest order make this a
+finite modular system, not infinitely novel adventures. One island and one small
+cave are loaded at a time; there is no seamless streaming or voxel excavation.
+
+## Movement and survival
+
+| Explorer | Health | Walk speed | Jump velocity | Sword damage |
+| --- | ---: | ---: | ---: | ---: |
+| Rowan | 100 | 7.0 m/s | 9.0 m/s | 28 |
+| Sky | 80 | 8.2 m/s | 10.0 m/s | 23 |
+| Fern | 135 | 6.2 m/s | 8.7 m/s | 39 |
+
+Distinct silhouettes have different capsule radii/heights. Terrain uses a
+clockwise-wound collision mesh; trunks, rocks, buildings, cave walls, arches and
+bridge planks have solid colliders. A 46-degree slope limit blocks steep faces;
+trail corridors suppress sharp height changes. Sliding, six solver slides and
+a small safe margin reduce corner catches. No free-climbing system is included.
+
+Jump buffering is 0.16 seconds and coyote time is 0.12 seconds. A second airborne
+jump is available; each costs 12 stamina. Sprint is 1.55× walking speed and drains
+22 stamina/s. Otherwise stamina regenerates at 16/s. Strikes cost nine stamina
+and check range, direction and terrain line of sight. Dashes cost 30 stamina,
+have a 2.5-second cooldown and resolve physics velocity rather than teleporting.
+They grant 0.45 seconds of protection.
+
+Attackers deal 13 damage, or 23 for the warden, after a 0.65-second windup with a
+two-second cooldown. Damage grants 1.2 seconds of immunity. Emberfall's marked
+hot spring deals 27 damage while grounded in it; this is an initial hazard, not
+the full animated lava-channel system of the 2D game. Falls or zero health return
+you to camp with full vitals and all discoveries intact. Camp recovery is free.
+The pause menu can spend five Starlight on an immediate 55-health tonic; it
+does not charge an already healthy player.
+
+A sphere-swept SpringArm3D retracts the orbit camera against scenery and excludes
+the player. Pitch is limited. Simultaneous joystick, camera and action touches
+are supported. Hostiles use local steering and physics, not global navmeshes;
+extended playtesting may expose catches despite reserved landmark paths.
+
+## Controls and interface
+
+| Action | Touch | Keyboard / mouse |
+| --- | --- | --- |
+| Move | Left stick | WASD / arrows |
+| Look | Drag the world | Drag mouse over world |
+| Double jump | JUMP twice | Space twice |
+| Strike | STRIKE | F |
+| Dash | DASH | Q |
+| Sprint | RUN toggles | Hold Shift |
+| Interact | Context action | E |
+| Pause | CAMP | Escape |
+
+Bottom-center vitals and right-side actions leave the center free for play.
+Objective/distance appear at the top, feedback in a themed bottom ribbon. No
+native dialogs, scaffold snackbars or task timers are used. A 1280×720 design
+canvas scales to landscape phone sizes. Menus/backgrounding release touch input
+and stop gameplay simulation.
+
+The lobby contains explorer selection, unlocked-island atlas and settings.
+Low detail disables shadows and distant scenery. New mobile expeditions default
+to Low. Volume and camera sensitivity persist. Eight pooled cue voices and an
+original eight-second pentatonic music loop provide sound. More music variety
+and richer character animation remain needed; models are low-poly constructions,
+not realistic skinned characters or motion-capture assets.
+
+## Saves and compatibility
+
+Android uses `com.ajayjasper.wondertail3d`, separate from Flutter. The slot is
+Godot's `user://expedition_3d_v1.json`. No Flutter files are read or changed;
+there is no cross-engine save importer, login or cloud synchronization.
+
+Saved: seed, selected/unlocked island, hero, Starlight, settings and per-island
+coin receipts, seeds, rescue, cavern solution and restoration. Session-only:
+exact position, vitals, enemies, effects and unfinished song attempts. Reload
+resumes at the selected island's camp with full vitals. Storage grows with
+visited-island changes rather than saved meshes.
+
+Reward transactions snapshot state, write/flush a temporary file, back up the
+previous checkpoint and rename the new file into place. Failed writes restore
+the prior in-memory state. The loader validates structure and falls back to the
+backup if the primary is corrupt. Temporary files are not committed checkpoints.
+An OS crash can still lose the latest operation; hardware storage testing remains
+needed. Uninstalling an edition removes its own local data.
+
+## Source map
+
+| File under `three_d/scripts/` | Responsibility |
+| --- | --- |
+| `main.gd` | Expedition, landmarks, interactions and combat orchestration |
+| `terrain.gd` | Seeded mesh, collision, trails and scenery |
+| `art.gd` | Shared materials and original models |
+| `player.gd` | Capsule physics, camera, animation and vitals |
+| `creature.gd` | Roaming/chasing/telegraphed attackers |
+| `hud.gd` | Responsive lobby, menus, HUD and multitouch |
+| `save_store.gd` | Validated transactional local storage |
+| `sound.gd` | Synthesized score and bounded cue voices |
+
+## Build and verification
+
+Open `three_d/project.godot` in Godot 4.4.1 and press F5. Compatibility rendering
+targets OpenGL ES 3.0/WebGL 2.0. Matching export templates are required. Presets
+support Linux/Windows x86-64, single-threaded web and Android ARMv7/ARM64.
+
+```sh
+godot --headless --path three_d --editor --quit
+godot --headless --path three_d --script tests/smoke.gd
+python3 three_d/tests/check_packaging.py
+godot --headless --path three_d --export-release Linux
+godot --headless --path three_d --export-release Windows
+godot --headless --path three_d --export-release Web
+```
+
+Android requires Java 17 and SDK platform/build-tools 34, configured in Godot
+Editor Settings. CI validates the pinned engine/templates with official SHA-512
+checksums, checks scripts, runs headless tests, renders screenshots and exports
+all targets. APKs are release-mode test builds with ephemeral debug signing;
+they are not store-signed. `check_packaging.py` verifies version/docs consistency
+and the separate Android namespace.
+
+Artifacts: `wondertail-3d-android`, `wondertail-3d-desktop`, `wondertail-3d-web`,
+`wondertail-3d-screenshots`. Serve web files over HTTP(S); the first visit downloads
+the runtime. Browser audio requires a user gesture. Native gameplay works offline;
+offline browser reload is not guaranteed.
+
+`tests/smoke.gd` exercises the actual engine: 24 seeded islands, required-route
+slopes/landmarks, scale variety, physical spawn/movement/jump, walls, dash collision,
+camera retraction, pause input release, cavern solution, once-only rewards/travel,
+failed-write rollback and backup recovery. `tests/screenshots.gd` renders the real
+scene and menus, including a 640×360 phone view. These are not frame-rate benchmarks.
+
+## Remaining conversion work
+
+The v0.8 guns/bows, throwables, three powers, full backpack/weight/crafting,
+workshop and Trailblazer runs are not ported. The song is the only 3D puzzle;
+rope, maze and map coloring remain in Flutter. No brain-development benefits
+are claimed. More quest/encounter layouts, NPCs, interiors, animation and music
+are needed beyond this first complete loop.
+
+No Android hardware frame-pacing, thermal, notch or long-session testing has
+been completed. No retention, boredom or excitement percentages are measured.
+Prioritize device playtests before adding more systems.

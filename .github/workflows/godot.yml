@@ -1,0 +1,105 @@
+name: Wondertail 3D
+on:
+  push:
+    branches: [main]
+    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'README.md', 'CHANGELOG.md']
+  pull_request:
+    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md']
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  GODOT_VERSION: 4.4.1
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install pinned engine and export templates
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/$GODOT_VERSION-stable"
+          curl -fL --retry 3 "$base/Godot_v$GODOT_VERSION-stable_linux.x86_64.zip" -o godot.zip
+          curl -fL --retry 3 "$base/Godot_v$GODOT_VERSION-stable_export_templates.tpz" -o templates.tpz
+          curl -fL --retry 3 "$base/SHA512-SUMS.txt" -o SHA512-SUMS.txt
+          python3 - <<'PY'
+          import hashlib, os
+          version = os.environ['GODOT_VERSION']
+          sums = {line.split()[1]: line.split()[0] for line in open('SHA512-SUMS.txt')}
+          for local, official in [('godot.zip', f'Godot_v{version}-stable_linux.x86_64.zip'), ('templates.tpz', f'Godot_v{version}-stable_export_templates.tpz')]:
+              with open(local, 'rb') as stream:
+                  assert hashlib.file_digest(stream, 'sha512').hexdigest() == sums[official]
+          PY
+          unzip -q godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/*
+          ln -s /tmp/godot/Godot_v$GODOT_VERSION-stable_linux.x86_64 /usr/local/bin/godot
+          unzip -q templates.tpz -d /tmp/godot-templates
+          mkdir -p "$HOME/.local/share/godot/export_templates/$GODOT_VERSION.stable"
+          mv /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/$GODOT_VERSION.stable/"
+          godot --version
+      - name: Import and check actual scripts
+        run: |
+          godot --headless --path three_d --editor --quit 2>&1 | tee /tmp/import.log
+          if rg 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/import.log; then exit 1; fi
+      - name: Physics, terrain, progression and storage checks
+        run: |
+          set -o pipefail
+          timeout 90 godot --headless --path three_d --script tests/smoke.gd 2>&1 | tee /tmp/tests.log
+          if rg 'SCRIPT ERROR|^ERROR:' /tmp/tests.log; then exit 1; fi
+      - name: Render actual gameplay and menus
+        run: |
+          set -o pipefail
+          timeout 90 xvfb-run -a godot --path three_d --rendering-method gl_compatibility --audio-driver Dummy --script tests/screenshots.gd 2>&1 | tee /tmp/render.log
+          if rg 'SCRIPT ERROR|^ERROR:' /tmp/render.log; then exit 1; fi
+      - name: Export desktop and web
+        run: |
+          mkdir -p three_d/build/web
+          godot --headless --path three_d --export-release Linux
+          godot --headless --path three_d --export-release Windows
+          godot --headless --path three_d --export-release Web
+      - name: Configure Android toolchain and ephemeral test signing
+        run: |
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          mkdir -p "$HOME/.config/godot" "$HOME/.android"
+          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
+          keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=androiddebugkey" >> "$GITHUB_ENV"
+          echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=android" >> "$GITHUB_ENV"
+      - name: Export Android release-mode test APK
+        run: |
+          godot --headless --path three_d --export-release Android
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose three_d/build/Wondertail-3D.apk
+          python3 three_d/tests/check_packaging.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wondertail-3d-android
+          path: three_d/build/*.apk
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wondertail-3d-desktop
+          path: |
+            three_d/build/*.exe
+            three_d/build/*.x86_64
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wondertail-3d-web
+          path: three_d/build/web/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wondertail-3d-screenshots
+          path: three_d/build/*.png
+          retention-days: 14
