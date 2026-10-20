@@ -672,9 +672,22 @@ func show_camp() -> void:
 		)
 		b.disabled = owned
 	text("SUPPLIES • COINS", Vector2(720, 500), 17, title_color)
-	button("8 ARROWS • 5", Rect2(720, 530, 210, 42), func(): game.camp_action("buy", "arrows"))
-	button("TONIC • 10", Rect2(945, 530, 205, 42), func(): game.camp_action("buy", "tonic"))
-	button("12 ROUNDS • 8", Rect2(720, 581, 210, 42), func(): game.camp_action("buy", "bullets"))
+	var discount := 2 if "workshop" in state.camp else 0
+	button(
+		"8 ARROWS • %d" % (5 - discount),
+		Rect2(720, 530, 210, 42),
+		func(): game.camp_action("buy", "arrows")
+	)
+	button(
+		"TONIC • %d" % (10 - discount),
+		Rect2(945, 530, 205, 42),
+		func(): game.camp_action("buy", "tonic")
+	)
+	button(
+		"12 ROUNDS • %d" % (8 - discount),
+		Rect2(720, 581, 210, 42),
+		func(): game.camp_action("buy", "bullets")
+	)
 	button("EXPLORE NEXT ISLAND", Rect2(100, 605, 540, 48), func(): game.camp_action("explore"))
 	text(
 		"Workshop: cheaper supplies • Garden: herbs per contract\nForge: stronger melee • Storage: +9 boxes\nTelescope: reveals the island's field cache locations.",

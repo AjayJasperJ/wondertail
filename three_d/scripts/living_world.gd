@@ -5,8 +5,8 @@ const TASKS := [
 	"Supply the workshop • deliver 6 wood",
 	"Survey crystals • deliver 4 crystals",
 	"Prepare medicines • deliver 6 herbs",
-	"Hunt the marked stalker",
-	"Rescue the stranded explorer"
+	"Hunt the marked stalker at the ridge",
+	"Rescue the stranded explorer at the ruins"
 ]
 const UPGRADES := {"workshop": 2, "garden": 3, "telescope": 4, "forge": 5, "storage": 3}
 var game
