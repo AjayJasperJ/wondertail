@@ -420,7 +420,8 @@ func build_landmarks() -> void:
 	# The ridge crossing now spans a real water channel instead of floating over dry land.
 	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
 	var channel_center := Vector2(bridge_center.x, bridge_center.z)
-	var channel_y: float = terrain.height_at(channel_center) - 0.42
+	bridge_center.y = terrain.ground_height(channel_center) + 0.15
+	var channel_y: float = terrain.ground_height(channel_center) - 0.35
 	var channel := Art.box(
 		world,
 		Vector3(channel_center.x, channel_y, channel_center.y),
@@ -435,7 +436,7 @@ func build_landmarks() -> void:
 		for i in range(7):
 			var bank_at := Vector3(
 				channel_center.x + side * (3.15 + sin(i * 1.8) * 0.25),
-				terrain.height_at(channel_center) + 0.02,
+				terrain.ground_height(channel_center) + 0.02,
 				channel_center.y + (i - 3) * 1.35
 			)
 			var bank := Art.sphere(world, bank_at, 0.45 + float(i % 3) * 0.12, Color("78877f"))

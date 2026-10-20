@@ -211,6 +211,8 @@ func build() -> void:
 		river.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var water := ShaderMaterial.new()
 		water.shader = load("res://shaders/water.gdshader")
+		water.set_shader_parameter("water_extent", 120.0)
+		water.set_shader_parameter("foam_strength", 0.0)
 		river.set_material(water)
 		var z: float = anchors.ridge.y + 5.0
 		for i in range(-80, 80):
