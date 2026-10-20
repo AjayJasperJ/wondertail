@@ -40,7 +40,7 @@ func _draw() -> void:
 		if not is_instance_valid(object.node) or not object.node.visible:
 			continue
 		if (
-			object.kind in ["coin", "resource", "seed", "drop"]
+			object.kind in ["coin", "resource", "seed", "drop", "field_cache", "expedition"]
 			and object.node.global_position.distance_to(game.player.position) < 37
 		):
 			draw_circle(point(object.node.global_position), 2, Color("ebd58a"))

@@ -106,9 +106,9 @@ func show_lobby() -> void:
 	text("A WORLD WORTH WANDERING", Vector2(72, 78), 17, Color("a7d6cb"))
 	text("WONDERTAIL", Vector2(66, 104), 52, title_color)
 	text("THE SKYBOUND EXPEDITION", Vector2(73, 179), 19, Color("b5d6d2"))
-	text("A new horizon is waiting.", Vector2(74, 237), 22)
+	text("The network has gone silent.", Vector2(74, 237), 22)
 	text(
-		"Find a forgotten path. Free a lost friend.\nLeave this island brighter than you found it.",
+		"Trace the signal. Breach the archive.\nSecure your extraction. Choose what comes next.",
 		Vector2(74, 278),
 		17
 	)
@@ -249,9 +249,10 @@ func show_game() -> void:
 	page = "game"
 	clear()
 	quest_title = text("", Vector2(46, 34), 12, Color("a7cbb9"))
-	objective = text("", Vector2(46, 57), 20, Color("f3edda"))
-	objective.size = Vector2(540, 48)
+	objective = text("", Vector2(46, 57), 18, Color("f3edda"))
+	objective.size = Vector2(540, 70)
 	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button("BRIEF", Rect2(620, 26, 112, 48), show_brief)
 	button("PAUSE", Rect2(972, 26, 88, 48), game.pause_game)
 	button("PACK", Rect2(972, 106, 88, 48), game.open_bag)
 	var radar := Minimap.new()
@@ -504,6 +505,10 @@ func show_bag() -> void:
 				show_bag()
 		)
 		book.add_theme_font_size_override("font_size", 13)
+	(
+		button("PACK +10 • 50 STARLIGHT", Rect2(964, 623, 222, 42), game.buy_pack_upgrade)
+		. add_theme_font_size_override("font_size", 12)
+	)
 	text(
 		"W: wood  C: crystal  H: herbs  •  Tap filled cells to clear",
 		Vector2(730, 682),
@@ -520,7 +525,7 @@ func show_pause() -> void:
 		"The world waits while this menu is open. Your discoveries are already saved."
 	)
 	button("RETURN TO THE TRAIL", Rect2(100, 220, 440, 62), game.resume_game)
-	button("REST & CRAFT TONIC  •  5 STARLIGHT", Rect2(100, 305, 550, 62), game.craft_tonic)
+	button("EXPEDITION BRIEF  •  OBJECTIVES & REWARD", Rect2(100, 305, 550, 62), show_brief)
 	button("RETURN TO LOBBY", Rect2(100, 390, 440, 62), game.return_lobby)
 	text(
 		"WASD / arrows  move     Space  double jump     Shift  run\nF  strike     Q  dash     E  interact     Esc  pause\nDrag mouse / right thumb over the world to orbit camera.",
@@ -636,15 +641,19 @@ func _process(dt: float) -> void:
 		health.value = game.player.health / game.player.max_health * 100
 		stamina.value = game.player.stamina
 		vitals.text = (
-			"%s  •  %d HP     ✦ %d     SKYSEEDS %d/3"
+			"%s  •  %d HP     ✦ %d     SECURED %d/3"
 			% [
 				game.store.HEROES[int(game.store.data.hero)],
 				int(game.player.health),
 				game.store.data.coins,
-				game.store.memory().seeds.size()
+				(
+					game.expedition.completed().size()
+					if game.use_expeditions
+					else game.store.memory().seeds.size()
+				)
 			]
 		)
-		var goal: PackedStringArray = game.objective().split("/")
+		var goal: PackedStringArray = game.objective().split(" / ", true, 1)
 		quest_title.text = (
 			"ISLAND %02d  /  %s" % [int(game.store.data.island) + 1, goal[0].strip_edges()]
 		)
@@ -656,7 +665,7 @@ func _process(dt: float) -> void:
 
 func _draw() -> void:
 	if page == "game":
-		draw_style_panel(Rect2(28, 22, 566, 90), Color(0.035, 0.09, 0.11, 0.82))
+		draw_style_panel(Rect2(28, 22, 566, 114), Color(0.035, 0.09, 0.11, 0.82))
 		draw_style_panel(Rect2(456, 628, 364, 70), Color(0.035, 0.09, 0.11, 0.78))
 		if message_time > 0:
 			draw_style_panel(Rect2(326, 475, 576, 52), Color(0.035, 0.09, 0.11, 0.78))
@@ -686,3 +695,55 @@ func draw_style_panel(rect: Rect2, color: Color) -> void:
 	style.border_color = Color(0.75, 0.85, 0.72, 0.24)
 	style.set_border_width_all(1)
 	draw_style_box(style, rect)
+
+
+func show_brief() -> void:
+	game.playing = false
+	game.player.reset_controls()
+	page = "brief"
+	clear()
+	header("EXPEDITION BRIEF", "Your route, your objective, your reward. Gameplay is paused.")
+	for child in widgets.get_children():
+		if child is Button and child.text == "← BACK":
+			child.pressed.disconnect(show_lobby)
+			child.pressed.connect(game.resume_game)
+	if not game.use_expeditions:
+		text(game.objective(), Vector2(100, 225), 22)
+		return
+	text(game.expedition.TITLES[game.expedition.kind], Vector2(100, 203), 26, title_color)
+	var description := text(game.expedition.BRIEFS[game.expedition.kind], Vector2(100, 252), 18)
+	description.size = Vector2(1000, 70)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for i in range(3):
+		var done: bool = i in game.expedition.completed()
+		var index := i
+		var row := button(
+			("✓  " if done else str(i + 1) + "  ") + game.expedition.stages[i].title,
+			Rect2(100, 340 + i * 62, 500, 52),
+			func():
+				game.expedition.focus = index
+				game.expedition.route_clock = 0
+				game.resume_game()
+		)
+		row.disabled = (
+			done
+			or (
+				game.expedition.kind == 1
+				and i == 2
+				and (0 not in game.expedition.completed() or 1 not in game.expedition.completed())
+			)
+		)
+	text(
+		"EXTRACTION PAYMENT  +%d STARLIGHT" % game.expedition.reward(),
+		Vector2(730, 360),
+		19,
+		title_color
+	)
+	text("LANDSCAPE  " + game.terrain.landform.to_upper(), Vector2(730, 414), 17)
+	var help := text(
+		"Cyan trail: next objective\nColored shafts: unclaimed contracts / resources\nINTERACT: calibrate / open\nSHOOT / STRIKE: defeat marked guards",
+		Vector2(730, 454),
+		17
+	)
+	help.size = Vector2(430, 120)
+	button("FOLLOW THE SIGNAL  →", Rect2(730, 600, 430, 52), game.resume_game)

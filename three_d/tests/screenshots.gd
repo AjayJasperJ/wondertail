@@ -28,15 +28,21 @@ func run() -> void:
 	await capture("lobby.png")
 	game.store.data.quality = 0
 	game.apply_quality()
-	game.start_game()
+	game.start_game(false)
 	for i in range(30):
 		await physics_frame
 	await capture("trail.png")
+	game.hud.show_brief()
+	await capture("expedition-brief.png")
+	game.resume_game()
 	game.player.position = game.lava_position + Vector3(0, 1, 7)
 	for i in range(10):
 		await physics_frame
 	await capture("pool.png")
 	game.player.position = game.terrain.point("ruins") + Vector3(0, 0.2, 7)
+	game.player.position.y = (
+		game.terrain.height_at(Vector2(game.player.position.x, game.player.position.z)) + 0.5
+	)
 	await capture("ruins.png")
 	for mode in range(4):
 		game.player.cameras.mode = mode
@@ -95,9 +101,24 @@ func run() -> void:
 		game.player.pivot.rotation = Vector3(-0.15, PI, 0)
 		await capture("character-%d.png" % hero)
 	game.hud.visible = true
-	game.start_game()
+	game.start_game(false)
 	for i in range(20):
 		await physics_frame
 	root.size = Vector2i(640, 360)
 	await capture("phone-640x360.png")
+	root.size = Vector2i(1280, 720)
+	for index in [1, 2]:
+		game.store.data = game.store.fresh()
+		game.store.data.island = index
+		game.store.data.unlocked = index
+		game.store.data.quality = 0
+		game.build_world()
+		for enemy in game.enemies:
+			enemy.set_physics_process(false)
+		game.start_game(false)
+		for frame in range(8):
+			await physics_frame
+		await capture("contract-%d.png" % index)
+		game.hud.show_brief()
+		await capture("contract-brief-%d.png" % index)
 	quit()

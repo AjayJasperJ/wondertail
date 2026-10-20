@@ -1,4 +1,8 @@
 extends Node3D
+const Expedition = preload("res://scripts/expedition.gd")
+var use_expeditions := true
+var expedition
+var pickup_effects: Array[Dictionary] = []
 const Art = preload("res://scripts/art.gd")
 const Terrain = preload("res://scripts/terrain.gd")
 const Player = preload("res://scripts/player.gd")
@@ -102,18 +106,18 @@ func setup_environment() -> void:
 	sky.sky_material = sky_material
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("c0d6db")
-	env.ambient_light_energy = 0.48
+	env.ambient_light_color = Color("8eafca")
+	env.ambient_light_energy = 0.55
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = 0.85
 	env.fog_enabled = true
 	env.fog_light_color = Color("adcaca")
-	env.fog_density = 0.004
+	env.fog_density = 0.0028
 	environment.environment = env
 	add_child(environment)
 	light.rotation_degrees = Vector3(-48, -35, 0)
-	light.light_color = Color("fff0da")
-	light.light_energy = 0.72
+	light.light_color = Color("ffe4b0")
+	light.light_energy = 1.0
 	light.shadow_enabled = true
 	light.directional_shadow_max_distance = 80
 	add_child(light)
@@ -131,10 +135,16 @@ func build_world() -> void:
 		world.remove_child(child)
 		child.queue_free()
 	terrain = Terrain.new()
-	terrain.configure(int(store.data.seed), int(store.data.island))
+	terrain.configure(
+		int(store.data.seed),
+		int(store.data.island),
+		int(store.memory().get("layout", 0)) if use_expeditions else 0
+	)
 	world.add_child(terrain)
 	terrain.build()
 	cave_sequence = [0, 2, 1] if int(store.data.island) % 2 == 0 else [2, 1, 0]
+	if use_expeditions:
+		cave_sequence = [[0, 2, 1], [1, 0, 2], [2, 1, 0], [1, 2, 0]][int(store.data.island) % 4]
 	build_landmarks()
 	nav_marker = Node3D.new()
 	world.add_child(nav_marker)
@@ -158,6 +168,9 @@ func build_world() -> void:
 		enemies.append(guardian)
 	else:
 		guardian_defeated = true
+	if use_expeditions:
+		expedition = Expedition.new()
+		expedition.setup(self)
 	apply_quality()
 
 
@@ -165,7 +178,11 @@ func spawn_player() -> void:
 	player = Player.new()
 	world.add_child(player)
 	player.setup(self, int(store.data.hero))
-	player.position = terrain.point("camp") + Vector3(0, 0.4, 3)
+	player.position = terrain.point("camp") + Vector3(0, 0.5, 3)
+	if terrain.layout_version >= 2:
+		var forward: Vector2 = (terrain.anchors.ruins - terrain.anchors.camp).normalized()
+		player.position = terrain.point("camp") + Vector3(forward.x * 8.5, 0.5, forward.y * 8.5)
+	player.position.y = terrain.height_at(Vector2(player.position.x, player.position.z)) + 0.5
 	player.arm.spring_length = 16 if not playing else 9.5
 
 
@@ -187,6 +204,9 @@ func build_landmarks() -> void:
 	var stone := Color("737e72")
 	var gold := Color("bba77d")
 	var camp := landmark("camp")
+	if terrain.layout_version >= 2:
+		var forward: Vector2 = (terrain.anchors.ruins - terrain.anchors.camp).normalized()
+		camp.rotation.y = atan2(-forward.y, forward.x)
 	Art.box(camp, Vector3(-3, 1.0, 0), Vector3(3.8, 2.0, 3.6), Color("8b8270"), true)
 	var gable_shape := PrismMesh.new()
 	gable_shape.size = Vector3(3.8, 1.3, 3.6)
@@ -270,7 +290,9 @@ func build_landmarks() -> void:
 		s.radius = 0.6
 		Art.collider(ruins, s, Vector3(side * 3.8, 2, 0))
 		Art.box(ruins, Vector3(side * 3.8, 4.2, 0), Vector3(1.6, 0.45, 1.6), gold)
-	Art.label(ruins, "THE LOST CLOUD", Vector3(0, 5.8, 0))
+	Art.label(
+		ruins, "THE FALLEN OBSERVATORY" if use_expeditions else "THE LOST CLOUD", Vector3(0, 5.8, 0)
+	)
 	cloud_node = Node3D.new()
 	ruins.add_child(cloud_node)
 	cloud_node.position = Vector3(0, 2, 0)
@@ -278,11 +300,13 @@ func build_landmarks() -> void:
 		Art.sphere(cloud_node, Vector3((i - 1) * 0.65, 0, 0), 0.7, Color("e5ece5"))
 	for side in [-1, 1]:
 		Art.sphere(cloud_node, Vector3(side * 0.22, 0.08, -0.58), 0.065, Color("315365"))
-	if not store.memory().cloud:
+	if not store.memory().cloud and not use_expeditions:
 		for side in [-1, 1]:
 			Art.box(ruins, Vector3(side * 1.7, 1.3, 0), Vector3(0.16, 2.6, 2.8), Color("9cc8cf"))
+	cloud_node.visible = not use_expeditions
 	add_object("cloud", cloud_node, "cloud", ruins.position + Vector3(0, 1, 1), 3.8)
 	companion = Node3D.new()
+	companion.visible = false
 	world.add_child(companion)
 	Art.sphere(companion, Vector3.ZERO, 0.55, Color("e3efde"))
 	Art.sphere(companion, Vector3(0.5, 0, 0), 0.38, Color("e3efde"))
@@ -387,13 +411,34 @@ func build_collectibles() -> void:
 			continue
 		var route: Array = terrain.paths[i % 2]
 		var p: Vector2 = route[0].lerp(route[1], 0.28 + i * 0.04)
+		if terrain.layout_version >= 2:
+			var segment := 1 + int(i / 4) % (route.size() - 2)
+			p = route[segment].lerp(route[segment + 1], 0.22 + (i % 4) * 0.16)
 		p += Vector2(-1.8 if i % 2 == 0 else 1.8, 0)
 		var node := Node3D.new()
 		world.add_child(node)
 		node.position = Vector3(p.x, terrain.height_at(p), p.y)
 		match resource:
 			"wood":
-				Art.box(node, Vector3(0, 0.3, 0), Vector3(0.9, 0.5, 0.35), Color("a17b55"))
+				for j in range(3):
+					var log := Art.cone(
+						node,
+						Vector3((j - 1) * 0.22, 0.2 + (0.16 if j == 1 else 0.0), 0),
+						0.13,
+						0.13,
+						0.7,
+						Color("8c572d")
+					)
+					log.rotation.x = PI / 2
+					var cut := Art.cone(
+						node,
+						Vector3((j - 1) * 0.22, 0.2 + (0.16 if j == 1 else 0.0), 0.36),
+						0.11,
+						0.11,
+						0.025,
+						Color("edc17c")
+					)
+					cut.rotation.x = PI / 2
 			"crystal":
 				for j in range(3):
 					var crystal := Art.cone(
@@ -402,11 +447,22 @@ func build_collectibles() -> void:
 						0.14,
 						0,
 						0.5 + j * 0.14,
-						Color("6ba9ad")
+						Color("29dffa")
 					)
 					crystal.rotation.z = (j - 1) * 0.22
 			"herbs":
-				Art.sphere(node, Vector3(0, 0.4, 0), 0.45, Color("80b77d"))
+				Art.cone(node, Vector3(0, 0.3, 0), 0.035, 0.025, 0.6, Color("579b55"))
+				for j in range(3):
+					var leaf := Art.sphere(
+						node,
+						Vector3(cos(j * TAU / 3) * 0.17, 0.3 + j * 0.09, sin(j * TAU / 3) * 0.17),
+						0.23,
+						Color("80e65e")
+					)
+					leaf.scale = Vector3(0.55, 0.3, 1.3)
+					leaf.rotation.y = -j * TAU / 3
+				Art.sphere(node, Vector3(0, 0.7, 0), 0.12, Color("e4a1ff"), 0.5)
+		Art.loot_ray(node, [Color("ffbd4f"), Color("37dcff"), Color("a1ff61")][i % 3], 1.6)
 		add_object(id, node, "resource", node.position + Vector3.UP * 0.6, 2.5, i % 3)
 	var count := 0
 	for route in terrain.paths:
@@ -420,9 +476,11 @@ func build_collectibles() -> void:
 				var n := Node3D.new()
 				world.add_child(n)
 				n.position = Vector3(p.x, terrain.height_at(p) + 1.0, p.y)
-				var coin := Art.cone(n, Vector3.ZERO, 0.28, 0.28, 0.12, Color("d7b86f"))
+				var coin := Art.cone(n, Vector3.ZERO, 0.28, 0.28, 0.12, Color("ffd347"), 0.55)
 				coin.rotation_degrees.x = 90
 				add_object(id, n, "coin", n.position, 1.5)
+	if use_expeditions:
+		return
 	for i in range(3):
 		if i in store.memory().seeds:
 			continue
@@ -449,12 +507,19 @@ func build_cave() -> void:
 	Art.box(cave, Vector3(0, 4, -165), Vector3(20, 8, 1), rock, true)
 	Art.box(cave, Vector3(0, 8, -150), Vector3(20, 0.7, 30), rock, true)
 	Art.box(cave, Vector3(0, 4, -135), Vector3(20, 8, 1), rock, true)
-	Art.label(cave, "ECHO CAVERN", Vector3(0, 6.8, -163))
-	var names := ["SUN", "MOON", "STAR"]
+	Art.label(
+		cave, "SUBTERRANEAN ARCHIVE" if use_expeditions else "ECHO CAVERN", Vector3(0, 6.8, -163)
+	)
+	var names := ["I", "II", "III"] if use_expeditions else ["SUN", "MOON", "STAR"]
 	var clue := (
 		"%s → %s → %s" % [names[cave_sequence[0]], names[cave_sequence[1]], names[cave_sequence[2]]]
 	)
-	Art.label(cave, "THE ANCIENT SONG\n" + clue, Vector3(0, 4, -155), Color("dce2bd"))
+	Art.label(
+		cave,
+		("ACCESS FREQUENCY\n" if use_expeditions else "THE ANCIENT SONG\n") + clue,
+		Vector3(0, 4, -155),
+		Color("dce2bd")
+	)
 	for i in range(3):
 		var n := Node3D.new()
 		cave.add_child(n)
@@ -512,14 +577,27 @@ func island_name(index: int = -1) -> String:
 	return Terrain.NAMES[index % Terrain.NAMES.size()]
 
 
-func start_game() -> void:
+func start_game(show_contract: bool = true) -> void:
 	playing = true
 	player.arm.spring_length = 9.5
 	player.yaw = 0
+	if use_expeditions and expedition != null:
+		var toward: Vector3 = expedition.target() - player.position
+		player.yaw = atan2(-toward.x, -toward.z)
+		player.body.rotation.y = player.yaw
 	player.pitch = -0.36
-	player.pivot.rotation = Vector3(player.pitch, 0, 0)
+	player.pivot.rotation = Vector3(player.pitch, player.yaw, 0)
 	hud.show_game()
-	tell("Find the lost cloud at the ruins. Follow the golden trail.")
+	tell(
+		(
+			expedition.instruction()
+			if use_expeditions
+			else "Find the lost cloud at the ruins. Follow the golden trail."
+		)
+	)
+
+	if show_contract:
+		brief_if_new()
 
 
 func pause_game() -> void:
@@ -667,6 +745,8 @@ func nearest() -> Dictionary:
 		if object.kind == "resource" and store.weight() + 2 > store.capacity():
 			continue
 		var distance: float = player.position.distance_to(object.base)
+		if use_expeditions and object.kind == "expedition":
+			distance = maxf(0.0, distance - 0.4)
 		if distance < float(object.radius) and distance < best:
 			best = distance
 			result = object
@@ -678,6 +758,17 @@ func interaction_prompt() -> String:
 	if obj.is_empty():
 		return ""
 	match obj.kind:
+		"field_cache":
+			return "E  •  OPEN FIELD CACHE"
+		"expedition":
+			return (
+				"E  •  "
+				+ (
+					"CALIBRATE RELAY"
+					if expedition.kind == 0
+					else ("OPEN ARCHIVE" if expedition.kind == 1 else "SECURE OUTPOST")
+				)
+			)
 		"ground":
 			return "E  •  OPEN DROPPED LOOT"
 		"resource":
@@ -691,7 +782,11 @@ func interaction_prompt() -> String:
 		"exit_cave":
 			return "E  •  RETURN TO DAYLIGHT"
 		"rune":
-			return "E  •  SING " + ["SUN", "MOON", "STAR"][obj.value]
+			return (
+				"E  •  TUNE TERMINAL " + ["I", "II", "III"][obj.value]
+				if use_expeditions
+				else "E  •  SING " + ["SUN", "MOON", "STAR"][obj.value]
+			)
 		"seed":
 			return "E  •  GATHER SKYSEED"
 		"beacon":
@@ -700,6 +795,8 @@ func interaction_prompt() -> String:
 
 
 func objective() -> String:
+	if use_expeditions and expedition != null:
+		return expedition.objective()
 	var memory := store.memory()
 	var target: Vector3
 	var caption: String
@@ -742,7 +839,31 @@ func interact() -> void:
 
 func interact_object(object: Dictionary) -> void:
 	var memory := store.memory()
+	if use_expeditions and object.kind == "beacon":
+		expedition.extract()
+		return
 	match object.kind:
+		"field_cache":
+			if object.id in memory.picked:
+				return
+			if store.transact(
+				func():
+					store.memory().picked.append(object.id)
+					store.data.coins += 15
+					var ammo := "bullets" if store.data.bag.get("gun", false) else "arrows"
+					var room := maxi(0, floori((store.capacity() - store.weight()) * 10))
+					store.data.bag[ammo] = mini(200, store.item_count(ammo) + mini(8, room))
+			):
+				object.node.visible = false
+				celebrate_pickup(object.base, Color("ffc14c"))
+				sound.cue(1300, 0.2, 0.14)
+				tell(
+					"FIELD CACHE • +15 Starlight and ammunition if space allows. Fund pack upgrades at camp."
+				)
+			else:
+				tell(store.last_error)
+		"expedition":
+			expedition.interact(int(object.value))
 		"ground":
 			open_bag()
 			hud.bag_tab = "nearby"
@@ -816,13 +937,25 @@ func sing_rune(id: int) -> void:
 		cave_steps.clear()
 		for lamp in cave_lamps:
 			lamp.scale = Vector3.ONE
-		tell("An echo fades. Begin the song again, from the first symbol.")
+		tell(
+			(
+				"Frequency mismatch. Restart the displayed sequence."
+				if use_expeditions
+				else "An echo fades. Begin the song again, from the first symbol."
+			)
+		)
 		return
 	cave_steps.append(id)
 	cave_lamps[id].scale = Vector3.ONE * 1.5
 	if cave_steps.size() == 3:
 		if store.transact(func(): store.memory().cave = true):
-			tell("The ancient song returns. The cavern's skyseed is awake.")
+			tell(
+				(
+					"Vault decoded. Open the gold archive chest."
+					if use_expeditions
+					else "The ancient song returns. The cavern's skyseed is awake."
+				)
+			)
 		else:
 			cave_steps.clear()
 			tell(store.last_error)
@@ -838,12 +971,19 @@ func enter_cave() -> void:
 	player.pitch = -0.32
 	player.pivot.rotation = Vector3(player.pitch, 0, 0)
 	player.arm.spring_length = 6.5
-	tell("Read the ancient song. Sing each symbol at its songstone.")
+	tell(
+		(
+			"Decode the numbered terminals. Follow the cyan guide."
+			if use_expeditions
+			else "Read the ancient song. Sing each symbol at its songstone."
+		)
+	)
 
 
 func leave_cave() -> void:
 	in_cave = false
-	player.position = terrain.point("cave") + Vector3(0, 0.3, 4)
+	player.position = terrain.point("cave") + Vector3(0, 0.5, 4)
+	player.position.y = terrain.height_at(Vector2(player.position.x, player.position.z)) + 0.5
 	player.reset_controls()
 	player.arm.spring_length = 9.5
 
@@ -855,7 +995,14 @@ func travel_next() -> void:
 	if store.transact(func(): store.data.island = next):
 		build_world()
 		hud.show_game()
-		tell("A new chapter: " + island_name() + ". What will you discover?")
+		brief_if_new()
+		tell(
+			(
+				expedition.instruction()
+				if use_expeditions
+				else "A new chapter: " + island_name() + ". What will you discover?"
+			)
+		)
 	else:
 		tell(store.last_error)
 
@@ -881,7 +1028,8 @@ func respawn() -> void:
 	player.cameras.reveal_remaining = 0
 	if in_cave:
 		leave_cave()
-	player.position = terrain.point("camp") + Vector3(0, 0.4, 3)
+	player.position = terrain.point("camp") + Vector3(0, 0.5, 3)
+	player.position.y = terrain.height_at(Vector2(player.position.x, player.position.z)) + 0.5
 	player.reset_controls()
 	player.health = player.max_health
 	player.stamina = 100
@@ -1011,6 +1159,18 @@ func tell(caption: String) -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
+	for i in range(pickup_effects.size() - 1, -1, -1):
+		var effect: Dictionary = pickup_effects[i]
+		if not is_instance_valid(effect.node):
+			pickup_effects.remove_at(i)
+			continue
+		if playing:
+			effect.time -= dt
+			effect.node.position.y += dt * 0.7
+			effect.node.scale += Vector3.ONE * dt * 2
+		if effect.time <= 0:
+			effect.node.queue_free()
+			pickup_effects.remove_at(i)
 	for label in get_tree().get_nodes_in_group("landmark_labels"):
 		label.visible = playing
 	if not is_instance_valid(player):
@@ -1027,6 +1187,8 @@ func _process(dt: float) -> void:
 				store.memory().ground.has(object.id)
 				and store.memory().ground[object.id].cave == in_cave
 			)
+	if use_expeditions and expedition != null:
+		expedition.tick(dt)
 	nav_marker.visible = not in_cave
 	nav_marker.rotation.y += dt
 	proximity_timer -= dt
@@ -1046,8 +1208,8 @@ func _process(dt: float) -> void:
 					sound.cue(660 if object.kind == "coin" else 990, 0.08, 0.05)
 					proximity_timer = 0.4
 
-	cloud_node.visible = not store.memory().cloud
-	companion.visible = store.memory().cloud
+	cloud_node.visible = not use_expeditions and not store.memory().cloud
+	companion.visible = not use_expeditions and store.memory().cloud
 	if companion.visible:
 		var target: Vector3 = player.position + Vector3(1.8, 2.5 + sin(clock * 2) * 0.2, 1.4)
 		if companion.position.distance_to(target) > 30:
@@ -1124,6 +1286,9 @@ func auto_collect(dt: float) -> void:
 			"drop":
 				committed = store.claim_drop(object.id, object.value == 1)
 		if committed:
+			celebrate_pickup(
+				object.base, Color("ffd347") if object.kind == "coin" else Color("5df3ff")
+			)
 			object.node.visible = false
 			sound.cue(880 if object.kind != "seed" else 1100, 0.08, 0.07)
 		else:
@@ -1225,3 +1390,35 @@ func next_weapon() -> int:
 		):
 			return candidate
 	return 0
+
+
+func celebrate_pickup(at: Vector3, tint: Color) -> void:
+	if pickup_effects.size() >= 8:
+		return
+	var effect := Node3D.new()
+	world.add_child(effect)
+	effect.position = at
+	for i in range(6):
+		var spark := Art.sphere(
+			effect, Vector3(cos(i * TAU / 6) * 0.16, 0.3, sin(i * TAU / 6) * 0.16), 0.045, tint, 1.5
+		)
+		spark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pickup_effects.append({"node": effect, "time": 0.35})
+
+
+func buy_pack_upgrade() -> void:
+	if not at_workbench():
+		tell("Return to camp for a backpack upgrade.")
+		return
+	if store.upgrade_pack():
+		hud.show_bag()
+		tell("Backpack upgraded • +10 capacity. Your supplies stay with you.")
+		sound.cue(1046, 0.3, 0.14)
+	else:
+		tell(store.last_error)
+
+
+func brief_if_new() -> void:
+	if use_expeditions and not store.memory().expedition.get("brief_seen", false):
+		store.memory().expedition.brief_seen = true
+		hud.show_brief()

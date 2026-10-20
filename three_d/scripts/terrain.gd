@@ -16,6 +16,11 @@ const NAMES = [
 	"Emberfall Crags",
 	"Cloudgarden"
 ]
+var layout_version := 0
+var formation := 0
+var landform := "Highlands"
+var mountain_a := Vector2(-22, -24)
+var mountain_b := Vector2(26, -22)
 var index := 0
 var seed_value := 0
 var scale_factor := 1.0
@@ -28,7 +33,8 @@ var spawn_points: Array[Vector3] = []
 var vertex_style: Dictionary = {}
 
 
-func configure(world_seed: int, island: int) -> void:
+func configure(world_seed: int, island: int, layout: int = 0) -> void:
+	layout_version = layout
 	seed_value = world_seed + island * 7919
 	index = island
 	rng.seed = seed_value
@@ -57,9 +63,49 @@ func configure(world_seed: int, island: int) -> void:
 		[anchors.camp, Vector2(14, 9) * scale_factor, anchors.ruins, anchors.ridge]
 	]
 
+	if layout_version >= 2:
+		formation = posmod(seed_value / 7 + index, 4)
+		landform = ["Shattered Coast", "Windward Spine", "Three-Cape Basin", "Twin Summit"][formation]
+		scale_factor = rng.randf_range(1.02, 1.55)
+		var spin := rng.randf_range(-PI, PI)
+		for key in anchors:
+			var base: Vector2 = anchors[key].normalized() * (anchors[key].length() / 1.1)
+			base = base.rotated(spin) + Vector2(rng.randf_range(-4, 4), rng.randf_range(-2, 2))
+			var maximum := radius(atan2(base.y, base.x)) - 9.0
+			anchors[key] = base.limit_length(maximum)
+		var sites := [anchors.ruins, anchors.cave, anchors.ridge]
+		var offset := posmod(index + formation, 3)
+		anchors.ruins = sites[offset]
+		anchors.cave = sites[(offset + 1) % 3]
+		anchors.ridge = sites[(offset + 2) % 3]
+		mountain_a = Vector2(rng.randf_range(-27, -12), rng.randf_range(-26, 8))
+		mountain_b = Vector2(rng.randf_range(14, 29), rng.randf_range(-23, 3))
+		paths = [
+			[
+				anchors.camp,
+				anchors.camp.lerp(anchors.cave, 0.5),
+				anchors.cave,
+				anchors.ridge,
+				anchors.gate
+			],
+			[anchors.camp, anchors.camp.lerp(anchors.ruins, 0.55), anchors.ruins, anchors.ridge]
+		]
+
 
 func radius(angle: float) -> float:
 	var phase := float(posmod(seed_value, 100)) * 0.1
+	if layout_version >= 2:
+		var r := 44.0
+		match formation:
+			0:
+				r += 8 * sin(angle * 2 + phase) + 4 * cos(angle * 5)
+			1:
+				r = 44.0 / sqrt(pow(cos(angle) / 0.8, 2) + pow(sin(angle) / 1.32, 2))
+			2:
+				r += 9 * cos(angle * 3 + phase) + 4 * sin(angle * 5)
+			3:
+				r += 7 * cos(angle * 2 - phase) + 5 * sin(angle * 4)
+		return r * scale_factor
 	return (
 		(43 + 4 * sin(angle * 3 + phase) + 3 * sin(angle * 5 - phase) + 2 * cos(angle * 7))
 		* scale_factor
@@ -81,8 +127,8 @@ func path_distance(p: Vector2) -> float:
 
 func height_at(p: Vector2) -> float:
 	var q := p / scale_factor
-	var hill := 11.0 * exp(-q.distance_squared_to(Vector2(-22, -24)) / 100.0)
-	hill += 7.0 * exp(-q.distance_squared_to(Vector2(26, -22)) / 95.0)
+	var hill := 11.0 * exp(-q.distance_squared_to(mountain_a) / 100.0)
+	hill += 7.0 * exp(-q.distance_squared_to(mountain_b) / 95.0)
 	var wave := sin(q.x * 0.09) * cos(q.y * 0.08) * 1.5 + noise.get_noise_2dv(p) * 0.55
 	# Accessible ramps connect landmarks; steep mountain faces remain off the trail.
 	var distance := path_distance(p)
@@ -113,10 +159,8 @@ func build() -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_material(Art.material(Color.WHITE))
-	var m := StandardMaterial3D.new()
-	m.vertex_color_use_as_albedo = true
-	m.vertex_color_is_srgb = true
-	m.roughness = 0.94
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/terrain_detail.gdshader")
 	st.set_material(m)
 	vertex_style.clear()
 	var rings := 48
@@ -265,3 +309,84 @@ func decorate() -> void:
 		mm.set_instance_color(i, Color.WHITE)
 	flowers.multimesh = mm
 	add_child(flowers)
+
+
+func guided_route(start: Vector3, finish: Vector3) -> PackedVector3Array:
+	# Shortest route over the actual trail graph, with endpoint projection so
+	# players are not sent straight across steep hills between landmarks.
+	var nodes: Array[Vector2] = []
+	var edges: Dictionary = {}
+	for route in paths:
+		for point in route:
+			if point not in nodes:
+				nodes.append(point)
+	for route in paths:
+		for i in range(route.size() - 1):
+			var a := nodes.find(route[i])
+			var b := nodes.find(route[i + 1])
+			if not edges.has(a):
+				edges[a] = []
+			if not edges.has(b):
+				edges[b] = []
+			edges[a].append(b)
+			edges[b].append(a)
+	var from := Vector2(start.x, start.z)
+	var to := Vector2(finish.x, finish.z)
+	var distances := {}
+	var previous := {}
+	var visited := []
+	# Connect to the nearest vertex. Dense authored midpoint nodes keep this
+	# conservative; the final few metres lead directly to the target prop.
+	var from_link := guide_projection(nodes, edges, from)
+	var to_link := guide_projection(nodes, edges, to)
+	var source: int = from_link.id
+	var target: int = to_link.id
+	if from_link.a == to_link.a and from_link.b == to_link.b:
+		edges[source].append(target)
+		edges[target].append(source)
+	for i in range(nodes.size()):
+		distances[i] = INF
+	distances[source] = 0.0
+	for count in range(nodes.size()):
+		var current := -1
+		for i in range(nodes.size()):
+			if i not in visited and (current < 0 or distances[i] < distances[current]):
+				current = i
+		if current < 0 or current == target:
+			break
+		visited.append(current)
+		for neighbor in edges.get(current, []):
+			var candidate: float = distances[current] + nodes[current].distance_to(nodes[neighbor])
+			if candidate < distances[neighbor]:
+				distances[neighbor] = candidate
+				previous[neighbor] = current
+	var chain := [target]
+	while chain[0] != source and previous.has(chain[0]):
+		chain.push_front(previous[chain[0]])
+	var result := PackedVector3Array([start])
+	for i in chain:
+		var point: Vector2 = nodes[i]
+		result.append(Vector3(point.x, height_at(point) + 0.2, point.y))
+	result.append(finish)
+	return result
+
+
+func guide_projection(nodes: Array[Vector2], edges: Dictionary, at: Vector2) -> Dictionary:
+	var best := INF
+	var point := at
+	var a := 0
+	var b := 0
+	for route in paths:
+		for i in range(route.size() - 1):
+			var projection := Geometry2D.get_closest_point_to_segment(at, route[i], route[i + 1])
+			if at.distance_squared_to(projection) < best:
+				best = at.distance_squared_to(projection)
+				point = projection
+				a = nodes.find(route[i])
+				b = nodes.find(route[i + 1])
+	var id := nodes.size()
+	nodes.append(point)
+	edges[id] = [a, b]
+	edges[a].append(id)
+	edges[b].append(id)
+	return {"id": id, "a": a, "b": b}

@@ -4,6 +4,43 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.14.0] - 2026-10-20
+
+### Adventure loop
+
+- Replaced the active repeated cloud-rescue loop with three persistent contracts:
+  defended relay calibration, survey/underground archive recovery, and sentinel
+  outpost clearance. Contract rotation varies independently of the six biomes.
+- New expeditions open a themed briefing with three tasks and an extraction
+  payment. Players can prioritize available tasks and follow a cyan trail over
+  the walkable path graph; the HUD names the action and remaining distance.
+- Relay channels take 1.8 seconds and break on damage or leaving range. Vaults
+  require both survey fragments and decoded terminals. Outpost targets remain
+  defeated after their objectives commit. Menus pause all contract timers.
+- Optional field caches award 15 Starlight and ammunition when capacity allows.
+  Camp backpack upgrades cost 50 Starlight for +10 capacity, up to three upgrades.
+
+### World and presentation
+
+- Four coastline formations, seeded landmark relocation, mountain placement and
+  increased scale variation for newly generated islands. Existing layouts and
+  saved dropped-item positions are retained.
+- Bright pickup colors, cyan/violet/gold shafts, claim bursts, warmer daylight,
+  cooler ambient fill and fine continuous ground shading.
+- Updated archive terminology and instructions; the active loop no longer asks
+  players to rescue a cloud on each island. Existing cloud/seeds data remain saved.
+
+### Reliability and limits
+
+- Contract flags, extraction payments, cache claims and upgrades use atomic save
+  transactions with failed-write rollback. JSON numeric progress flags are
+  normalized on load, including older seed flags.
+- Added tests for terrain variants, physical guided traversal, all three contract
+  paths, pause/interruption, save/reload, extraction and upgrade limits.
+- This remains a stylized adventure with a finite set of contract/landmark types;
+  it is not a photorealistic or endlessly unique content generator. Device frame
+  rates, retention and excitement are not measured by the automated checks.
+
 ## [3D 0.13.0] - 2026-10-20
 
 ### Added

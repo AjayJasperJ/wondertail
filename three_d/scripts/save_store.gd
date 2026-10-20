@@ -54,6 +54,13 @@ func load_save() -> bool:
 			if not data.has("bag"):
 				data.bag = starter_bag()
 			data.bag.merge({"gun": false, "bullets": 0}, false)
+			for island in data.islands.values():
+				island.seeds = island.seeds.map(func(value): return int(value))
+				if island.has("expedition"):
+					island.expedition.kind = int(island.expedition.kind)
+					island.expedition.done = island.expedition.done.map(
+						func(value): return int(value)
+					)
 			return true
 	return false
 
@@ -70,6 +77,16 @@ static func valid(value: Variant) -> bool:
 		or value.island < 0
 		or value.island > value.unlocked
 		or value.coins < 0
+	):
+		return false
+	if (
+		value.has("pack_level")
+		and (
+			not (value.pack_level is int or value.pack_level is float)
+			or value.pack_level < 0
+			or value.pack_level > 3
+			or value.pack_level != floor(value.pack_level)
+		)
 	):
 		return false
 	if not value.get("islands") is Dictionary:
@@ -112,6 +129,28 @@ static func valid(value: Variant) -> bool:
 		for flag in ["cloud", "restored", "cave"]:
 			if not island.get(flag) is bool:
 				return false
+		if island.has("expedition"):
+			var contract = island.expedition
+			if (
+				not contract is Dictionary
+				or not (contract.get("kind") is int or contract.get("kind") is float)
+				or contract.kind < 0
+				or contract.kind > 2
+				or contract.kind != floor(contract.kind)
+				or not contract.get("done") is Array
+			):
+				return false
+			var seen := []
+			for step in contract.done:
+				if (
+					not (step is int or step is float)
+					or step < 0
+					or step > 2
+					or step != floor(step)
+					or step in seen
+				):
+					return false
+				seen.append(step)
 		if (
 			island.has("drop_serial")
 			and (
@@ -162,7 +201,7 @@ func memory(index: int = -1) -> Dictionary:
 	var key := str(index)
 	if not data.islands.has(key):
 		data.islands[key] = {
-			"picked": [], "seeds": [], "cloud": false, "restored": false, "cave": false
+			"picked": [], "seeds": [], "cloud": false, "restored": false, "cave": false, "layout": 2
 		}
 	data.islands[key].merge({"ground": {}, "drop_serial": 0}, false)
 	return data.islands[key]
@@ -222,7 +261,7 @@ func weight() -> float:
 
 
 func capacity() -> float:
-	return [40.0, 30.0, 60.0][int(data.hero)]
+	return [40.0, 30.0, 60.0][int(data.hero)] + 10.0 * int(data.get("pack_level", 0))
 
 
 func gather(id: String, resource: String) -> bool:
@@ -374,3 +413,17 @@ func grid_recipe(grid: Array) -> String:
 		if ingredients == RECIPES[recipe]:
 			return recipe
 	return ""
+
+
+func upgrade_pack() -> bool:
+	if int(data.get("pack_level", 0)) >= 3:
+		last_error = "Backpack already has all three upgrades."
+		return false
+	if int(data.coins) < 50:
+		last_error = "An expedition pays enough for an upgrade. You need 50 Starlight."
+		return false
+	return transact(
+		func():
+			data.coins -= 50
+			data.pack_level = int(data.get("pack_level", 0)) + 1
+	)

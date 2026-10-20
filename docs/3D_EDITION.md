@@ -1,9 +1,9 @@
-# Wondertail 3D — 0.13.0
+# Wondertail 3D — 0.14.0
 
 The 3D action-adventure edition uses Godot **4.4.1**, GDScript and
 procedural environments and bundled Quaternius character/creature models. Flutter
 v0.8 remains in the same repository.
-This document describes implemented behavior, not the entire v0.13.0 blueprint.
+This document describes implemented behavior, not the entire v0.14.0 blueprint.
 
 ## The expedition
 
@@ -232,4 +232,7 @@ See [v0.12 camera controls, shipped changes and explicit limits](3D_POLISH_V0.12
 
 
 
-See [inventory, crafting and equipment in 0.13.0](INVENTORY_V0.13.md) for current backpack rules.
+See [inventory, crafting and equipment in 0.14.0](INVENTORY_V0.13.md) for current backpack rules.
+
+
+See [0.14 expedition contracts and migration](EXPEDITIONS_V0.14.md) for the active adventure loop.

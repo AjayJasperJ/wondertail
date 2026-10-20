@@ -1,8 +1,8 @@
 # WONDERTAIL
 
-An offline floating-island adventure where kindness opens new paths.
+Recover a lost network of floating islands in an offline action adventure.
 
-**3D version: 0.13.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.14.0** · Godot 4.4.1 · `three_d/`
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
@@ -14,10 +14,11 @@ deployment on your phone or computer; no APK installation needed.
 
 ## Play the new 3D edition
 
-Explore irregular floating highlands with physical hills, cliffs, trees, ruins,
-a ridge bridge, waterfalls and an explorable cave. Free a cloud companion,
-gather three skyseeds, solve the cavern's song, defeat a ridge warden and restore
-the sky beacon to reach the next seeded island. Discoveries and Starlight persist.
+Recover the lost island network through rotating expeditions: calibrate defended
+relays, recover survey fragments and breach an underground archive, or clear
+sentinel outposts. Follow a cyan route, choose a task in the briefing, secure
+three objectives and claim an extraction reward. Optional caches fund permanent
+backpack upgrades. Progress and dropped loot persist offline.
 
 - Rigged Quaternius adventurer/farmer characters and animated biome creatures.
 - Muted highland terrain, small grass tufts, mixed leafy trees and pines, a timber
@@ -28,8 +29,12 @@ the sky beacon to reach the next seeded island. Discoveries and Starlight persis
   north-up loot/mob/objective radar, aiming, physical crouching and three-heart feedback.
 - Camera collision, analog movement, sprinting, double
   jumps, sword strikes, stamina-driven dashes, health and safe camp respawns.
-- Six biome identities, varied island sizes/coastlines, accessible landmark
-  trails, proximity cues and an original synthesized looping score.
+- Six biomes and four new terrain formations with seeded landmark positions,
+  varying mountain placement, coastline and scale on newly generated islands.
+- Automatic expedition briefings, selectable task priorities and a route guide
+  following walkable trails. Clear action verbs and extraction payments.
+- Cyan/gold/violet loot shafts, saturated pickups, pickup bursts, fine ground
+  shading and warmer daylight. An original synthesized looping score.
 - Touch joystick on the left, camera drag over the world, actions on the right,
   compact bottom-center health/stamina and persistent offline progression.
 - Nearby unlocked loot pulls into the backpack with wall checks and durable receipts.
@@ -50,6 +55,7 @@ in-place updates between CI builds may require matching signing keys.
 Run `python3 tool/prepare_3d_assets.py` to generate the selected runtime models,
 then open `three_d/project.godot` with **Godot 4.4.1** and press F5.
 Selected models are bundled; no asset downloads, plugins or network services are required.
+[Expedition rules, progression and limits](docs/EXPEDITIONS_V0.14.md) ·
 [Inventory, crafting and asset details](docs/INVENTORY_V0.13.md) ·
 [Camera/combat features and limits](docs/3D_POLISH_V0.12.md) ·
 [Art credits and source licenses](three_d/assets/ASSET_CREDITS.md) ·
@@ -61,6 +67,7 @@ godot --path three_d
 godot --headless --path three_d --editor --quit
 godot --headless --path three_d --script tests/smoke.gd
 godot --headless --path three_d --script tests/inventory.gd
+godot --headless --path three_d --script tests/expeditions.gd
 python3 three_d/tests/check_packaging.py
 ```
 
@@ -71,7 +78,8 @@ On touch, RUN toggles sprint; all menus pause gameplay. Low detail disables
 shadows and distant scenery; new mobile installs default to Low.
 
 This is the first playable 3D conversion, with a smaller feature set than the 2D
-edition. Its six biomes remix a finite landmark/quest library. It does not yet
+edition. Its six biomes remix three contract families and a finite landmark library. Previously
+visited islands keep their layouts; new islands use the expanded terrain generator. It does not yet
 port the remaining 2D arsenal, expanded inventory, three puzzle families or Trailblazer mode.
 Old Flutter saves stay in the original app; there is no cross-engine importer.
 See [3D gameplay, build instructions and limits](docs/3D_EDITION.md).

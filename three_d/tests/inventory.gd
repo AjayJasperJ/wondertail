@@ -90,6 +90,7 @@ func run():
 	root.add_child(game)
 	await process_frame
 	game.store = copy
+	game.use_expeditions = false
 	game.store.data = Store.fresh()
 	game.store.data.bag.wood = 40
 	game.store.data.bag.arrows = 0

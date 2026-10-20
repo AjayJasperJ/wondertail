@@ -14,6 +14,9 @@ static func material(color: Color, glow: float = 0.0) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = 0.85
+	if color == Color("ffd347"):
+		m.metallic = 0.7
+		m.roughness = 0.25
 	if glow > 0:
 		m.emission_enabled = true
 		m.emission = color
@@ -34,13 +37,13 @@ static func mesh(
 
 
 static func box(
-	parent: Node3D, at: Vector3, size: Vector3, color: Color, solid: bool = false
+	parent: Node3D, at: Vector3, size: Vector3, color: Color, solid: bool = false, glow: float = 0.0
 ) -> MeshInstance3D:
 	var key := str(size)
 	if not rounded_boxes.has(key):
 		rounded_boxes[key] = rounded_box(size)
 	var b: Mesh = rounded_boxes[key]
-	var n := mesh(parent, b, at, color)
+	var n := mesh(parent, b, at, color, glow)
 	if solid:
 		var s := BoxShape3D.new()
 		s.size = size
@@ -60,14 +63,20 @@ static func sphere(
 
 
 static func cone(
-	parent: Node3D, at: Vector3, bottom: float, top: float, height: float, color: Color
+	parent: Node3D,
+	at: Vector3,
+	bottom: float,
+	top: float,
+	height: float,
+	color: Color,
+	glow: float = 0.0
 ) -> MeshInstance3D:
 	var b := CylinderMesh.new()
 	b.bottom_radius = bottom
 	b.top_radius = top
 	b.height = height
 	b.radial_segments = 16
-	return mesh(parent, b, at, color)
+	return mesh(parent, b, at, color, glow)
 
 
 static func rounded_box(size: Vector3) -> ArrayMesh:
@@ -268,4 +277,32 @@ static func model(parent: Node3D, path: String, extent: float, axis: int = 1) ->
 			source.position -= (
 				Vector3(bounds.get_center().x, bounds.position.y, bounds.get_center().z) * factor
 			)
+	return root
+
+
+static var ray_material: ShaderMaterial
+
+
+static func loot_ray(parent: Node3D, tint: Color, height: float = 3.0) -> Node3D:
+	if ray_material == null:
+		ray_material = ShaderMaterial.new()
+		ray_material.shader = load("res://shaders/loot_ray.gdshader")
+	var root := Node3D.new()
+	parent.add_child(root)
+	var m := ray_material.duplicate() as ShaderMaterial
+	m.set_shader_parameter("tint", tint)
+	for side in range(2):
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.8, height)
+		var plane := MeshInstance3D.new()
+		plane.mesh = quad
+		plane.material_override = m
+		plane.position.y = height * 0.5
+		plane.rotation.y = side * PI / 2
+		plane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(plane)
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.48
+	ring.outer_radius = 0.54
+	mesh(root, ring, Vector3(0, 0.09, 0), tint, 1.4)
 	return root

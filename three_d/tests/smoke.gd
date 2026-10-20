@@ -193,6 +193,7 @@ func run() -> void:
 	)
 	var live_path: String = scene.store.path
 	scene.store.path = store.path + ".game"
+	scene.use_expeditions = false
 	scene.store.data = Store.fresh()
 	scene.build_world()
 	scene.start_game()
@@ -377,6 +378,7 @@ func polish_checks(scene) -> void:
 		not drops.claim_drop("failed", false) and not "failed" in drops.memory().picked,
 		"Failed loot writes roll back receipt"
 	)
+	scene.use_expeditions = false
 	scene.store.data = Store.fresh()
 	scene.build_world()
 	scene.pause_game()

@@ -71,7 +71,13 @@ func hit(amount: float, direction: Vector3) -> void:
 		collision_layer = 0
 		if elite:
 			game.guardian_defeated = true
-			game.tell("The warden rests. The ridge skyseed is yours.")
+			game.tell(
+				(
+					"The warden is down. The ridge is clear."
+					if game.use_expeditions
+					else "The warden rests. The ridge skyseed is yours."
+				)
+			)
 		else:
 			respawn_timer = 30
 
@@ -80,6 +86,8 @@ func _physics_process(dt: float) -> void:
 	if game == null or not game.playing or game.in_cave:
 		return
 	if health <= 0:
+		if has_meta("expedition_target"):
+			return
 		if not elite:
 			respawn_timer -= dt
 			if respawn_timer <= 0 and game.player.position.distance_to(home) > 14:
