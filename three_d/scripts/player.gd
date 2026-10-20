@@ -1,7 +1,16 @@
 extends CharacterBody3D
+const CameraManager = preload("res://scripts/camera_manager.gd")
 const Art = preload("res://scripts/art.gd")
 const ModelActor = preload("res://scripts/model_actor.gd")
 var game
+var cameras := CameraManager.new()
+var crouching := false
+var slow_time := 0.0
+var burn_time := 0.0
+var burn_tick := 0.0
+var stun_time := 0.0
+var collider: CollisionShape3D
+var standing_height := 1.9
 var body
 var sword: Node3D
 var bow: Node3D
@@ -49,6 +58,8 @@ func setup(owner_game, chosen: int) -> void:
 	col.shape = capsule
 	col.position.y = capsule.height * 0.5
 	add_child(col)
+	collider = col
+	standing_height = capsule.height
 	body = ModelActor.new()
 	body.controller = game
 	add_child(body)
@@ -85,24 +96,34 @@ func setup(owner_game, chosen: int) -> void:
 	arm.add_excluded_object(get_rid())
 	arm.add_child(camera)
 	camera.fov = 64
-	camera.near = 0.15
+	camera.near = 0.06
 	camera.far = 240
 	camera.current = true
 	pivot.rotation = Vector3(pitch, yaw, 0)
+	add_child(cameras)
+	cameras.setup(self)
 
 
 func look(delta: Vector2) -> void:
 	var sensitivity := float(game.store.data.sensitivity) * 0.004
 	yaw -= delta.x * sensitivity
-	pitch = clampf(pitch - delta.y * sensitivity, -1.10, -0.12)
+	pitch = clampf(
+		pitch - delta.y * sensitivity,
+		-1.10,
+		0.85 if cameras.mode in [1, 2] or cameras.aiming else -0.12
+	)
 	pivot.rotation = Vector3(pitch, yaw, 0)
 
 
 func request_jump() -> void:
+	if cameras.reveal_remaining > 0:
+		return
 	jump_buffer = 0.16
 
 
 func attack() -> void:
+	if stun_time > 0 or cameras.reveal_remaining > 0:
+		return
 	if int(game.store.data.bag.weapon) == 1:
 		if attack_cooldown <= 0 and stamina >= 6 and game.fire_arrow():
 			stamina -= 6
@@ -122,6 +143,8 @@ func refresh_weapon() -> void:
 
 
 func dash() -> void:
+	if cameras.reveal_remaining > 0 or stun_time > 0:
+		return
 	if dash_cooldown > 0 or stamina < 30:
 		return
 	stamina -= 30
@@ -144,6 +167,35 @@ func hurt(amount: float) -> void:
 		game.respawn()
 
 
+func toggle_crouch() -> void:
+	if crouching:
+		# Test the standing capsule before expanding into a ceiling.
+		var shape := CapsuleShape3D.new()
+		shape.radius = collider.shape.radius
+		shape.height = standing_height
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = shape
+		query.transform = Transform3D(
+			Basis.IDENTITY, global_position + Vector3.UP * standing_height * 0.5
+		)
+		query.collision_mask = 1
+		query.exclude = [get_rid()]
+		if not get_world_3d().direct_space_state.intersect_shape(query).is_empty():
+			return
+	crouching = not crouching
+	collider.shape.height = standing_height * (0.65 if crouching else 1.0)
+	collider.position.y = collider.shape.height * 0.5
+
+
+func apply_status(kind: String) -> void:
+	if kind == "burn":
+		burn_time = 3.0
+	elif kind == "slow":
+		slow_time = 3.0
+	elif kind == "stun":
+		stun_time = 0.6
+
+
 func reset_controls() -> void:
 	stick = Vector2.ZERO
 	sprinting = false
@@ -154,6 +206,14 @@ func reset_controls() -> void:
 func _physics_process(dt: float) -> void:
 	if game == null or not game.playing:
 		return
+	cameras.tick(dt)
+	slow_time = maxf(0, slow_time - dt)
+	stun_time = maxf(0, stun_time - dt)
+	burn_time = maxf(0, burn_time - dt)
+	burn_tick -= dt
+	if burn_time > 0 and burn_tick <= 0:
+		burn_tick = 1.4
+		hurt(5)
 	invulnerable = maxf(0, invulnerable - dt)
 	attack_cooldown = maxf(0, attack_cooldown - dt)
 	dash_cooldown = maxf(0, dash_cooldown - dt)
@@ -175,11 +235,21 @@ func _physics_process(dt: float) -> void:
 		game.sound.cue(410 + jumps * 110, 0.1, 0.1)
 	var input := Input.get_vector("left", "right", "forward", "back") + stick
 	input = input.limit_length()
+	if stun_time > 0 or cameras.reveal_remaining > 0:
+		input = Vector2.ZERO
+		jump_buffer = 0
 	var direction := Basis(Vector3.UP, yaw) * Vector3(input.x, 0, input.y)
 	var running := (
-		(sprinting or Input.is_action_pressed("sprint")) and stamina > 2 and input.length() > 0.2
+		(sprinting or Input.is_action_pressed("sprint"))
+		and not crouching
+		and stamina > 2
+		and input.length() > 0.2
 	)
-	var target_speed := speed * (1.55 if running else 1.0)
+	var target_speed := (
+		speed
+		* (0.45 if crouching else (1.55 if running else 1.0))
+		* (0.55 if slow_time > 0 else 1.0)
+	)
 	if dash_cooldown < 2.15:
 		velocity.x = move_toward(velocity.x, direction.x * target_speed, dt * 34)
 		velocity.z = move_toward(velocity.z, direction.z * target_speed, dt * 34)
@@ -203,7 +273,7 @@ func _physics_process(dt: float) -> void:
 		)
 	else:
 		body.play(["Idle_Neutral", "Idle"], true)
-	body.visible = invulnerable <= 0 or int(invulnerable * 14) % 2 == 0
+	body.scale.y = lerpf(body.scale.y, 0.7 if crouching else 1.0, 1 - exp(-dt * 12))
 	walking_sound -= dt
 	if horizontal > 0.8 and is_on_floor() and walking_sound <= 0:
 		walking_sound = 0.3 if not running else 0.21

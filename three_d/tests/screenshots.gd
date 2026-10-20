@@ -30,6 +30,15 @@ func run() -> void:
 	await capture("trail.png")
 	game.player.position = game.terrain.point("ruins") + Vector3(0, 0.2, 7)
 	await capture("ruins.png")
+	for mode in range(4):
+		game.player.cameras.mode = mode
+		for i in range(50):
+			await physics_frame
+		await capture("camera-%d.png" % mode)
+	game.player.cameras.mode = 0
+	game.player.toggle_crouch()
+	await capture("crouch.png")
+	game.player.toggle_crouch()
 	game.enter_cave()
 	await capture("cave.png")
 	game.pause_game()

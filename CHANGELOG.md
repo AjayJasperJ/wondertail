@@ -4,7 +4,41 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
-## [Unreleased]
+## [3D 0.12.0] - 2026-10-20
+
+### Added
+
+- Modular trailing, eye-level, left/right shoulder and tactical overhead cameras,
+  aim zoom/crosshair and a skippable three-second beacon restoration reveal.
+- North-up radar with nearby loot, enemies and motion vectors, objective markers
+  and cave rune/exit markers. The existing world beacon remains the 3D waypoint.
+- Translucent rounded touch actions for aiming, camera/shoulder switching and
+  physical crouching, plus a three-heart display above the health/stamina HUD.
+- Automatic coin, material, unlocked skyseed and mob-drop collection with suction,
+  solid-terrain line-of-sight checks, storage retry backoff and durable receipts.
+- New-game bow and 24 arrows. Defeated mobs drop arrows, Starlight and a crystal
+  when inventory capacity allows; each mob reward is limited to once per island.
+- Fading proximity health indicators, volcanic burning, winter slowing and
+  telegraphed, wall-blocked elite stun projectiles. All timers pause in menus.
+- Physical crouch capsule with ceiling clearance checks and smooth visual height
+  transitions. Death clears negative effects; existing double-jump physics remain.
+- Animated pool ripple/foam shader, denser layered broadleaf crowns with branches
+  and shader-driven wind, and directional melee sparks replacing swing rings.
+- Regression checks for cameras, crouch/ceilings, default equipment, quest locks,
+  pickup occlusion, storage recovery, mob receipt reload and paused timers.
+
+### Compatibility and limits
+
+- Existing save schema, island progress and owned equipment are retained. The
+  starter bow applies to new games; older bags keep their existing loadout.
+- Three hearts summarize the existing continuous HP pool, preserving explorer
+  health differences; this is not a rule that every hit costs one whole heart.
+- Tactical overhead is the specification's "6th person" view, not a distinct
+  standard camera projection. Reveal pans play on restoration and can be skipped.
+- Trees remain stylized procedural 3D geometry. Pool shading uses procedural
+  ripple/foam and radial depth tint, not physically accurate depth/refraction.
+- Guns/armory caches, diamonds, throwables, inventory tabs, rope/map-coloring games
+  and larger new level layouts are not implemented by this polish release.
 
 ### Deployment
 
@@ -272,3 +306,4 @@ Older dates are omitted where they were not recorded in the release history.
 
 - First playable Flutter/Flame prototype with player movement, the lost-cloud
   adventure, world interactions, and local persistence.
+

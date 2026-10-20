@@ -1,5 +1,8 @@
 extends Control
+const Minimap = preload("res://scripts/minimap.gd")
 var game
+var camera_label: Label
+var hearts: RichTextLabel
 var page := "lobby"
 var widgets := Control.new()
 var objective: Label
@@ -234,8 +237,25 @@ func show_game() -> void:
 	text("W O N D E R T A I L", Vector2(36, 63), 14, Color("bed6d0"))
 	button("Ⅱ  CAMP", Rect2(1100, 26, 140, 48), game.pause_game)
 	button("BAG", Rect2(1100, 90, 140, 48), game.open_bag)
+	var radar := Minimap.new()
+	radar.game = game
+	radar.position = Vector2(1060, 158)
+	widgets.add_child(radar)
+	text("N", Vector2(1141, 146), 14, title_color)
+	camera_label = text("", Vector2(850, 110), 14, Color("bed6d0"))
+	button("VIEW", Rect2(900, 175, 88, 48), func(): game.action("camera_mode"))
+	button("L / R", Rect2(900, 235, 88, 48), func(): game.action("shoulder"))
+	hearts = RichTextLabel.new()
+	hearts.position = Vector2(465, 578)
+	hearts.size = Vector2(220, 34)
+	hearts.bbcode_enabled = true
+	hearts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hearts.add_theme_font_size_override("normal_font_size", 22)
+	widgets.add_child(hearts)
+	button("CROUCH", Rect2(790, 520, 94, 86), func(): game.action("crouch"))
+	button("AIM", Rect2(1010, 435, 94, 86), func(): game.action("aim"))
 	action_buttons["weapon"] = button(
-		"SWAP", Rect2(900, 520, 94, 70), func(): game.action("weapon")
+		"SWAP", Rect2(900, 520, 94, 86), func(): game.action("weapon")
 	)
 	vitals = text("", Vector2(465, 608), 16)
 	health = bar(Vector2(465, 638), Color("e89e80"))
@@ -250,10 +270,21 @@ func show_game() -> void:
 	]
 	for entry in entries:
 		var action: String = entry[2]
-		var b := button(entry[0], Rect2(entry[1], Vector2(94, 70)), func(): game.action(action))
+		var b := button(entry[0], Rect2(entry[1], Vector2(94, 86)), func(): game.action(action))
 		action_buttons[action] = b
 		if action == "sprint":
 			b.toggle_mode = true
+	# Thumb controls have independent translucent circular hit zones.
+	for child in widgets.get_children():
+		if child is Button and child.position.y >= 435 and child != prompt:
+			for state in ["normal", "hover", "pressed"]:
+				var style := StyleBoxFlat.new()
+				style.bg_color = Color(0.08, 0.19, 0.22, 0.5 if state != "pressed" else 0.85)
+				style.border_color = Color(0.78, 0.87, 0.77, 0.5)
+				style.set_border_width_all(1)
+				style.set_corner_radius_all(42)
+				child.add_theme_stylebox_override(state, style)
+			child.add_theme_font_size_override("font_size", 14)
 	text("DRAG THE SKY TO LOOK", Vector2(920, 384), 14, Color("bfd6ce"))
 	text("F  /  E  •  STRIKE / INTERACT", Vector2(36, 96), 14, Color("bed6d0"))
 
@@ -272,11 +303,15 @@ func show_bag() -> void:
 			child.pressed.connect(game.resume_game)
 	text("LOAD  %.1f / %d" % [game.store.weight(), game.store.capacity()], Vector2(100, 192), 23)
 	text(
-		"WOOD   %d      CRYSTALS   %d      HERBS   %d" % [bag.wood, bag.crystal, bag.herbs],
+		"MATERIALS: WOOD %d   CRYSTALS %d   HERBS %d" % [bag.wood, bag.crystal, bag.herbs],
 		Vector2(100, 246),
 		23
 	)
-	text("ARROWS   %d      TONICS   %d" % [bag.arrows, bag.tonic], Vector2(100, 293), 23)
+	text(
+		"AMMO: ARROWS   %d      SUPPLIES: TONICS   %d" % [bag.arrows, bag.tonic],
+		Vector2(100, 293),
+		23
+	)
 	button(
 		"EQUIP SWORD" if int(bag.weapon) == 1 else "SWORD  ✓",
 		Rect2(100, 363, 270, 58),
@@ -416,6 +451,14 @@ func set_stick(p: Vector2) -> void:
 func _process(dt: float) -> void:
 	if page == "game":
 		message_time = maxf(0, message_time - dt)
+		var ratio: float = game.player.health / game.player.max_health
+		hearts.text = ""
+		for segment in range(3):
+			var fill := clampf(ratio * 3 - segment, 0, 1)
+			var tint := Color("4e6668").lerp(Color("efa88b"), fill)
+			hearts.text += "[color=#%s]♥ [/color]" % tint.to_html(false)
+		camera_label.text = game.player.cameras.MODES[game.player.cameras.mode]
+		queue_redraw()
 		var ranged: bool = int(game.store.data.bag.weapon) == 1
 		action_buttons.attack.text = "SHOOT" if ranged else "STRIKE"
 		action_buttons.weapon.text = (
@@ -443,6 +486,10 @@ func _draw() -> void:
 		draw_style_panel(Rect2(22, 16, 1000, 76), Color(0.05, 0.12, 0.16, 0.82))
 		draw_style_panel(Rect2(450, 596, 360, 80), Color(0.05, 0.12, 0.16, 0.85))
 		draw_style_panel(Rect2(290, 680, 700, 32), Color(0.05, 0.12, 0.16, 0.78))
+		if game.player.cameras.aiming or game.player.cameras.mode == 1:
+			draw_arc(Vector2(640, 360), 6, 0, TAU, 20, Color("f5e7c8"), 1, true)
+			draw_line(Vector2(630, 360), Vector2(635, 360), Color("f5e7c8"), 1, true)
+			draw_line(Vector2(645, 360), Vector2(650, 360), Color("f5e7c8"), 1, true)
 		draw_circle(Vector2(150, 575), 86, Color(0.04, 0.13, 0.17, 0.48))
 		draw_arc(Vector2(150, 575), 86, 0, TAU, 64, Color(0.79, 0.88, 0.77, 0.5), 2, true)
 		draw_circle(Vector2(150, 575) + stick_delta, 34, Color(0.88, 0.87, 0.68, 0.7))

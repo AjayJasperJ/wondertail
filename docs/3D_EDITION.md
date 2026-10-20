@@ -1,9 +1,9 @@
-# Wondertail 3D — 0.11.0
+# Wondertail 3D — 0.12.0
 
-The first playable third-person conversion uses Godot **4.4.1**, GDScript and
+The 3D action-adventure edition uses Godot **4.4.1**, GDScript and
 procedural environments and bundled Quaternius character/creature models. Flutter
 v0.8 remains in the same repository.
-This document describes implemented behavior, not the complete v0.8 wish list.
+This document describes implemented behavior, not the entire v0.12.0 blueprint.
 
 ## The expedition
 
@@ -20,9 +20,10 @@ This document describes implemented behavior, not the complete v0.8 wish list.
    awards 30 Starlight once and unlocks the next island. Interact again to travel.
    Revisit old islands from the atlas.
 
-Coins are picked up by proximity. Seeds and landmarks use the context action.
-Each seed also awards five Starlight once. Ordinary enemies grant no farmable
-currency. They recover after 30 active seconds when the player is far away.
+Coins, materials, mob drops and unlocked seeds use proximity collection with
+wall checks. Landmarks still use the context action.
+Each seed awards five Starlight once. Mob loot is claimable once per mob per
+island. Ordinary mobs recover after 30 active seconds when the player is far away.
 The warden stays defeated for the current visit; collecting its seed removes it
 from future visits. Progression is untimed and fully offline.
 
@@ -79,6 +80,7 @@ and is not consumed at full health. Camp recovery remains free. Weapon selection
 materials, ammunition and tonics persist; v0.9 saves receive an empty backpack.
 Crafting and shot consumption commit to disk before effects are applied.
 
+New games start with a bow and 24 arrows; existing bags retain their loadout.
 Tab or SWAP changes sword/bow when the bow is owned. F or SHOOT fires the bow
 for six stamina with a 0.65-second cooldown. Each arrow deals 38 damage and
 travels at 30 m/s for up to 2.5 seconds. Up to 24 arrows can exist; swept rays
@@ -96,6 +98,8 @@ cleared on reload/travel; ammunition already spent is not refunded.
 | Sprint | RUN toggles | Hold Shift |
 | Interact | Context action | E |
 | Pause | CAMP | Escape |
+| Camera / shoulder side | VIEW / L-R | C / R |
+| Aim / crouch | AIM / CROUCH | V / X |
 
 Bottom-center vitals and right-side actions leave the center free for play.
 Objective/distance appear at the top, feedback in a themed bottom ribbon. No
@@ -136,7 +140,9 @@ needed. Uninstalling an edition removes its own local data.
 | `main.gd` | Expedition, landmarks, interactions and combat orchestration |
 | `terrain.gd` | Seeded mesh, collision, trails and scenery |
 | `art.gd` | Shared materials and original models |
-| `player.gd` | Capsule physics, camera, animation and vitals |
+| `player.gd` | Capsule physics, animation, crouch and vitals |
+| `camera_manager.gd` | Camera modes, aiming and reveal pans |
+| `minimap.gd` | North-up radar and nearby markers |
 | `creature.gd` | Roaming/chasing/telegraphed attackers |
 | `hud.gd` | Responsive lobby, menus, HUD and multitouch |
 | `save_store.gd` | Validated transactional local storage |
@@ -217,3 +223,8 @@ Foliage uses a camera-only collision layer, so the camera retracts from leaves
 without blocking player movement or projectiles. Standard detail enables 2x MSAA;
 Low disables it along with shadows/distant scenery. Real-phone thermal and
 frame-pacing measurements remain outstanding.
+
+
+## Camera, navigation and collection polish
+
+See [v0.12.0 controls, shipped changes and explicit limits](3D_POLISH_V0.12.md).

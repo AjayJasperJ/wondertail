@@ -22,12 +22,20 @@ static func fresh() -> Dictionary:
 		"quality": 1,
 		"sensitivity": 1.0,
 		"islands": {},
-		"bag": starter_bag()
+		"bag": starter_bag(true)
 	}
 
 
-static func starter_bag() -> Dictionary:
-	return {"wood": 0, "crystal": 0, "herbs": 0, "tonic": 0, "arrows": 0, "bow": false, "weapon": 0}
+static func starter_bag(ranged: bool = false) -> Dictionary:
+	return {
+		"wood": 0,
+		"crystal": 0,
+		"herbs": 0,
+		"tonic": 0,
+		"arrows": 24 if ranged else 0,
+		"bow": ranged,
+		"weapon": 1 if ranged else 0
+	}
 
 
 func load_save() -> bool:
@@ -193,3 +201,16 @@ func equip(weapon: int) -> bool:
 	if weapon not in [0, 1] or (weapon == 1 and not data.bag.bow):
 		return false
 	return transact(func(): data.bag.weapon = weapon)
+
+
+func claim_drop(id: String, elite: bool) -> bool:
+	if id in memory().picked:
+		return false
+	return transact(
+		func():
+			memory().picked.append(id)
+			data.bag.arrows = mini(200, int(data.bag.arrows) + (8 if elite else 3))
+			data.coins += 10 if elite else 2
+			if weight() + 1 <= capacity():
+				data.bag.crystal += 1
+	)

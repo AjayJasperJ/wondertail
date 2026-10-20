@@ -114,6 +114,7 @@ func run() -> void:
 		),
 		"Equipment round trip persists"
 	)
+	bad.data.bag = Store.starter_bag()
 	bad.data.bag.wood = 4
 	bad.data.bag.crystal = 3
 	check(
@@ -336,6 +337,7 @@ func run() -> void:
 		scene.store.data.island == 1 and scene.store.data.coins == reward,
 		"Travel does not duplicate reward"
 	)
+	await polish_checks(scene)
 	scene.store.path = live_path
 	scene.queue_free()
 	await process_frame
@@ -349,3 +351,124 @@ func run() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
 	print("WONDERTAIL 3D: %d checks, %d failures" % [checks, failures.size()])
 	quit(0 if failures.is_empty() else 1)
+
+
+func polish_checks(scene) -> void:
+	check(
+		Store.fresh().bag.bow and Store.fresh().bag.arrows == 24 and Store.fresh().bag.weapon == 1,
+		"New game has a usable default bow"
+	)
+	var drops := Store.new()
+	drops.path = "user://polish_drops_%d.json" % Time.get_ticks_usec()
+	check(drops.claim_drop("warden", true), "Elite drop commits")
+	var ammo: int = drops.data.bag.arrows
+	check(
+		not drops.claim_drop("warden", true) and drops.data.bag.arrows == ammo,
+		"Mob loot cannot be claimed twice"
+	)
+	var recovered := Store.new()
+	recovered.path = drops.path
+	check(
+		recovered.load_save() and not recovered.claim_drop("warden", true),
+		"Mob receipt survives reload"
+	)
+	drops.path = "user://no_such_polish_dir/save.json"
+	check(
+		not drops.claim_drop("failed", false) and not "failed" in drops.memory().picked,
+		"Failed loot writes roll back receipt"
+	)
+	scene.store.data = Store.fresh()
+	scene.build_world()
+	scene.pause_game()
+	var actor = scene.player
+	for i in range(4):
+		actor.cameras.mode = i
+		actor.cameras.tick(1.0)
+		check(actor.camera.fov > 0 and actor.arm.spring_length >= 0, "Valid camera mode %d" % i)
+		check(actor.body.visible == (i != 1), "First person hides local mesh only")
+	actor.cameras.mode = 2
+	actor.cameras.shoulder = -1
+	actor.cameras.tick(1)
+	check(actor.pivot.position.x < 0, "Shoulder camera switches side")
+	actor.cameras.mode = 0
+	actor.position = scene.terrain.point("camp") + Vector3(0, 0.2, 3)
+	actor.toggle_crouch()
+	check(
+		actor.crouching and actor.collider.shape.height < actor.standing_height,
+		"Crouch shrinks physical capsule"
+	)
+	var ceiling_shape := BoxShape3D.new()
+	ceiling_shape.size = Vector3(3, 0.2, 3)
+	var ceiling = preload("res://scripts/art.gd").collider(
+		scene.world, ceiling_shape, actor.position + Vector3(0, 1.65, 0)
+	)
+	await physics_frame
+	await physics_frame
+	actor.toggle_crouch()
+	check(actor.crouching, "Crouched player cannot stand through a low ceiling")
+	ceiling.queue_free()
+	await physics_frame
+	await physics_frame
+	actor.toggle_crouch()
+	check(not actor.crouching, "Standing resumes after ceiling clears")
+	var locked := {"kind": "seed", "value": 0}
+	check(not scene.can_collect(locked), "Locked quest seeds resist automatic collection")
+	scene.store.memory().cloud = true
+	check(scene.can_collect(locked), "Quest condition unlocks automatic collection")
+	var loot := Node3D.new()
+	scene.world.add_child(loot)
+	loot.position = actor.position + Vector3.UP * 0.9
+	scene.add_object("polish_auto", loot, "coin", loot.position)
+	scene.pickup_clock = 0
+	scene.auto_collect(1)
+	check(
+		"polish_auto" in scene.store.memory().picked and not loot.visible,
+		"Automatic coin collection commits and hides the item"
+	)
+	var blocked := Node3D.new()
+	scene.world.add_child(blocked)
+	blocked.position = actor.position + Vector3(2.5, 0.9, 0)
+	scene.add_object("polish_blocked", blocked, "coin", blocked.position)
+	var wall_shape := BoxShape3D.new()
+	wall_shape.size = Vector3(0.2, 3, 3)
+	var wall = preload("res://scripts/art.gd").collider(
+		scene.world, wall_shape, actor.position + Vector3(1.2, 1.4, 0)
+	)
+	await physics_frame
+	await physics_frame
+	scene.pickup_clock = 0
+	scene.auto_collect(1)
+	check(
+		not "polish_blocked" in scene.store.memory().picked and blocked.visible,
+		"Pickup magnet cannot collect through walls"
+	)
+	wall.queue_free()
+	await physics_frame
+	await physics_frame
+	var writable: String = scene.store.path
+	scene.store.path = "user://missing_pickup_polish/save.json"
+	scene.pickup_clock = 0
+	scene.auto_collect(1)
+	check(
+		blocked.visible and not "polish_blocked" in scene.store.memory().picked,
+		"Failed auto-collection preserves item and receipt"
+	)
+	scene.store.path = writable
+	scene.pickup_clock = 0
+	scene.auto_collect(1)
+	check(
+		not blocked.visible and "polish_blocked" in scene.store.memory().picked,
+		"Pickup can retry after storage recovers"
+	)
+	actor.apply_status("slow")
+	actor.cameras.reveal(scene.terrain.point("gate"))
+	var timer: float = actor.cameras.reveal_remaining
+	await physics_frame
+	check(
+		actor.cameras.reveal_remaining == timer and actor.slow_time == 3,
+		"Menus freeze cinematics and status timers"
+	)
+	actor.cameras.cycle()
+	check(actor.cameras.reveal_remaining == 0, "Camera control skips cinematic safely")
+	for suffix in ["", ".bak", ".tmp"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(recovered.path + suffix))

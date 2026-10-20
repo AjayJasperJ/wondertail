@@ -2,7 +2,7 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**3D version: 0.11.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.12.0** · Godot 4.4.1 · `three_d/`
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
@@ -24,12 +24,16 @@ the sky beacon to reach the next seeded island. Discoveries and Starlight persis
 - Smooth terrain shading, blended paths, rounded props and camera-safe leafy canopies.
 - Landscape lobby, three explorers with different bodies and movement stats,
   unlocked-island atlas, sound/graphics/camera settings and themed pause menu.
-- Third-person orbit camera with collision, analog movement, sprinting, double
+- First-person, trailing, shoulder and tactical cameras, milestone reveal pans,
+  north-up loot/mob/objective radar, aiming, physical crouching and three-heart feedback.
+- Camera collision, analog movement, sprinting, double
   jumps, sword strikes, stamina-driven dashes, health and safe camp respawns.
 - Six biome identities, varied island sizes/coastlines, accessible landmark
   trails, proximity cues and an original synthesized looping score.
 - Touch joystick on the left, camera drag over the world, actions on the right,
   compact bottom-center health/stamina and persistent offline progression.
+- Nearby unlocked loot pulls into the backpack with wall checks and durable receipts.
+  New games start with a bow and 24 arrows; mobs drop ammo, crystal and Starlight.
 - Gather wood, crystals and herbs into a saved backpack. Craft a bow, arrows
   and bottled tonics at camp; swap weapons and fight with swept-collision arrows.
 
@@ -42,6 +46,7 @@ in-place updates between CI builds may require matching signing keys.
 
 Open `three_d/project.godot` with **Godot 4.4.1**, then press F5 to play.
 Selected models are bundled; no asset downloads, plugins or network services are required.
+[v0.12.0 shipped features and limits](docs/3D_POLISH_V0.12.md) ·
 [Art credits and source licenses](three_d/assets/ASSET_CREDITS.md) ·
 [Organized original uploads](source_assets/README.md)
 
@@ -100,3 +105,4 @@ flutter test
 
 Automated checks do not establish fun, retention or real-device frame pacing.
 Distribution licensing is undecided; this repository grants no open-source license.
+

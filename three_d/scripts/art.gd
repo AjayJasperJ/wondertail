@@ -3,6 +3,8 @@ extends RefCounted
 
 static var materials: Dictionary = {}
 static var rounded_boxes: Dictionary = {}
+static var leaf_materials: Dictionary = {}
+static var leaf_mesh: SphereMesh
 
 
 static func material(color: Color, glow: float = 0.0) -> StandardMaterial3D:
@@ -147,14 +149,39 @@ static func tree(
 		cone(n, Vector3(0, h * 0.75, 0), h * 0.47, 0, h * 0.75, tint)
 		cone(n, Vector3(0, h * 1.03, 0), h * 0.34, 0, h * 0.65, tint.lightened(0.12))
 	else:
-		for i in range(3):
-			var crown := sphere(
-				n,
-				Vector3((i - 1) * h * 0.25, h * (0.85 if i == 1 else 0.75), sin(i * 2.4) * 0.4),
-				h * 0.38,
-				tint.lightened(i * 0.045)
-			)
-			crown.scale.y = 0.85
+		var leaf_key := str(tint)
+		if not leaf_materials.has(leaf_key):
+			var leaves := ShaderMaterial.new()
+			leaves.shader = preload("res://shaders/foliage.gdshader")
+			leaves.set_shader_parameter("tint", tint)
+			leaf_materials[leaf_key] = leaves
+		if leaf_mesh == null:
+			leaf_mesh = SphereMesh.new()
+			leaf_mesh.radius = 1.0
+			leaf_mesh.height = 2.0
+			leaf_mesh.radial_segments = 12
+			leaf_mesh.rings = 6
+		var crowns := MultiMeshInstance3D.new()
+		var instances := MultiMesh.new()
+		instances.transform_format = MultiMesh.TRANSFORM_3D
+		instances.mesh = leaf_mesh
+		instances.instance_count = 7
+		crowns.multimesh = instances
+		crowns.material_override = leaf_materials[leaf_key]
+		n.add_child(crowns)
+		for i in range(7):
+			var angle := i * 2.399
+			var spread := h * (0.29 if i < 5 else 0.16)
+			var at_leaf := Vector3(cos(angle) * spread, h * (0.67 + i * 0.055), sin(angle) * spread)
+			if i % 3 == 0:
+				var branch := cone(
+					n, at_leaf * Vector3(0.5, 0.85, 0.5), 0.10, 0.055, h * 0.55, Color("715646")
+				)
+				branch.rotation = Vector3(sin(angle) * 0.6, angle, cos(angle) * 0.6)
+				branch.add_to_group("polish_detail")
+			var basis := Basis.IDENTITY.scaled(Vector3(1.0, 0.55, 0.85) * h * 0.27)
+			instances.set_instance_transform(i, Transform3D(basis, at_leaf))
+
 	var foliage := SphereShape3D.new()
 	foliage.radius = h * 0.48
 	var camera_obstacle := collider(n, foliage, Vector3(0, h * 0.9, 0))

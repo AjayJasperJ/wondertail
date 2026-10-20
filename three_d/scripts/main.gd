@@ -36,6 +36,7 @@ var mouse_drag := false
 var mouse_stick := false
 var lava_position := Vector3.ZERO
 var preview := false
+var pickup_clock := 0.0
 
 
 func _ready() -> void:
@@ -73,7 +74,11 @@ func bind_inputs() -> void:
 		"sprint": [KEY_SHIFT],
 		"bag": [KEY_B],
 		"weapon": [KEY_TAB],
-		"pause": [KEY_ESCAPE]
+		"pause": [KEY_ESCAPE],
+		"camera_mode": [KEY_C],
+		"crouch": [KEY_X],
+		"aim": [KEY_V],
+		"shoulder": [KEY_R]
 	}
 	for action_name in keys:
 		if not InputMap.has_action(action_name):
@@ -263,7 +268,7 @@ func build_landmarks() -> void:
 	# Water and volcanic hazards are bounded away from every required trail.
 	var pool2: Vector2 = Vector2(-15, 14) * terrain.scale_factor
 	lava_position = Vector3(pool2.x, terrain.height_at(pool2) + 0.07, pool2.y)
-	Art.cone(
+	var pool := Art.cone(
 		world,
 		lava_position,
 		4.5,
@@ -271,6 +276,10 @@ func build_landmarks() -> void:
 		0.12,
 		Color("e99863") if int(store.data.island) % 6 == 4 else Color("70b3bd")
 	)
+	if int(store.data.island) % 6 != 4:
+		var water := ShaderMaterial.new()
+		water.shader = preload("res://shaders/water.gdshader")
+		pool.material_override = water
 	Art.label(
 		world,
 		"HOT SPRING" if int(store.data.island) % 6 == 4 else "MIRROR POOL",
@@ -483,6 +492,8 @@ func apply_quality() -> void:
 		Viewport.MSAA_2X if int(store.data.quality) == 1 else Viewport.MSAA_DISABLED
 	)
 	light.shadow_enabled = int(store.data.quality) == 1
+	for detail in get_tree().get_nodes_in_group("polish_detail"):
+		detail.visible = int(store.data.quality) == 1
 	for child in world.get_children():
 		if child.has_meta("distant"):
 			child.visible = int(store.data.quality) == 1
@@ -492,6 +503,14 @@ func action(id: String) -> void:
 	if not playing:
 		return
 	match id:
+		"camera_mode":
+			player.cameras.cycle()
+		"crouch":
+			player.toggle_crouch()
+		"aim":
+			player.cameras.aiming = not player.cameras.aiming
+		"shoulder":
+			player.cameras.shoulder *= -1
 		"jump":
 			player.request_jump()
 		"attack":
@@ -518,6 +537,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not playing:
 		return
+	for control in ["camera_mode", "crouch", "aim", "shoulder"]:
+		if event.is_action_pressed(control):
+			action(control)
 	if event.is_action_pressed("bag"):
 		open_bag()
 		return
@@ -629,6 +651,10 @@ func interact() -> void:
 	var object := nearest()
 	if object.is_empty():
 		return
+	interact_object(object)
+
+
+func interact_object(object: Dictionary) -> void:
 	var memory := store.memory()
 	match object.kind:
 		"resource":
@@ -686,6 +712,7 @@ func interact() -> void:
 				tell("ISLAND RESTORED  •  +30 Starlight. A new horizon is waiting.")
 				sound.cue(1046, 0.5, 0.15)
 				celebrate()
+				player.cameras.reveal(terrain.point("gate"))
 			else:
 				tell(store.last_error)
 
@@ -758,6 +785,10 @@ func craft_tonic() -> void:
 
 
 func respawn() -> void:
+	player.burn_time = 0
+	player.slow_time = 0
+	player.stun_time = 0
+	player.cameras.reveal_remaining = 0
 	if in_cave:
 		leave_cave()
 	player.position = terrain.point("camp") + Vector3(0, 0.4, 3)
@@ -776,16 +807,18 @@ func strike(at: Vector3, forward: Vector3, damage: int) -> void:
 			var query := PhysicsRayQueryParameters3D.create(at, enemy.position + Vector3.UP, 1)
 			if get_world_3d().direct_space_state.intersect_ray(query).is_empty():
 				enemy.hit(damage, forward)
-	var slash := Node3D.new()
-	world.add_child(slash)
-	slash.position = at + forward * 1.3
-	var ring := TorusMesh.new()
-	ring.inner_radius = 1.1
-	ring.outer_radius = 1.35
-	ring.rings = 16
-	ring.ring_segments = 6
-	Art.mesh(slash, ring, Vector3.ZERO, Color("fbe4ac"), 0.5)
-	effects.append({"node": slash, "time": 0.18})
+	var impact := Node3D.new()
+	world.add_child(impact)
+	impact.position = at + forward * 1.3
+	for i in range(5):
+		var spark := Art.box(
+			impact,
+			Vector3((i - 2) * 0.12, sin(i * 2.0) * 0.25, 0),
+			Vector3(0.035, 0.2, 0.035),
+			Color("ffe6a1")
+		)
+		spark.rotation.z = i * 0.8
+	effects.append({"node": impact, "time": 0.15})
 
 
 func open_bag() -> void:
@@ -831,7 +864,11 @@ func fire_arrow() -> bool:
 		tell("Quiver empty. Craft arrows from wood at camp.")
 		return false
 	var at: Vector3 = player.position + Vector3.UP * 1.3
-	var forward: Vector3 = -player.body.global_basis.z
+	var forward: Vector3 = (
+		player.cameras.forward()
+		if player.cameras.aiming or player.cameras.mode in [1, 2]
+		else -player.body.global_basis.z
+	)
 	var direction := forward
 	var closest := 23.0
 	# Friendly aim assist stays within the facing cone and checks solid scenery.
@@ -840,6 +877,7 @@ func fire_arrow() -> bool:
 		if (
 			enemy.health > 0
 			and offset.length() < closest
+			and not player.cameras.aiming
 			and forward.dot(offset.normalized()) > 0.5
 		):
 			var query := PhysicsRayQueryParameters3D.create(at, at + offset, 1)
@@ -884,24 +922,22 @@ func _process(dt: float) -> void:
 	nav_marker.visible = not in_cave
 	nav_marker.rotation.y += dt
 	proximity_timer -= dt
+	pickup_clock -= dt
+	auto_collect(dt)
 	for object in objects:
 		if not is_instance_valid(object.node) or not object.node.visible:
 			continue
 		if object.kind == "coin" or object.kind == "seed":
 			object.node.rotation.y += dt * 1.7
-			object.node.position.y = object.base.y + sin(clock * 2 + object.base.x) * 0.18
+			if not object.get("pulling", false):
+				object.node.position.y = object.base.y + sin(clock * 2 + object.base.x) * 0.18
 			var distance: float = player.position.distance_to(object.node.position)
 			if distance < 4 and not object.near:
 				object.near = true
 				if proximity_timer <= 0:
 					sound.cue(660 if object.kind == "coin" else 990, 0.08, 0.05)
 					proximity_timer = 0.4
-			if distance < 1.5 and object.kind == "coin":
-				if store.collect(object.id, 1):
-					object.node.visible = false
-					sound.cue(880, 0.08, 0.08)
-				elif not store.last_error.is_empty():
-					tell(store.last_error)
+
 	cloud_node.visible = not store.memory().cloud
 	companion.visible = store.memory().cloud
 	if companion.visible:
@@ -940,3 +976,65 @@ func _notification(what: int) -> void:
 			sound.music.stream_paused = false
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		get_tree().quit()
+
+
+func can_collect(object: Dictionary) -> bool:
+	if object.kind != "seed":
+		return object.kind in ["coin", "resource", "drop"]
+	var id: int = object.value
+	return [store.memory().cloud, store.memory().cave, guardian_defeated][id]
+
+
+func auto_collect(dt: float) -> void:
+	if pickup_clock > 0:
+		return
+	for object in objects:
+		if not is_instance_valid(object.node) or not object.node.visible or not can_collect(object):
+			continue
+		var target: Vector3 = player.position + Vector3.UP * 0.9
+		if object.node.global_position.distance_to(target) > 3.2:
+			continue
+		var ray := PhysicsRayQueryParameters3D.create(
+			target, object.node.global_position + Vector3.UP * 0.35, 1
+		)
+		if not get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+			continue
+		object.pulling = true
+		object.node.global_position = object.node.global_position.move_toward(target, dt * 9)
+		if object.node.global_position.distance_to(target) > 0.35:
+			continue
+		var committed := false
+		match object.kind:
+			"coin":
+				committed = store.collect(object.id, 1)
+			"resource":
+				committed = store.gather(object.id, ["wood", "crystal", "herbs"][object.value])
+			"seed":
+				committed = store.collect(object.id, 5, object.value)
+			"drop":
+				committed = store.claim_drop(object.id, object.value == 1)
+		if committed:
+			object.node.visible = false
+			sound.cue(880 if object.kind != "seed" else 1100, 0.08, 0.07)
+		else:
+			# Leave the item and retry slowly after failed saves / full inventory.
+			object.node.position = object.base
+			object.pulling = false
+			pickup_clock = 0.8
+			if not store.last_error.is_empty():
+				tell(store.last_error)
+			break
+
+
+func spawn_drop(enemy) -> void:
+	var id := "mob_drop_%d_%d" % [roundi(enemy.home.x * 10), roundi(enemy.home.z * 10)]
+	if id in store.memory().picked:
+		return
+	for object in objects:
+		if object.id == id:
+			return
+	var node := Node3D.new()
+	world.add_child(node)
+	node.position = enemy.position + Vector3.UP * 0.5
+	Art.cone(node, Vector3.ZERO, 0.25, 0, 0.6, Color("9fe4e0"))
+	add_object(id, node, "drop", node.position, 3, 1 if enemy.elite else 0)

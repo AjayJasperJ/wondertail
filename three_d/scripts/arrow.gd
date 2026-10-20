@@ -4,6 +4,7 @@ var game
 var velocity := Vector3.ZERO
 var remaining := 2.5
 var damage := 38.0
+var hostile := false
 
 
 func setup(owner_game, at: Vector3, direction: Vector3) -> void:
@@ -20,11 +21,16 @@ func _physics_process(dt: float) -> void:
 		return
 	remaining -= dt
 	var next := global_position + velocity * dt
-	var query := PhysicsRayQueryParameters3D.create(global_position, next, 5)
+	var query := PhysicsRayQueryParameters3D.create(global_position, next, 3 if hostile else 5)
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	if not result.is_empty():
 		var target = result.collider
-		if target.has_method("hit"):
+		if hostile and target.has_method("hurt"):
+			var previous: float = target.health
+			target.hurt(10)
+			if target.health < previous:
+				target.apply_status("stun")
+		if not hostile and target.has_method("hit"):
 			target.hit(damage, velocity.normalized())
 		queue_free()
 		return

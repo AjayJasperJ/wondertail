@@ -12,6 +12,9 @@ var cooldown := 1.0
 var stun := 0.0
 var respawn_timer := 0.0
 var spawn_location := Vector3.ZERO
+var health_label: Label3D
+var status_kind := ""
+var ranged_timer := 2.5
 
 
 func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
@@ -44,6 +47,11 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 		Vector3.ONE * size,
 		-0.65 if elite else 0.0
 	)
+	health_label = Art.label(self, "", Vector3(0, 2.1 if elite else 1.7, 0), Color("a9e4c5"))
+	health_label.visibility_range_begin = 0
+	health_label.font_size = 32
+	health_label.visible = false
+	status_kind = "burn" if biome == 4 else ("slow" if biome == 2 else "")
 	if elite:
 		Art.label(self, "VAULT WARDEN", Vector3(0, 2.6, 0), Color("ffd293"))
 
@@ -57,6 +65,7 @@ func hit(amount: float, direction: Vector3) -> void:
 	velocity += direction * (5 if not elite else 2)
 	game.sound.cue(180, 0.08, 0.12)
 	if health <= 0:
+		game.spawn_drop(self)
 		visible = false
 		collision_layer = 0
 		if elite:
@@ -83,7 +92,25 @@ func _physics_process(dt: float) -> void:
 	stun = maxf(0, stun - dt)
 	var offset: Vector3 = game.player.global_position - global_position
 	var distance := offset.length()
+	var alpha := clampf((15.0 - distance) / 3.0, 0, 1)
+	health_label.visible = alpha > 0
+	health_label.modulate.a = alpha
+	var filled := ceili(health / (110.0 if elite else 60.0) * 8)
+	health_label.text = "▰".repeat(clampi(filled, 0, 8)) + "▱".repeat(8 - clampi(filled, 0, 8))
 	var direction := Vector3(offset.x, 0, offset.z).normalized()
+	ranged_timer -= dt
+	if elite and distance > 4 and distance < 17 and ranged_timer <= 0 and stun <= 0:
+		ranged_timer = 3.5
+		var source := global_position + Vector3.UP * 1.5
+		var aim: Vector3 = game.player.position + Vector3.UP - source
+		var query := PhysicsRayQueryParameters3D.create(source, source + aim, 1)
+		if get_world_3d().direct_space_state.intersect_ray(query).is_empty():
+			var bolt := preload("res://scripts/arrow.gd").new()
+			game.world.add_child(bolt)
+			bolt.hostile = true
+			bolt.setup(game, source, aim.normalized())
+			bolt.velocity = aim.normalized() * 12
+			game.sound.cue(230, 0.12, 0.08)
 	if distance < 13 and global_position.distance_to(home) < 19:
 		body.rotation.y = lerp_angle(body.rotation.y, atan2(-direction.x, -direction.z), dt * 7)
 		if distance < 2.4 and cooldown <= 0:
@@ -94,7 +121,10 @@ func _physics_process(dt: float) -> void:
 			windup -= dt
 			body.scale = Vector3.ONE * (1 + sin(windup * 20) * 0.08)
 			if windup <= 0 and distance < 2.8:
+				var previous: float = game.player.health
 				game.player.hurt(23 if elite else 13)
+				if game.player.health < previous:
+					game.player.apply_status(status_kind)
 		else:
 			body.play(
 				["HitReact", "HitRecieve"] if stun > 0 else ["Fast_Flying", "Walk"], stun <= 0
