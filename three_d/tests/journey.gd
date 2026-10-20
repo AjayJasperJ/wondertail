@@ -73,6 +73,42 @@ func run() -> void:
 				if child.get_script() == game.hud.ItemIcon:
 					icon_count += 1
 	check(icon_count > 0, "Backpack uses item artwork")
+	var original_bag: Dictionary = game.store.data.bag.duplicate(true)
+	# A missing-material preview must still fill every pistol ingredient slot.
+	game.store.data.bag.wood = 0
+	game.store.data.bag.crystal = 0
+	for touch in [false, true]:
+		for recipe in ["bow", "arrows", "tonic", "gun", "bullets"]:
+			var book: Button = game.hud.widgets.get_node("Recipe_" + recipe)
+			var point: Vector2 = book.get_global_rect().get_center()
+			for pressed in [true, false]:
+				if touch:
+					var event := InputEventScreenTouch.new()
+					event.index = 0
+					event.position = point
+					event.pressed = pressed
+					root.push_input(event, true)
+				else:
+					var event := InputEventMouseButton.new()
+					event.button_index = MOUSE_BUTTON_LEFT
+					event.position = point
+					event.pressed = pressed
+					root.push_input(event, true)
+				await process_frame
+			check(
+				game.store.grid_recipe(game.hud.craft_grid) == recipe,
+				"Pointer selection fills recipe %s (touch=%s)" % [recipe, touch]
+			)
+			var preview_found := false
+			for child in game.hud.widgets.get_children():
+				if child.get_script() == game.hud.ItemIcon and child.item == recipe:
+					preview_found = true
+			check(preview_found, "Selected recipe has an output item preview")
+			check(
+				game.store.item_count("wood") == 0 and game.store.item_count("crystal") == 0,
+				"Preview does not consume or grant materials"
+			)
+	game.store.data.bag = original_bag
 	game.queue_free()
 	await process_frame
 	print("JOURNEY: %d checks, %d failures" % [checks, failures])

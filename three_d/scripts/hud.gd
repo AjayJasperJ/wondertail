@@ -83,6 +83,7 @@ func text(
 ) -> Label:
 	var label := Label.new()
 	label.text = caption
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.position = at
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
@@ -600,6 +601,20 @@ func show_bag() -> void:
 		if ingredient != "":
 			decorate_item(slot, ingredient, 1)
 	var recipe: String = game.store.grid_recipe(craft_grid)
+	var ready := recipe != ""
+	var requirements: Array[String] = []
+	if recipe != "":
+		for item in game.store.RECIPES[recipe]:
+			var needed: int = game.store.RECIPES[recipe][item]
+			var carried: int = game.store.item_count(item)
+			ready = ready and carried >= needed
+			requirements.append("%s %d/%d" % [String(item).capitalize(), carried, needed])
+	text(
+		" • ".join(requirements) if recipe != "" else "Choose a recipe below",
+		Vector2(730, 463),
+		15,
+		title_color if ready else Color("e8b5b5")
+	)
 	text("→", Vector2(990, 322), 32, title_color)
 	var output := button(
 		(
@@ -614,15 +629,32 @@ func show_bag() -> void:
 				else " —"
 			)
 		),
-		Rect2(1036, 306, 150, 96),
+		Rect2(1036, 370, 150, 46),
 		func(): game.craft_item(recipe)
 	)
-	output.add_theme_font_size_override("font_size", 17)
+	output.add_theme_font_size_override("font_size", 13)
 	output.disabled = (
 		recipe == ""
+		or not ready
 		or not game.at_workbench()
 		or (recipe in ["bow", "gun"] and game.store.item_count(recipe) > 0)
 	)
+	if recipe != "":
+		var preview := ItemIcon.new()
+		preview.item = recipe
+		preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview.position = Vector2(1070, 276)
+		preview.size = Vector2(80, 80)
+		widgets.add_child(preview)
+		text(
+			(
+				("PISTOL" if recipe == "gun" else recipe.to_upper())
+				+ (" • AT CAMP" if not game.at_workbench() else "")
+			),
+			Vector2(1020, 252),
+			14,
+			title_color
+		)
 	button(
 		"CLEAR GRID",
 		Rect2(1036, 416, 150, 44),
@@ -642,18 +674,10 @@ func show_bag() -> void:
 			"bullets": "12 ROUNDS • 1C"
 		}[key]
 		var book := button(
-			label,
-			Rect2(730 + (i % 2) * 234, 523 + (i / 2) * 50, 222, 42),
-			func():
-				craft_grid.fill("")
-				var cell := 0
-				for item in game.store.RECIPES[key]:
-					for count in range(game.store.RECIPES[key][item]):
-						craft_grid[cell] = item
-						cell += 1
-				show_bag()
+			label, Rect2(730 + (i % 2) * 234, 523 + (i / 2) * 50, 222, 42), select_recipe.bind(key)
 		)
 		book.add_theme_font_size_override("font_size", 13)
+		book.name = "Recipe_" + key
 	(
 		button("+9 BOXES • 50 STARLIGHT", Rect2(964, 623, 222, 42), game.buy_pack_upgrade)
 		. add_theme_font_size_override("font_size", 12)
@@ -664,6 +688,20 @@ func show_bag() -> void:
 		14,
 		Color("b5d6d2")
 	)
+
+
+func select_recipe(recipe: String) -> void:
+	if not game.store.RECIPES.has(recipe):
+		return
+	craft_grid.fill("")
+	var cell := 0
+	for item in game.store.RECIPES[recipe]:
+		for count in range(game.store.RECIPES[recipe][item]):
+			craft_grid[cell] = item
+			cell += 1
+	# Rebuild after the pointer event finishes, rather than deleting its button
+	# during native web mouse/touch dispatch.
+	show_bag.call_deferred()
 
 
 func show_pause() -> void:

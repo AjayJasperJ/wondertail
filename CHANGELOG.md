@@ -6,6 +6,10 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.18.0] - 2026-10-20
 
+- Crafting hotfix: explicit recipe selection with deferred UI refresh, output
+  item artwork and carried/required material counts. Previews work without
+  ingredients; crafting stays locked until materials and camp access are ready.
+  Added real mouse/touch input regression checks for all five recipe buttons.
 - Replaced pack and crafting ingredient text tiles with original item artwork
   and separate counts, selected outlines, equipped highlights and tooltips.
 - Rebuilt the lobby as a winding eight-node island journey with locked previews,

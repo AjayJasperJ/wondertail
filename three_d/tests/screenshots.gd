@@ -68,8 +68,14 @@ func run() -> void:
 	game.store.data.bag.herbs = 4
 	game.open_bag()
 	game.hud.selected_item = "wood"
-	game.hud.craft_grid = ["wood", "wood", "wood", "crystal", "crystal", "", "", "", ""]
-	game.hud.show_bag()
+	var recipe_button: Button = game.hud.widgets.get_node("Recipe_gun")
+	var tap := InputEventScreenTouch.new()
+	tap.position = recipe_button.get_global_rect().get_center()
+	tap.pressed = true
+	root.push_input(tap, true)
+	await process_frame
+	tap.pressed = false
+	root.push_input(tap, true)
 	await capture("backpack.png")
 	game.drop_inventory("wood", 3)
 	game.hud.bag_tab = "nearby"
