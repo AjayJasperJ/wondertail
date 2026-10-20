@@ -1,7 +1,10 @@
 extends CharacterBody3D
 const Art = preload("res://scripts/art.gd")
+const ModelActor = preload("res://scripts/model_actor.gd")
 var game
-var body: Node3D
+var body
+var sword: Node3D
+var bow: Node3D
 var pivot := Node3D.new()
 var arm := SpringArm3D.new()
 var camera := Camera3D.new()
@@ -46,14 +49,36 @@ func setup(owner_game, chosen: int) -> void:
 	col.shape = capsule
 	col.position.y = capsule.height * 0.5
 	add_child(col)
-	body = Art.explorer(self, hero)
+	body = ModelActor.new()
+	body.controller = game
+	add_child(body)
+	var paths := ["adventurer", "hooded_adventurer", "farmer"]
+	body.setup(
+		"res://assets/models/characters/" + paths[hero] + ".glb",
+		[Vector3(1, 1.05, 1), Vector3(0.94, 1.1, 0.94), Vector3(1.17, 1.02, 1.17)][hero]
+	)
+	var socket: Node3D = body.weapon_socket()
+	sword = Node3D.new()
+	socket.add_child(sword)
+	Art.box(sword, Vector3(0, 0.4, 0), Vector3(0.10, 0.85, 0.07), Color("d8e3db"))
+	Art.box(sword, Vector3(0, 0, 0), Vector3(0.35, 0.07, 0.12), Color("d4b77b"))
+	bow = Node3D.new()
+	socket.add_child(bow)
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.34
+	ring.outer_radius = 0.39
+	ring.rings = 16
+	ring.ring_segments = 6
+	var frame := Art.mesh(bow, ring, Vector3.ZERO, Color("b89366"))
+	frame.rotation.z = PI / 2
+	Art.box(bow, Vector3.ZERO, Vector3(0.02, 0.8, 0.02), Color("efdfbd"))
 	refresh_weapon()
 	add_child(pivot)
 	pivot.position.y = 1.6
 	pivot.add_child(arm)
 	arm.spring_length = 9.5
 	arm.margin = 0.25
-	arm.collision_mask = 1
+	arm.collision_mask = 9
 	var camera_shape := SphereShape3D.new()
 	camera_shape.radius = 0.28
 	arm.shape = camera_shape
@@ -92,8 +117,8 @@ func attack() -> void:
 
 func refresh_weapon() -> void:
 	var ranged: bool = int(game.store.data.bag.weapon) == 1
-	body.get_node("Arm1/Sword").visible = not ranged
-	body.get_node("Arm1/Bow").visible = ranged
+	sword.visible = not ranged
+	bow.visible = ranged
 
 
 func dash() -> void:
@@ -103,7 +128,7 @@ func dash() -> void:
 	dash_cooldown = 2.5
 	invulnerable = maxf(invulnerable, 0.45)
 	# Velocity is resolved by move_and_slide, never a teleport through scenery.
-	var forward := -body.global_basis.z
+	var forward: Vector3 = -body.global_basis.z
 	velocity.x = forward.x * 22
 	velocity.z = forward.z * 22
 	game.sound.cue(320, 0.15, 0.15)
@@ -166,16 +191,18 @@ func _physics_process(dt: float) -> void:
 		)
 	var horizontal := Vector2(velocity.x, velocity.z).length()
 	animation_time += dt * horizontal * 1.5
-	for side in [-1, 1]:
-		body.get_node("Leg" + str(side)).rotation.x = (
-			sin(animation_time) * 0.65 * side if horizontal > 0.2 and is_on_floor() else 0.0
+	if invulnerable > 1.0 and invulnerable < 1.21:
+		body.play(["HitRecieve", "Idle_Neutral"], false)
+	elif attack_cooldown > 0.20:
+		body.play(["Sword_Slash"] if int(game.store.data.bag.weapon) == 0 else ["Gun_Shoot"], false)
+	elif horizontal > 0.3 and is_on_floor():
+		body.play(
+			["Run"] if running else ["Walk"],
+			true,
+			clampf(horizontal / (7 if running else 3.5), 0.7, 1.6)
 		)
-		body.get_node("Arm" + str(side)).rotation.x = -sin(animation_time) * 0.45 * side
-	if attack_cooldown > 0.20:
-		body.get_node("Arm1").rotation.x = -1.4
-		body.get_node("Arm1").rotation.z = sin(attack_cooldown * 19) * 1.1
 	else:
-		body.get_node("Arm1").rotation.z = 0
+		body.play(["Idle_Neutral", "Idle"], true)
 	body.visible = invulnerable <= 0 or int(invulnerable * 14) % 2 == 0
 	walking_sound -= dt
 	if horizontal > 0.8 and is_on_floor() and walking_sound <= 0:

@@ -150,11 +150,46 @@ func run() -> void:
 		terrain.free()
 		clone.free()
 	check(variants.size() > 8, "Islands must vary in size")
+	var Actor = preload("res://scripts/model_actor.gd")
+	for path in [
+		"characters/adventurer",
+		"characters/hooded_adventurer",
+		"characters/farmer",
+		"creatures/mushnub",
+		"creatures/cactoro",
+		"creatures/yeti",
+		"creatures/goleling"
+	]:
+		var visual := Actor.new()
+		root.add_child(visual)
+		visual.setup("res://assets/models/" + path + ".glb", Vector3.ONE)
+		check(
+			visual.skeleton != null and visual.animator != null,
+			"Imported rig and animations: " + path
+		)
+		check(not visual.current.is_empty(), "Imported model has a valid idle animation: " + path)
+		visual.play(["Run", "Walk", "Fast_Flying"], true)
+		check(
+			visual.animator.get_animation(visual.current).loop_mode == Animation.LOOP_LINEAR,
+			"Locomotion loops: " + path
+		)
+		visual.queue_free()
 	# Run the actual game scene, not a mocked controller.
 	var scene = load("res://main.tscn").instantiate()
 	root.add_child(scene)
 	await process_frame
 	check(scene.hud.page == "lobby" and not scene.playing, "Lobby appears before playing")
+	var ground = scene.terrain.get_child(0)
+	var normals: PackedVector3Array = ground.mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
+	check(normals.size() > 20000, "Smooth terrain has denser geometry")
+	check(
+		absf(normals[0].length() - 1.0) < 0.001 and normals[0].y > 0,
+		"Smooth terrain normals remain unit and upward"
+	)
+	check(
+		scene.player.body.skeleton.find_bone("Wrist.R") >= 0,
+		"Player equipment has a rigged hand socket"
+	)
 	var live_path: String = scene.store.path
 	scene.store.path = store.path + ".game"
 	scene.store.data = Store.fresh()
@@ -218,6 +253,14 @@ func run() -> void:
 	await physics_frame
 	await physics_frame
 	check(scene.player.position == position_before, "Pause freezes player simulation")
+	await process_frame
+	var pose_time: float = scene.player.body.animator.current_animation_position
+	for i in range(4):
+		await process_frame
+	check(
+		scene.player.body.animator.current_animation_position == pose_time,
+		"Pause also freezes the imported character animation"
+	)
 	scene.resume_game()
 	scene.enter_cave()
 	check(scene.in_cave and scene.player.position.z < -130, "Cave is an explorable physical space")

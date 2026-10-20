@@ -43,6 +43,8 @@ jobs:
           godot --version
       - name: Import and check actual scripts
         run: |
+          python3 tool/prepare_3d_assets.py
+          git diff --exit-code -- three_d/assets/models three_d/assets/manifest.json
           godot --headless --path three_d --editor --quit 2>&1 | tee /tmp/import.log
           if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/import.log; then exit 1; fi
       - name: Physics, terrain, progression and storage checks

@@ -4,6 +4,31 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.11.0] - 2026-10-20
+
+### Added
+
+- Organized all uploaded GLBs and source packs under `source_assets/` with stable
+  names, provider/license references and a reproducible runtime asset manifest.
+- Rigged Adventurer, Hooded Adventurer and Farmer replace the three placeholder
+  explorers. Imported idle, walking, running, attack/recoil and hit animations;
+  bone-attached equipment preserves existing movement, stats and collision.
+- Animated Mushnub, Cactoro and Yeti hunters plus a Goleling Evolved guardian.
+- Runtime preparation keeps only used clips and compacts their buffers. Original
+  uploads retain all clips; unused SWAT and gun models remain outside exports.
+- Denser smoothly shaded island terrain, blended path/rock colors, softened cliff
+  bands, rounded-edge prop meshes, round forest crowns and smoother rock shapes.
+- Camera-only foliage collision and Standard-detail 2x MSAA, disabled on Low.
+- Tests for imported rigs/clips, looping movement, equipment socket, terrain
+  normals and paused animations, alongside existing route/combat/save checks.
+
+### Compatibility and limits
+
+- Save slots, landmarks, player stats, equipment and reward receipts are preserved.
+  Cosmetic scenery placement is revised. Smooth visual edges retain solid gameplay
+  colliders. The source models do not include dedicated jump/bow clips.
+- These remain stylized low-poly assets. No measured Android frame-rate claim.
+
 ## [3D 0.10.0] - 2026-10-20
 
 ### Added

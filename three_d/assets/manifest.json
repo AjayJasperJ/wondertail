@@ -1,0 +1,117 @@
+[
+  {
+    "runtime": "three_d/assets/models/characters/adventurer.glb",
+    "source": "characters/adventurer.glb",
+    "archive_member": null,
+    "source_sha256": "4a8639cd8eee9d8a150464edc25eb0536ced464790704a64e40c8620d99f66db",
+    "runtime_sha256": "7144f0c30dbcbc1e778d26f420c292f16bdd74f5f34158d856f5ca3b70c5c7ce",
+    "source_bytes": 1944116,
+    "runtime_bytes": 1424968,
+    "animations": [
+      "CharacterArmature|Gun_Shoot",
+      "CharacterArmature|HitRecieve",
+      "CharacterArmature|Idle",
+      "CharacterArmature|Idle_Neutral",
+      "CharacterArmature|Run",
+      "CharacterArmature|Sword_Slash",
+      "CharacterArmature|Walk"
+    ]
+  },
+  {
+    "runtime": "three_d/assets/models/characters/hooded_adventurer.glb",
+    "source": "characters/hooded_adventurer.glb",
+    "archive_member": null,
+    "source_sha256": "703d20f529f7bc46763c4abc59db7df636d1a018e74e348c53341b4a1083608b",
+    "runtime_sha256": "b529e7f19734cb5aea43eda8db281dfd79ff667fc54883080d85cdcb09b9c6c2",
+    "source_bytes": 1598564,
+    "runtime_bytes": 1031232,
+    "animations": [
+      "CharacterArmature|Gun_Shoot",
+      "CharacterArmature|HitRecieve",
+      "CharacterArmature|Idle",
+      "CharacterArmature|Idle_Neutral",
+      "CharacterArmature|Run",
+      "CharacterArmature|Sword_Slash",
+      "CharacterArmature|Walk"
+    ]
+  },
+  {
+    "runtime": "three_d/assets/models/characters/farmer.glb",
+    "source": "packs/ultimate_modular_men_glb.zip",
+    "archive_member": "Farmer.glb",
+    "source_sha256": "f7ae6e2596c6521d296fa5948783f1dac717807456ce5355e48719e81d15e9a6",
+    "runtime_sha256": "f05a9cd31e27ea4e2488f6abc059f39cc10890562059390a334c0a3f8ee74b00",
+    "source_bytes": 1370524,
+    "runtime_bytes": 852124,
+    "animations": [
+      "CharacterArmature|Gun_Shoot",
+      "CharacterArmature|HitRecieve",
+      "CharacterArmature|Idle",
+      "CharacterArmature|Idle_Neutral",
+      "CharacterArmature|Run",
+      "CharacterArmature|Sword_Slash",
+      "CharacterArmature|Walk"
+    ]
+  },
+  {
+    "runtime": "three_d/assets/models/creatures/mushnub.glb",
+    "source": "packs/ultimate_monsters_glb.zip",
+    "archive_member": "Mushnub.glb",
+    "source_sha256": "04614a9d0db2a00d17cd85f4ef9c54e19cd3692530c0724b46809aa928e161e9",
+    "runtime_sha256": "6ac31fc640e53977be0a9f50693734a7e81b843b56f92592b29272ac939f1824",
+    "source_bytes": 67900,
+    "runtime_bytes": 54948,
+    "animations": [
+      "CharacterArmature|Bite_Front",
+      "CharacterArmature|HitRecieve",
+      "CharacterArmature|Idle",
+      "CharacterArmature|Walk"
+    ]
+  },
+  {
+    "runtime": "three_d/assets/models/creatures/cactoro.glb",
+    "source": "packs/ultimate_monsters_glb.zip",
+    "archive_member": "Cactoro.glb",
+    "source_sha256": "2291a31287306ab430ad4c001dff5fbedba5c79854ad19ddc1c64d5fffc506ab",
+    "runtime_sha256": "5f906a76d3200784e64c8c963515b6cbbbca0c409e9101d4837488ce9ab5f1f6",
+    "source_bytes": 140668,
+    "runtime_bytes": 127028,
+    "animations": [
+      "CharacterArmature|Bite_Front",
+      "CharacterArmature|HitRecieve",
+      "CharacterArmature|Idle",
+      "CharacterArmature|Walk"
+    ]
+  },
+  {
+    "runtime": "three_d/assets/models/creatures/yeti.glb",
+    "source": "packs/ultimate_monsters_glb.zip",
+    "archive_member": "Yeti.glb",
+    "source_sha256": "20aaa4fc5fc3b9fe30b6109f88061f2d6f49e03b26a51ebee08f50bd1c26caaf",
+    "runtime_sha256": "b41951f41c859c1134a14cf4bb3a45031ac7123a16229f3f7935d0e5824a2862",
+    "source_bytes": 111224,
+    "runtime_bytes": 97928,
+    "animations": [
+      "CharacterArmature|Bite_Front",
+      "CharacterArmature|HitRecieve",
+      "CharacterArmature|Idle",
+      "CharacterArmature|Walk"
+    ]
+  },
+  {
+    "runtime": "three_d/assets/models/creatures/goleling.glb",
+    "source": "packs/ultimate_monsters_glb.zip",
+    "archive_member": "Goleling Evolved.glb",
+    "source_sha256": "d397a35eeacbf64cd068d626fa82e8099dc2ae2155df051224c4b575a04f034d",
+    "runtime_sha256": "6091bc1c7e581c010b5510be11094b190aacb92502d372507b6e48f2967154ce",
+    "source_bytes": 310836,
+    "runtime_bytes": 284660,
+    "animations": [
+      "CharacterArmature|Fast_Flying",
+      "CharacterArmature|Flying_Idle",
+      "CharacterArmature|Headbutt",
+      "CharacterArmature|HitReact",
+      "CharacterArmature|Punch"
+    ]
+  }
+]

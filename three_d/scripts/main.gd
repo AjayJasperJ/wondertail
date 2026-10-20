@@ -479,6 +479,9 @@ func save_setting(key: String, value: Variant) -> void:
 
 
 func apply_quality() -> void:
+	get_viewport().msaa_3d = (
+		Viewport.MSAA_2X if int(store.data.quality) == 1 else Viewport.MSAA_DISABLED
+	)
 	light.shadow_enabled = int(store.data.quality) == 1
 	for child in world.get_children():
 		if child.has_meta("distant"):

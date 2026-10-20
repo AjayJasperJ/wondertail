@@ -1,8 +1,9 @@
 extends CharacterBody3D
 const Art = preload("res://scripts/art.gd")
+const ModelActor = preload("res://scripts/model_actor.gd")
 var game
 var home := Vector3.ZERO
-var body := Node3D.new()
+var body = ModelActor.new()
 var health := 60.0
 var elite := false
 var clock := 0.0
@@ -30,15 +31,19 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	col.position.y = shape.height / 2
 	add_child(col)
 	add_child(body)
-	Art.sphere(
-		body,
-		Vector3(0, 0.65, 0),
-		0.7 if elite else 0.5,
-		Color("8b7795") if elite else Color("cd826f")
+	body.controller = game
+	var biome: int = int(game.store.data.island) % 6
+	var model_name := (
+		"goleling"
+		if elite
+		else ("cactoro" if biome == 1 else ("yeti" if biome == 2 else "mushnub"))
 	)
-	for side in [-1, 1]:
-		Art.cone(body, Vector3(side * 0.35, 1.25, 0), 0.22, 0, 0.6, Color("f3dfb6"))
-		Art.sphere(body, Vector3(side * 0.22, 0.82, -0.43), 0.075, Color("ffd878"), 0.5)
+	var size := 0.55 if elite else (0.38 if model_name == "mushnub" else 0.45)
+	body.setup(
+		"res://assets/models/creatures/" + model_name + ".glb",
+		Vector3.ONE * size,
+		-0.65 if elite else 0.0
+	)
 	if elite:
 		Art.label(self, "VAULT WARDEN", Vector3(0, 2.6, 0), Color("ffd293"))
 
@@ -85,11 +90,15 @@ func _physics_process(dt: float) -> void:
 			windup = 0.65
 			cooldown = 2.0
 		if windup > 0:
+			body.play(["Headbutt", "Bite_Front", "Punch"], false)
 			windup -= dt
 			body.scale = Vector3.ONE * (1 + sin(windup * 20) * 0.08)
 			if windup <= 0 and distance < 2.8:
 				game.player.hurt(23 if elite else 13)
 		else:
+			body.play(
+				["HitReact", "HitRecieve"] if stun > 0 else ["Fast_Flying", "Walk"], stun <= 0
+			)
 			body.scale = Vector3.ONE
 			var ahead := Vector2(position.x + direction.x * 1.2, position.z + direction.z * 1.2)
 			var safe: bool = game.terrain.walkable(ahead, 4)
@@ -101,6 +110,7 @@ func _physics_process(dt: float) -> void:
 			velocity.x = move_toward(velocity.x, target.x, dt * 12)
 			velocity.z = move_toward(velocity.z, target.z, dt * 12)
 	else:
+		body.play(["Flying_Idle", "Idle"], true)
 		var offset_home := home - position
 		velocity.x = offset_home.x * 0.5
 		velocity.z = offset_home.z * 0.5

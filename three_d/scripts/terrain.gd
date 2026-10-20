@@ -25,6 +25,7 @@ var paths: Array = []
 var noise := FastNoiseLite.new()
 var rng := RandomNumberGenerator.new()
 var spawn_points: Array[Vector3] = []
+var vertex_style: Dictionary = {}
 
 
 func configure(world_seed: int, island: int) -> void:
@@ -115,8 +116,9 @@ func build() -> void:
 	m.vertex_color_is_srgb = true
 	m.roughness = 0.94
 	st.set_material(m)
-	var rings := 32
-	var slices := 112
+	vertex_style.clear()
+	var rings := 48
+	var slices := 160
 	for ring in range(rings):
 		for i in range(slices):
 			var a := TAU * i / slices
@@ -138,10 +140,11 @@ func build() -> void:
 	for i in range(slices):
 		var a := radial(TAU * i / slices, 1)
 		var b := radial(TAU * (i + 1) / slices, 1)
-		var c := Vector3(a.x * 0.72, -12 - sin(i * 1.7) * 2, a.z * 0.72)
-		var d := Vector3(b.x * 0.72, -12 - sin((i + 1) * 1.7) * 2, b.z * 0.72)
+		var c := Vector3(a.x * 0.72, -12 - sin(TAU * i / slices * 3) * 1.5, a.z * 0.72)
+		var d := Vector3(b.x * 0.72, -12 - sin(TAU * (i + 1) / slices * 3) * 1.5, b.z * 0.72)
 		for v in [a, c, b, b, c, d, c, Vector3(0, -22, 0), d]:
 			cliffs.add_vertex(v)
+	cliffs.index()
 	cliffs.generate_normals()
 	var cliff_mesh := MeshInstance3D.new()
 	cliff_mesh.mesh = cliffs.commit()
@@ -158,19 +161,26 @@ func radial(angle: float, fraction: float) -> Vector3:
 func triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 	if a.distance_squared_to(b) < 0.0001:
 		return
-	var normal := (b - a).cross(c - a).normalized()
-	var mid := (a + b + c) / 3
-	var path := path_distance(Vector2(mid.x, mid.z))
-	var color: Color = palette[0]
-	if normal.y < 0.75:
-		color = palette[2]
-	elif path < 1.6:
-		color = Color("d9c69b") if index % 6 != 2 else Color("a6bec4")
-	color = color.lightened(rng.randf_range(-0.05, 0.04))
 	# Godot front faces use clockwise winding; collider faces must point upward.
 	for v in [a, c, b]:
-		st.set_color(color)
-		st.set_normal(normal)
+		if not vertex_style.has(v):
+			var p := Vector2(v.x, v.z)
+			var e := 0.16
+			var n := (
+				Vector3(
+					height_at(p - Vector2(e, 0)) - height_at(p + Vector2(e, 0)),
+					2 * e,
+					height_at(p - Vector2(0, e)) - height_at(p + Vector2(0, e))
+				)
+				. normalized()
+			)
+			var ground: Color = palette[2].lerp(palette[0], smoothstep(0.55, 0.9, n.y))
+			var sand := Color("d9c69b") if index % 6 != 2 else Color("a6bec4")
+			ground = ground.lerp(sand, 1 - smoothstep(1.0, 2.2, path_distance(p)))
+			ground = ground.lightened(noise.get_noise_2dv(p * 0.6) * 0.035)
+			vertex_style[v] = [n, ground]
+		st.set_color(vertex_style[v][1])
+		st.set_normal(vertex_style[v][0])
 		st.add_vertex(v)
 
 
@@ -180,8 +190,9 @@ func decorate() -> void:
 		if not walkable(p, 3) or path_distance(p) < 4:
 			continue
 		var reserved := false
-		for anchor in anchors.values():
-			if p.distance_to(anchor) < 6:
+		for key in anchors:
+			var anchor: Vector2 = anchors[key]
+			if p.distance_to(anchor) < (10 if key == "camp" else 6):
 				reserved = true
 		if reserved:
 			continue

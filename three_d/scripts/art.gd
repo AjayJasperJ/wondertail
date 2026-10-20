@@ -2,6 +2,7 @@ extends RefCounted
 ## Original procedural low-poly models. No external art or textures.
 
 static var materials: Dictionary = {}
+static var rounded_boxes: Dictionary = {}
 
 
 static func material(color: Color, glow: float = 0.0) -> StandardMaterial3D:
@@ -33,8 +34,10 @@ static func mesh(
 static func box(
 	parent: Node3D, at: Vector3, size: Vector3, color: Color, solid: bool = false
 ) -> MeshInstance3D:
-	var b := BoxMesh.new()
-	b.size = size
+	var key := str(size)
+	if not rounded_boxes.has(key):
+		rounded_boxes[key] = rounded_box(size)
+	var b: Mesh = rounded_boxes[key]
 	var n := mesh(parent, b, at, color)
 	if solid:
 		var s := BoxShape3D.new()
@@ -49,8 +52,8 @@ static func sphere(
 	var b := SphereMesh.new()
 	b.radius = radius
 	b.height = radius * 2
-	b.radial_segments = 8
-	b.rings = 4
+	b.radial_segments = 16
+	b.rings = 8
 	return mesh(parent, b, at, color, glow)
 
 
@@ -61,8 +64,44 @@ static func cone(
 	b.bottom_radius = bottom
 	b.top_radius = top
 	b.height = height
-	b.radial_segments = 7
+	b.radial_segments = 16
 	return mesh(parent, b, at, color)
+
+
+static func rounded_box(size: Vector3) -> ArrayMesh:
+	var half := size * 0.5
+	var radius := minf(0.16, minf(size.x, minf(size.y, size.z)) * 0.18)
+	var inner := half - Vector3.ONE * radius
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for axis in range(3):
+		var u := (axis + 1) % 3
+		var w := (axis + 2) % 3
+		for side in [-1, 1]:
+			var us := [-half[u], -inner[u], inner[u], half[u]]
+			var ws := [-half[w], -inner[w], inner[w], half[w]]
+			for i in range(3):
+				for j in range(3):
+					var quad: Array[Vector3] = []
+					for corner in [
+						Vector2i(i, j),
+						Vector2i(i + 1, j),
+						Vector2i(i, j + 1),
+						Vector2i(i + 1, j + 1)
+					]:
+						var p := Vector3.ZERO
+						p[axis] = half[axis] * side
+						p[u] = us[corner.x]
+						p[w] = ws[corner.y]
+						quad.append(p)
+					var order := [0, 2, 1, 1, 2, 3] if side == 1 else [0, 1, 2, 1, 3, 2]
+					for index in order:
+						var p: Vector3 = quad[index]
+						var nearest := p.clamp(-inner, inner)
+						var normal := (p - nearest).normalized()
+						st.set_normal(normal)
+						st.add_vertex(nearest + normal * radius)
+	return st.commit()
 
 
 static func collider(parent: Node3D, shape: Shape3D, at: Vector3) -> StaticBody3D:
@@ -96,14 +135,30 @@ static func label(
 	return n
 
 
-static func tree(parent: Node3D, at: Vector3, rng: RandomNumberGenerator, tint: Color) -> void:
+static func tree(
+	parent: Node3D, at: Vector3, rng: RandomNumberGenerator, tint: Color, conifer: bool = false
+) -> void:
 	var n := Node3D.new()
 	n.position = at
 	parent.add_child(n)
 	var h := rng.randf_range(3.0, 5.0)
 	cone(n, Vector3(0, h * 0.35, 0), 0.3, 0.18, h * 0.7, Color("715646"))
-	cone(n, Vector3(0, h * 0.75, 0), h * 0.47, 0, h * 0.75, tint)
-	cone(n, Vector3(0, h * 1.03, 0), h * 0.34, 0, h * 0.65, tint.lightened(0.12))
+	if conifer:
+		cone(n, Vector3(0, h * 0.75, 0), h * 0.47, 0, h * 0.75, tint)
+		cone(n, Vector3(0, h * 1.03, 0), h * 0.34, 0, h * 0.65, tint.lightened(0.12))
+	else:
+		for i in range(3):
+			var crown := sphere(
+				n,
+				Vector3((i - 1) * h * 0.25, h * (0.85 if i == 1 else 0.75), sin(i * 2.4) * 0.4),
+				h * 0.38,
+				tint.lightened(i * 0.045)
+			)
+			crown.scale.y = 0.85
+	var foliage := SphereShape3D.new()
+	foliage.radius = h * 0.48
+	var camera_obstacle := collider(n, foliage, Vector3(0, h * 0.9, 0))
+	camera_obstacle.collision_layer = 8
 	var s := CylinderShape3D.new()
 	s.radius = 0.32
 	s.height = h * 0.7
@@ -114,7 +169,7 @@ static func biome_prop(
 	parent: Node3D, at: Vector3, rng: RandomNumberGenerator, biome: int, tint: Color
 ) -> void:
 	if biome == 0 or biome == 2:
-		tree(parent, at, rng, tint)
+		tree(parent, at, rng, tint, biome == 2)
 		return
 	var n := Node3D.new()
 	n.position = at
@@ -141,49 +196,3 @@ static func biome_prop(
 	shape.radius = 0.45
 	shape.height = h
 	collider(n, shape, Vector3(0, h / 2, 0))
-
-
-static func explorer(parent: Node3D, archetype: int) -> Node3D:
-	var n := Node3D.new()
-	parent.add_child(n)
-	var colors := [Color("e6ad66"), Color("8cbadd"), Color("8cad75")]
-	var widths := [0.85, 0.7, 1.08]
-	var heights := [1.0, 1.1, 0.94]
-	n.scale = Vector3(widths[archetype], heights[archetype], widths[archetype])
-	box(n, Vector3(0, 1.0, 0), Vector3(0.64, 0.7, 0.4), colors[archetype])
-	sphere(n, Vector3(0, 1.7, 0), 0.32, Color("efc5a5"))
-	cone(n, Vector3(0, 1.91, 0), 0.42, 0.26, 0.22, Color("31545e"))
-	box(n, Vector3(0, 1.42, -0.23), Vector3(0.74, 0.14, 0.15), Color("f1dc98"))
-	box(n, Vector3(0, 1.12, 0.32), Vector3(0.5, 0.62, 0.3), Color("614e44"))
-	for x in [-0.13, 0.13]:
-		sphere(n, Vector3(x, 1.73, -0.28), 0.035, Color("213b43"))
-	for side in [-1, 1]:
-		var leg := Node3D.new()
-		leg.name = "Leg" + str(side)
-		leg.position = Vector3(side * 0.21, 0.7, 0)
-		n.add_child(leg)
-		box(leg, Vector3(0, -0.28, 0), Vector3(0.24, 0.55, 0.28), Color("354f5a"))
-		box(leg, Vector3(0, -0.56, -0.07), Vector3(0.27, 0.18, 0.42), Color("453e39"))
-		var arm := Node3D.new()
-		arm.name = "Arm" + str(side)
-		arm.position = Vector3(side * 0.43, 1.28, 0)
-		n.add_child(arm)
-		box(arm, Vector3(0, -0.2, 0), Vector3(0.2, 0.5, 0.23), colors[archetype])
-		if side == 1:
-			var sword := box(
-				arm, Vector3(0, -0.46, -0.25), Vector3(0.12, 0.12, 0.9), Color("d8e3db")
-			)
-			sword.name = "Sword"
-			var bow := Node3D.new()
-			bow.name = "Bow"
-			arm.add_child(bow)
-			var ring := TorusMesh.new()
-			ring.inner_radius = 0.36
-			ring.outer_radius = 0.42
-			ring.rings = 12
-			ring.ring_segments = 5
-			var frame := mesh(bow, ring, Vector3(0, -0.3, -0.3), Color("b89366"))
-			frame.rotation_degrees.z = 90
-			box(bow, Vector3(0, -0.3, -0.3), Vector3(0.02, 0.8, 0.02), Color("efdfbd"))
-			bow.visible = false
-	return n

@@ -40,6 +40,14 @@ func run() -> void:
 	game.open_bag()
 	await capture("backpack.png")
 	game.hud.show_game()
+	game.hud.visible = false
+	for hero in range(3):
+		game.store.data.hero = hero
+		game.rebuild_hero()
+		game.player.arm.spring_length = 3.8
+		game.player.pivot.rotation = Vector3(-0.15, PI, 0)
+		await capture("character-%d.png" % hero)
+	game.hud.visible = true
 	root.size = Vector2i(640, 360)
 	await capture("phone-640x360.png")
 	quit()

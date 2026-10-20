@@ -2,7 +2,7 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**3D version: 0.10.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.11.0** · Godot 4.4.1 · `three_d/`
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
@@ -13,6 +13,8 @@ a ridge bridge, waterfalls and an explorable cave. Free a cloud companion,
 gather three skyseeds, solve the cavern's song, defeat a ridge warden and restore
 the sky beacon to reach the next seeded island. Discoveries and Starlight persist.
 
+- Rigged Quaternius adventurer/farmer characters and animated biome creatures.
+- Smooth terrain shading, blended paths, rounded props and camera-safe leafy canopies.
 - Landscape lobby, three explorers with different bodies and movement stats,
   unlocked-island atlas, sound/graphics/camera settings and themed pause menu.
 - Third-person orbit camera with collision, analog movement, sprinting, double
@@ -32,7 +34,9 @@ CI APKs are release-mode test builds signed with an ephemeral debug key;
 in-place updates between CI builds may require matching signing keys.
 
 Open `three_d/project.godot` with **Godot 4.4.1**, then press F5 to play.
-No asset downloads, plugins or network services are required.
+Selected models are bundled; no asset downloads, plugins or network services are required.
+[Art credits and source licenses](three_d/assets/ASSET_CREDITS.md) ·
+[Organized original uploads](source_assets/README.md)
 
 ```sh
 godot --path three_d

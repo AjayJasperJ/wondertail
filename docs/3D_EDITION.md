@@ -1,7 +1,8 @@
-# Wondertail 3D — 0.10.0
+# Wondertail 3D — 0.11.0
 
 The first playable third-person conversion uses Godot **4.4.1**, GDScript and
-original procedural meshes. Flutter v0.8 remains in the same repository.
+procedural environments and bundled Quaternius character/creature models. Flutter
+v0.8 remains in the same repository.
 This document describes implemented behavior, not the complete v0.8 wish list.
 
 ## The expedition
@@ -106,8 +107,8 @@ The lobby contains explorer selection, unlocked-island atlas and settings.
 Low detail disables shadows and distant scenery. New mobile expeditions default
 to Low. Volume and camera sensitivity persist. Eight pooled cue voices and an
 original eight-second pentatonic music loop provide sound. More music variety
-and richer character animation remain needed; models are low-poly constructions,
-not realistic skinned characters or motion-capture assets.
+and animation variety remain needed. Players and enemies now use skinned models
+with imported animation clips; environment and equipment remain procedural.
 
 ## Saves and compatibility
 
@@ -185,3 +186,34 @@ are needed beyond this first complete loop.
 No Android hardware frame-pacing, thermal, notch or long-session testing has
 been completed. No retention, boredom or excitement percentages are measured.
 Prioritize device playtests before adding more systems.
+
+
+## v0.11 visual assets and smooth surfaces
+
+Original uploads live under `source_assets/characters/` and `source_assets/packs/`.
+The SWAT model and gun archive are retained but not shipped in gameplay. Runtime
+models are a reproducible subset under `three_d/assets/models/`: Adventurer for
+Rowan, Hooded Adventurer for Sky, Farmer for Fern; Mushnub, Cactoro, Yeti and
+Goleling Evolved for hunters/guardian. See the asset credits and SHA-256 manifest
+under `three_d/assets/`. `python3 tool/prepare_3d_assets.py` recreates the subset.
+
+The source character models each contain 24 clips. Only used locomotion, idle,
+attack/recoil and hit clips are retained in runtime copies; unused animation
+buffers are removed without editing original sources. Dedicated jump and bow
+clips are not supplied: airborne characters use a neutral pose, and bow attacks
+reuse a recoil clip. Weapon meshes follow the right wrist through a bone socket.
+Root movement and collision stay in the original gameplay capsule; animations
+do not change combat reach or move the player through scenery. Animation pauses
+with gameplay menus.
+
+Terrain retains its seeded height function, landmarks and reward positions. Its
+visual mesh is denser, uses continuous height-derived normals, and blends ground,
+rock and path colors per vertex rather than shading each triangle independently.
+Cliff undersides use smoother bands. Cosmetic scenery placement is revised.
+Props use cached rounded-edge meshes while retaining their solid collision boxes;
+rounded appearance is not a promise of rounded collision at every structure.
+Forest trees use clustered round crowns; winter pines retain a conifer silhouette.
+Foliage uses a camera-only collision layer, so the camera retracts from leaves
+without blocking player movement or projectiles. Standard detail enables 2x MSAA;
+Low disables it along with shadows/distant scenery. Real-phone thermal and
+frame-pacing measurements remain outstanding.
