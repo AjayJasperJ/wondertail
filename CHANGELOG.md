@@ -409,3 +409,20 @@ Older dates are omitted where they were not recorded in the release history.
   adventure, world interactions, and local persistence.
 
 
+
+
+## [3D 0.14.1] - 2026-10-20
+
+### Changed
+
+- Ridge bridge now crosses a visible animated water channel with irregular stone banks; the crossing no longer floats over dry ground.
+- Sky clouds use layered translucent wisps instead of solid oval blobs, and daylight now moves through a gentle solar cycle.
+- Hostile creatures are larger, faster and more readable with emissive warning eyes, stronger pursuit, shorter wind-ups and heavier contact damage.
+
+### Fixed
+
+- Flipped the held bow root on imported character sockets so the bow, string and nocked arrow face the firing direction instead of appearing on the explorer's back.
+
+### Design direction
+
+- Coins remain spendable expedition currency for backpack upgrades and caches; the world loop stays open-ended through optional routes, cave entry and persistent island travel rather than a single forced cloud hand-off.

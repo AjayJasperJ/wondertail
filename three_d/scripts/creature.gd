@@ -23,12 +23,12 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	home = at
 	spawn_location = at
 	elite = guardian
-	health = 110 if elite else 60
+	health = 150 if elite else 78
 	collision_layer = 4
 	collision_mask = 7
 	var shape := CapsuleShape3D.new()
 	shape.radius = 0.65 if elite else 0.45
-	shape.height = 1.8 if elite else 1.2
+	shape.height = 1.9 if elite else 1.35
 	var col := CollisionShape3D.new()
 	col.shape = shape
 	col.position.y = shape.height / 2
@@ -41,7 +41,7 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 		if elite
 		else ("cactoro" if biome == 1 else ("yeti" if biome == 2 else "mushnub"))
 	)
-	var size := 0.55 if elite else (0.38 if model_name == "mushnub" else 0.45)
+	var size := 0.62 if elite else (0.46 if model_name == "mushnub" else 0.52)
 	body.setup(
 		"res://assets/models/creatures/" + model_name + ".glb",
 		Vector3.ONE * size,
@@ -53,6 +53,9 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	health_label.font_size = 32
 	health_label.visible = false
 	status_kind = "burn" if biome == 4 else ("slow" if biome == 2 else "")
+	# Hostiles read as threats at a glance: emissive warning eyes and a more deliberate pursuit cadence.
+	for side in [-1, 1]:
+		Art.sphere(self, Vector3(side * 0.16, 1.35 if not elite else 1.95, -0.42), 0.055, Color("ff604d"), 1.4)
 	if elite:
 		Art.label(self, "VAULT WARDEN", Vector3(0, 2.6, 0), Color("ffd293"))
 
@@ -101,7 +104,7 @@ func _physics_process(dt: float) -> void:
 	stun = maxf(0, stun - dt)
 	var offset: Vector3 = game.player.global_position - global_position
 	var distance := offset.length()
-	var alpha := clampf((15.0 - distance) / 3.0, 0, 1)
+	var alpha := clampf((18.0 - distance) / 3.5, 0, 1)
 	health_label.visible = alpha > 0
 	health_label.modulate.a = alpha
 	var filled := ceili(health / (110.0 if elite else 60.0) * 8)
@@ -120,18 +123,18 @@ func _physics_process(dt: float) -> void:
 			bolt.setup(game, source, aim.normalized())
 			bolt.velocity = aim.normalized() * 12
 			game.sound.cue(230, 0.12, 0.08)
-	if distance < 13 and global_position.distance_to(home) < 19:
+	if distance < 18 and global_position.distance_to(home) < 23:
 		body.rotation.y = lerp_angle(body.rotation.y, atan2(-direction.x, -direction.z), dt * 7)
 		if distance < 2.4 and cooldown <= 0:
-			windup = 0.65
-			cooldown = 2.0
+			windup = 0.48
+			cooldown = 1.35
 		if windup > 0:
 			body.play(["Headbutt", "Bite_Front", "Punch"], false)
 			windup -= dt
 			body.scale = Vector3.ONE * (1 + sin(windup * 20) * 0.08)
 			if windup <= 0 and distance < 2.8:
 				var previous: float = game.player.health
-				game.player.hurt(23 if elite else 13)
+				game.player.hurt(31 if elite else 18)
 				if game.player.health < previous:
 					game.player.apply_status(status_kind)
 		else:
@@ -142,7 +145,7 @@ func _physics_process(dt: float) -> void:
 			var ahead := Vector2(position.x + direction.x * 1.2, position.z + direction.z * 1.2)
 			var safe: bool = game.terrain.walkable(ahead, 4)
 			var target := (
-				direction * (3.6 if elite else 3.0)
+				direction * (4.8 if elite else 4.2)
 				if safe and distance > 1.6 and stun <= 0
 				else Vector3.ZERO
 			)

@@ -106,6 +106,9 @@ func setup(owner_game, chosen: int) -> void:
 	var tip := Art.cone(bow_arrow, Vector3(0.12, 0, -0.55), 0.035, 0, 0.1, Color("cbd4d0"))
 	tip.rotation.x = -PI / 2
 
+	# Imported character sockets face backward on the low-poly rigs; flip the held bow so its limbs, string and arrow point with the explorer.
+	bow.rotation.y = PI
+	bow.position = Vector3(0, 0.02, -0.16)
 	refresh_weapon()
 	add_child(pivot)
 	pivot.position.y = 1.6

@@ -327,8 +327,20 @@ func build_landmarks() -> void:
 	portal.visible = store.memory().restored
 	Art.label(beacon, "THE SKY BEACON", Vector3(0, 8, 0))
 	add_object("beacon", beacon, "beacon", beacon.position + Vector3(0, 1, 2), 4)
-	# A suspended timber bridge on the ridge approach provides genuine elevation.
+	# The ridge crossing now spans a real water channel instead of floating over dry land.
 	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
+	var channel_center := Vector2(bridge_center.x, bridge_center.z)
+	var channel_y := terrain.height_at(channel_center) - 0.42
+	var channel := Art.box(world, Vector3(channel_center.x, channel_y, channel_center.y), Vector3(5.6, 0.08, 9.5), Color("4eafc4"))
+	var channel_water := ShaderMaterial.new()
+	channel_water.shader = preload("res://shaders/water.gdshader")
+	channel.material_override = channel_water
+	# A pair of irregular banks makes the crossing read as a stream carved through the island.
+	for side in [-1, 1]:
+		for i in range(7):
+			var bank_at := Vector3(channel_center.x + side * (3.15 + sin(i * 1.8) * 0.25), terrain.height_at(channel_center) + 0.02, channel_center.y + (i - 3) * 1.35)
+			var bank := Art.sphere(world, bank_at, 0.45 + float(i % 3) * 0.12, Color("78877f"))
+			bank.scale = Vector3(1.25, 0.7, 0.8)
 	for i in range(10):
 		var at := bridge_center + Vector3(0, 0, i * 0.55 - 2.5)
 		Art.box(world, at, Vector3(3.1, 0.25, 0.5), Color("9e805c"), true)
@@ -556,11 +568,16 @@ func build_sky() -> void:
 		cloud.position = Vector3(
 			cos(angle) * distance, rng.randf_range(-8, 22), sin(angle) * distance
 		)
-		for j in range(3):
+		for j in range(5):
 			var part := Art.sphere(
-				cloud, Vector3((j - 1) * 4, 0, 0), rng.randf_range(3, 6), Color("d1dfd6")
+				cloud, Vector3((j - 2) * 3.2, sin(j * 1.7) * 0.8, cos(j * 2.1) * 1.2), rng.randf_range(2.4, 4.8), Color("eef7f2")
 			)
-			part.scale.y = 0.4
+			part.scale = Vector3(1.35, 0.28 + rng.randf_range(0.08, 0.18), 0.85)
+			var cloud_material := StandardMaterial3D.new()
+			cloud_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			cloud_material.albedo_color = Color(0.93, 0.98, 0.96, 0.34)
+			cloud_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			part.material_override = cloud_material
 		cloud.set_meta("distant", true)
 	for i in range(4):
 		var n := Node3D.new()
@@ -1159,6 +1176,9 @@ func tell(caption: String) -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
+	# A slow solar cycle keeps the island alive without interrupting the expedition.
+	light.rotation_degrees = Vector3(-42.0 - sin(clock * 0.018) * 18.0, -35.0 + clock * 0.018, 0)
+	light.light_energy = 0.82 + sin(clock * 0.018) * 0.16
 	for i in range(pickup_effects.size() - 1, -1, -1):
 		var effect: Dictionary = pickup_effects[i]
 		if not is_instance_valid(effect.node):
