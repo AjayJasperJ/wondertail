@@ -38,6 +38,8 @@ not recorded in the release history.
 - Split combat, AI and world-generation rules into dedicated domain modules.
 - Closed vault walls block traversal and shots; melee checks line of sight.
   Forage gifts account for consumable weight, and guardian spawns use valid ground.
+- Optional vault placement reserves clearance from required walking routes so
+  an unopened vault cannot block the main adventure.
 
 ### Known limits
 

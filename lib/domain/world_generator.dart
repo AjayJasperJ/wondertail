@@ -11,13 +11,35 @@ extension WorldEcology on IslandMap {
   Point2 _secretPoint(int n) {
     final trail = trails[n == 0 ? 8 : 7];
     final anchor = trail[(trail.length * (n == 0 ? .65 : .4)).floor()];
-    for (final delta in [
-      const Point2(130, 90),
-      const Point2(-130, 90),
-      const Point2(0, 120),
-      const Point2(0, -120)
-    ]) {
-      if (canStand(anchor + delta)) return anchor + delta;
+    final candidates = [
+      for (final delta in [
+        const Point2(130, 90),
+        const Point2(-130, 90),
+        const Point2(0, 120),
+        const Point2(0, -120),
+        const Point2(220, 0),
+        const Point2(-220, 0),
+        const Point2(0, 220),
+        const Point2(0, -220),
+      ])
+        anchor + delta,
+      if (n == 0) ...flowers
+    ];
+    for (final point in candidates) {
+      if (!canStand(point)) continue;
+      if (n == 0 &&
+          (!onLand(point, margin: 75) ||
+              trails
+                  .any((route) => route.any((p) => p.distanceTo(point) < 90)) ||
+              [
+                const Point2(-40, -30),
+                const Point2(40, -30),
+                const Point2(-40, 30),
+                const Point2(40, 30)
+              ].any((d) => !canStand(point + d)))) {
+        continue;
+      }
+      return point;
     }
     return anchor;
   }

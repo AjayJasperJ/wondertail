@@ -155,7 +155,12 @@ void main() {
       () {
     final biomes = <Biome>{};
     for (var i = 3; i < 19; i++) {
-      final m = IslandMap.generate(4271 + i * 79, i, expanded: true);
+      final world = WorldState(
+          seed: 4271 + i * 79,
+          islandIndex: i,
+          highestVisited: i,
+          highestUnlocked: i);
+      final m = world.map;
       final old = IslandMap.generate(4271 + i * 79, i);
       expect(m.scaleX / old.scaleX, closeTo(3, .00001));
       biomes.add(m.biome);
@@ -174,6 +179,9 @@ void main() {
             reason: 'Island $i target $t');
         for (var j = 1; j < trail.length; j++) {
           expect(m.navigation.segment(trail[j - 1], trail[j]), isTrue);
+          expect(ActionRules.groundedClear(world, trail[j]), isTrue,
+              reason:
+                  'Closed vault must leave required route $t open on island $i');
         }
       }
     }

@@ -221,7 +221,9 @@ class CombatRules {
         for (var i = 0; i < 20; i++) {
           final next = w.map.slide(w.position, w.facing * 9);
           if (!EngagementRules.passable(w, next) ||
-              !ActionRules.groundedClear(w, next)) break;
+              !ActionRules.groundedClear(w, next)) {
+            break;
+          }
           w.x = next.x;
           w.y = next.y;
         }
