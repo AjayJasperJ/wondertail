@@ -44,17 +44,17 @@ jobs:
       - name: Import and check actual scripts
         run: |
           godot --headless --path three_d --editor --quit 2>&1 | tee /tmp/import.log
-          if rg 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/import.log; then exit 1; fi
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script' /tmp/import.log; then exit 1; fi
       - name: Physics, terrain, progression and storage checks
         run: |
           set -o pipefail
-          timeout 90 godot --headless --path three_d --script tests/smoke.gd 2>&1 | tee /tmp/tests.log
-          if rg 'SCRIPT ERROR|^ERROR:' /tmp/tests.log; then exit 1; fi
+          timeout 90 godot --headless --fixed-fps 60 --path three_d --script tests/smoke.gd 2>&1 | tee /tmp/tests.log
+          if grep -E 'SCRIPT ERROR|^ERROR:' /tmp/tests.log; then exit 1; fi
       - name: Render actual gameplay and menus
         run: |
           set -o pipefail
           timeout 90 xvfb-run -a godot --path three_d --rendering-method gl_compatibility --audio-driver Dummy --script tests/screenshots.gd 2>&1 | tee /tmp/render.log
-          if rg 'SCRIPT ERROR|^ERROR:' /tmp/render.log; then exit 1; fi
+          if grep -E 'SCRIPT ERROR|^ERROR:' /tmp/render.log; then exit 1; fi
       - name: Export desktop and web
         run: |
           mkdir -p three_d/build/web

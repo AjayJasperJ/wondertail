@@ -45,7 +45,6 @@ static func valid(value: Variant) -> bool:
 		or value.island < 0
 		or value.island > value.unlocked
 		or value.coins < 0
-		or value.unlocked > 1000000
 	):
 		return false
 	if not value.get("islands") is Dictionary:

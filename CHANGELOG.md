@@ -27,6 +27,8 @@ Older dates are omitted where they were not recorded in the release history.
   bottom-center vitals and in-theme inline feedback.
 - Headless terrain, physics, camera, progression and save tests; rendered desktop
   and small-phone screenshots; Android/Windows/Linux/web export workflow.
+- Physical route traversal checks cover both landmark trails; the cave approach
+  bypasses solid arch walls, and the restored beacon opens a visible portal.
 
 ### Migration and limits
 

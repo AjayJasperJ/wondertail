@@ -16,6 +16,23 @@ func check(condition: bool, message: String) -> void:
 		push_error(message)
 
 
+func walk_to(scene, target: Vector2) -> bool:
+	var previous: Vector3 = scene.player.position
+	for frame in range(650):
+		var at := Vector2(scene.player.position.x, scene.player.position.z)
+		if at.distance_to(target) < 1.5:
+			scene.player.stick = Vector2.ZERO
+			return true
+		scene.player.stick = (target - at).normalized()
+		if frame % 35 == 34:
+			if scene.player.position.distance_to(previous) < 0.8:
+				scene.player.request_jump()
+			previous = scene.player.position
+		await physics_frame
+	scene.player.stick = Vector2.ZERO
+	return false
+
+
 func run() -> void:
 	# Data and generation invariants, independently of rendering.
 	var store := Store.new()
@@ -86,6 +103,18 @@ func run() -> void:
 		await physics_frame
 	check(scene.player.is_on_floor(), "Player settles on physical terrain")
 	check(scene.player.position.y > -1, "Spawn does not fall through terrain")
+	for enemy in scene.enemies:
+		enemy.set_physics_process(false)
+	# Walk the generated paths with the actual capsule, including cave approach
+	# and ridge bridge. Permit jumping onto constructed ledges, as in normal play.
+	for route in scene.terrain.paths:
+		scene.player.position = scene.terrain.point("camp") + Vector3(0, 0.3, 0)
+		scene.player.velocity = Vector3.ZERO
+		for waypoint in route.slice(1):
+			var reached: bool = await walk_to(scene, waypoint)
+			check(reached, "Physical landmark route reaches " + str(waypoint))
+	scene.player.position = scene.terrain.point("camp") + Vector3(0, 0.3, 3)
+	scene.player.velocity = Vector3.ZERO
 	var start: Vector3 = scene.player.position
 	scene.player.stick = Vector2(1, 0)
 	for i in range(25):

@@ -29,6 +29,7 @@ var cave_sequence: Array = [0, 2, 1]
 var cave_lamps: Array[Node3D] = []
 var cloud_node: Node3D
 var beacon: Node3D
+var portal: MeshInstance3D
 var nav_marker: Node3D
 var mouse_drag := false
 var mouse_stick := false
@@ -226,6 +227,13 @@ func build_landmarks() -> void:
 	for side in [-1, 1]:
 		Art.box(beacon, Vector3(side * 2.7, 3.2, 0), Vector3(0.9, 6.4, 1.1), gold, true)
 	Art.box(beacon, Vector3(0, 6.3, 0), Vector3(6.3, 1, 1.2), gold, true)
+	portal = Art.box(beacon, Vector3(0, 3.1, 0), Vector3(4.5, 5.4, 0.08), Color("9ad9cb"))
+	var portal_material := StandardMaterial3D.new()
+	portal_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	portal_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	portal_material.albedo_color = Color(0.52, 0.86, 0.76, 0.45)
+	portal.material_override = portal_material
+	portal.visible = store.memory().restored
 	Art.label(beacon, "THE SKY BEACON", Vector3(0, 8, 0))
 	add_object("beacon", beacon, "beacon", beacon.position + Vector3(0, 1, 2), 4)
 	# A suspended timber bridge on the ridge approach provides genuine elevation.
@@ -787,6 +795,7 @@ func _process(dt: float) -> void:
 		companion.position = companion.position.lerp(target, 1 - exp(-dt * 4))
 		companion.rotation.y = player.body.rotation.y
 	if store.memory().restored:
+		portal.visible = true
 		beacon.rotation.y = sin(clock * 0.4) * 0.025
 	for i in range(effects.size() - 1, -1, -1):
 		var effect: Dictionary = effects[i]

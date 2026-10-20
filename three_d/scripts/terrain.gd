@@ -45,7 +45,14 @@ func configure(world_seed: int, island: int) -> void:
 	for key in anchors:
 		anchors[key] *= scale_factor
 	paths = [
-		[anchors.camp, Vector2(-11, 4) * scale_factor, anchors.cave, anchors.ridge, anchors.gate],
+		[
+			anchors.camp,
+			Vector2(-11, 4) * scale_factor,
+			anchors.cave + Vector2(0, 4),
+			anchors.cave + Vector2(7, 4),
+			anchors.ridge,
+			anchors.gate
+		],
 		[anchors.camp, Vector2(14, 9) * scale_factor, anchors.ruins, anchors.ridge]
 	]
 
@@ -77,7 +84,10 @@ func height_at(p: Vector2) -> float:
 	hill += 7.0 * exp(-q.distance_squared_to(Vector2(26, -22)) / 95.0)
 	var wave := sin(q.x * 0.09) * cos(q.y * 0.08) * 1.5 + noise.get_noise_2dv(p) * 0.55
 	# Accessible ramps connect landmarks; steep mountain faces remain off the trail.
-	var trail := smoothstep(1.8, 6.5, path_distance(p))
+	var distance := path_distance(p)
+	for anchor in anchors.values():
+		distance = minf(distance, p.distance_to(anchor))
+	var trail := smoothstep(1.8, 6.5, distance)
 	return 1.2 + wave + hill * trail + maxf(0, -q.y - 10) * 0.10
 
 
