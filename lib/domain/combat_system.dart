@@ -143,6 +143,19 @@ class Ordnance {
 }
 
 class CombatRules {
+  static bool clearLine(WorldState w, Point2 a, Point2 b) {
+    final n = math.max(1, (a.distanceTo(b) / 8).ceil());
+    for (var i = 0; i <= n; i++) {
+      final p = a + (b - a) * (i / n);
+      if (!ActionRules.groundedClear(w, p) ||
+          w.map.obstacles
+              .any((o) => !o.pond && p.distanceTo(o.center) < o.radius)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   static bool attack(WorldState w) {
     if (w.room != 0 || w.vitals.attackCooldown > 0) return false;
     final l = w.loadout, s = WeaponStats.of(l.weapon);
@@ -168,7 +181,8 @@ class CombatRules {
       if (enemy.alive &&
           d.length < s.reach &&
           (d.length < 20 ||
-              (d.x * w.facing.x + d.y * w.facing.y) / d.length > .2)) {
+              (d.x * w.facing.x + d.y * w.facing.y) / d.length > .2) &&
+          clearLine(w, w.position, enemy.position)) {
         hit(w, enemy, s.damage * strength * (1 + l.combo * .2));
         final next = enemy.position + d * (30 / math.max(1, d.length));
         if (w.map.canStand(next) && ActionRules.groundedClear(w, next)) {
@@ -206,7 +220,8 @@ class CombatRules {
         w.vitals.invulnerable = math.max(w.vitals.invulnerable, .6);
         for (var i = 0; i < 20; i++) {
           final next = w.map.slide(w.position, w.facing * 9);
-          if (!EngagementRules.passable(w, next)) break;
+          if (!EngagementRules.passable(w, next) ||
+              !ActionRules.groundedClear(w, next)) break;
           w.x = next.x;
           w.y = next.y;
         }

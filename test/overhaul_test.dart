@@ -3,6 +3,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wondertail/domain/world_state.dart';
 
 void main() {
+  test('closed vault geometry blocks traversal and melee; breach opens it', () {
+    final w = WorldState(islandIndex: 6, highestVisited: 6, highestUnlocked: 6);
+    final p = w.map.secretPoint(0);
+    expect(ActionRules.groundedClear(w, p), isFalse);
+    WorldGenerator.breach(w, p);
+    expect(ActionRules.groundedClear(w, p), isTrue);
+    final room = WorldState();
+    room.map.obstacles.clear();
+    room.x = 640;
+    room.y = 480;
+    room.map.obstacles.add(Obstacle(const Point2(675, 480), 12));
+    final mob = Hostile(const Point2(710, 480), const Point2(710, 480), 100);
+    room.hostiles.add(mob);
+    CombatRules.attack(room);
+    expect(mob.health, 100);
+  });
+  test('forage respects consumable weight without spending its saved gift', () {
+    final w = WorldState(bag: ExpeditionBag(herbs: 43, tonics: 2));
+    MobAI.ensureSpawns(w);
+    w.x = w.passives.first.position.x;
+    w.y = w.passives.first.position.y;
+    WorldGenerator.interact(w);
+    expect(w.bag.weight, 45);
+    expect(w.progress.secrets & 16, 0);
+    w.bag.tonics = 0;
+    WorldGenerator.interact(w);
+    expect(w.bag.herbs, 45);
+    expect(w.progress.secrets & 16, 16);
+  });
   test('melee strikes face forward and chain damage without hitting behind',
       () {
     final w = WorldState();

@@ -4,7 +4,7 @@ User-visible changes for each application version belong here. The app version
 in `pubspec.yaml` is the source of truth. Older dates are omitted where they were
 not recorded in the release history.
 
-## [0.8.0] - 2026-10-19
+## [0.8.0] - 2026-10-20
 
 ### Added
 
@@ -36,6 +36,8 @@ not recorded in the release history.
   Older visited islands retain their layout; new expansion begins beyond the
   saved frontier. Challenge gear, bag and vitals do not replace normal progress.
 - Split combat, AI and world-generation rules into dedicated domain modules.
+- Closed vault walls block traversal and shots; melee checks line of sight.
+  Forage gifts account for consumable weight, and guardian spawns use valid ground.
 
 ### Known limits
 

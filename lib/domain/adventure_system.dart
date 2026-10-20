@@ -81,6 +81,7 @@ class ExpeditionBag {
       this.boosters = 0,
       this.shield = false});
   int crystals, herbs, tonics, boosters;
+  int get weight => crystals + herbs + tonics + boosters;
   bool shield;
   bool craft(Recipe recipe) {
     final c = recipe == Recipe.shield ? 3 : 1;
@@ -204,8 +205,13 @@ class ActionRules {
     return true;
   }
 
-  static bool groundedClear(WorldState w, Point2 p) => !w.map.solidBoxes
-      .any((b) => b.contains(p, ExplorerStats.forCharacter(w.character)));
+  static bool groundedClear(WorldState w, Point2 p) =>
+      !w.map.solidBoxes
+          .any((b) => b.contains(p, ExplorerStats.forCharacter(w.character))) &&
+      !(w.room == 0 &&
+          w.map.expanded &&
+          w.progress.secrets & 1 == 0 &&
+          w.map.vaultWall.contains(p, ExplorerStats.forCharacter(w.character)));
   static Point2 solidSlide(WorldState w, Point2 from, Point2 next) {
     if (groundedClear(w, next)) return next;
     final x = Point2(next.x, from.y), y = Point2(from.x, next.y);

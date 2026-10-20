@@ -27,7 +27,7 @@ B bag, J journal. Select throwable and power through their quick slots.
 | Bow | 42 | 560 | 0.65s | 8 | Shared ammo |
 | Slingshot | 18 | 400 | 0.40s | 6 | None |
 
-Melee uses facing, reach and explorer strength. A three-hit chain has damage
+Melee uses facing, reach, clear line of sight and explorer strength. A three-hit chain has damage
 multipliers 1.0, 1.2 and 1.4, with a 1.4-second combo window. Ranged shots have
 travel time and substepped collision against scenery and mobs. Ammunition is a
 shared abstract resource for gun and bow, not a realistic cartridge simulation.

@@ -353,8 +353,8 @@ class WorldState {
         (json['guide'] ?? true) is! bool) {
       throw const FormatException('Invalid explorer settings.');
     }
-    final expansion =
-        json['expansionStart'] ?? math.max(3, json['highestVisited'] + 1);
+    final expansion = json['expansionStart'] ??
+        math.max(3, (json['highestVisited'] as int) + 1);
     if (expansion is! int || expansion < 0) {
       throw const FormatException('Invalid expansion boundary.');
     }
@@ -476,6 +476,9 @@ class IslandMap {
   final bool compact;
   final bool expanded;
   late final NavigationGrid navigation = NavigationGrid(this);
+  late final List<Point2> secretLocations = [_secretPoint(0), _secretPoint(1)];
+  late final SolidBox vaultWall = SolidBox(secretPoint(0).x - 32,
+      secretPoint(0).y - 35, secretPoint(0).x + 32, secretPoint(0).y + 15);
   final String name;
   final Biome biome;
   final Adventure adventure;

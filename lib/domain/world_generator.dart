@@ -5,6 +5,10 @@ enum Season { spring, summer, autumn, winter }
 extension WorldEcology on IslandMap {
   Season get season => Season.values[(index ~/ 3 + variationSeed) % 4];
   Point2 secretPoint(int n) {
+    return secretLocations[n];
+  }
+
+  Point2 _secretPoint(int n) {
     final trail = trails[n == 0 ? 8 : 7];
     final anchor = trail[(trail.length * (n == 0 ? .65 : .4)).floor()];
     for (final delta in [
@@ -223,7 +227,7 @@ class WorldGenerator {
       }
       if (w.progress.secrets & flag == 0 &&
           w.passives[i].position.distanceTo(w.position) < 55 &&
-          w.bag.herbs + w.bag.crystals + 2 <=
+          w.bag.weight + 2 <=
               ExplorerStats.forCharacter(w.character).capacity) {
         w.progress.secrets |= flag;
         w.bag.herbs += 2;

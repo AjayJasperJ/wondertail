@@ -38,7 +38,15 @@ class MobAI {
       w.hostiles.add(enemy);
     }
     if (w.map.expanded && w.progress.secrets & 2 == 0) {
-      final home = w.map.secretPoint(0) + const Point2(80, 0);
+      final vault = w.map.secretPoint(0);
+      final home = [
+        vault + const Point2(80, 0),
+        vault + const Point2(-80, 0),
+        vault + const Point2(0, 80),
+        vault + const Point2(0, -80)
+      ].firstWhere(w.map.canStand,
+          orElse: () =>
+              w.map.trails[8][(w.map.trails[8].length * .65).floor()]);
       w.hostiles.add(Hostile(home, home, 240 + w.map.difficulty * 15.0)
         ..kind = MobKind.elite);
     }
