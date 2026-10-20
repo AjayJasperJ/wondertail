@@ -426,3 +426,12 @@ Older dates are omitted where they were not recorded in the release history.
 ### Design direction
 
 - Coins remain spendable expedition currency for backpack upgrades and caches; the world loop stays open-ended through optional routes, cave entry and persistent island travel rather than a single forced cloud hand-off.
+
+
+## [3D 0.14.2] - 2026-10-20
+
+### Fixed
+
+- Multitouch movement now latches the movement thumb's heading while the second thumb orbits the camera, preventing the player from spinning or refusing to advance.
+- Touch ownership is explicitly released when the joystick returns to neutral.
+- Crouching no longer scales the imported GLB vertically. The collision capsule and camera lower smoothly while the full character rig moves down as one piece, avoiding stretched-body deformation on rigs without a crouch animation.
