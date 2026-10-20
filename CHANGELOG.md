@@ -435,3 +435,18 @@ Older dates are omitted where they were not recorded in the release history.
 - Multitouch movement now latches the movement thumb's heading while the second thumb orbits the camera, preventing the player from spinning or refusing to advance.
 - Touch ownership is explicitly released when the joystick returns to neutral.
 - Crouching no longer scales the imported GLB vertically. The collision capsule and camera lower smoothly while the full character rig moves down as one piece, avoiding stretched-body deformation on rigs without a crouch animation.
+
+
+## [3D 0.15.0] - 2026-10-20
+
+### Added
+
+- Islands now sit inside a visible animated ocean with a softer horizon ring and water shader.
+- Added a dock-like expedition boat at the gate so travel reads as a journey between destinations.
+- Increased seeded vegetation density from sparse landmark dressing to a fuller island ecosystem.
+- Increased instanced grass and understory coverage while preserving clear walkable routes and landmark space.
+
+### Design direction
+
+- The island remains open-ended: the boat is a visual travel anchor, while cave entrances, optional caches and expedition objectives remain available before departure.
+- Supplied GLB characters continue to provide the playable explorers and creatures; scenery density is procedural so new island seeds remain varied.

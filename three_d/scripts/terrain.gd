@@ -233,7 +233,7 @@ func triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 
 
 func decorate() -> void:
-	for i in range(130):
+	for i in range(480):
 		var p := Vector2(rng.randf_range(-48, 48), rng.randf_range(-48, 48)) * scale_factor
 		if (
 			not walkable(p, 3)
@@ -249,7 +249,7 @@ func decorate() -> void:
 		if reserved:
 			continue
 		var at := Vector3(p.x, height_at(p), p.y)
-		if i % 4 != 0:
+		if i % 5 != 0:
 			Art.biome_prop(self, at, rng, index % 6, palette[1])
 		else:
 			var rock := Art.model(
@@ -288,8 +288,8 @@ func decorate() -> void:
 	var flower_mesh := grass.commit()
 
 	mm.mesh = flower_mesh
-	mm.instance_count = 520
-	for i in range(520):
+	mm.instance_count = 1400
+	for i in range(1400):
 		var p := Vector2(rng.randf_range(-40, 40), rng.randf_range(-40, 40)) * scale_factor
 		var at := (
 			Vector3(p.x, height_at(p) + 0.015, p.y)

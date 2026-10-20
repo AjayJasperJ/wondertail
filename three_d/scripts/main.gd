@@ -123,6 +123,17 @@ func setup_environment() -> void:
 	add_child(light)
 
 
+func build_ocean() -> void:
+	# The island is a destination floating above a calm sea, not a flat stage ending at fog.
+	var sea := Art.cone(world, Vector3(0, -9.5, 0), 170.0, 170.0, 0.18, Color("4f9fb7"))
+	var sea_material := ShaderMaterial.new()
+	sea_material.shader = preload("res://shaders/water.gdshader")
+	sea.material_override = sea_material
+	sea.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var ring := Art.cone(world, Vector3(0, -9.35, 0), 68.0, 68.0, 0.08, Color("79c9ca"), 0.12)
+	ring.material_override = sea_material
+
+
 func build_world() -> void:
 	objects.clear()
 	enemies.clear()
@@ -191,6 +202,22 @@ func rebuild_hero() -> void:
 		world.remove_child(player)
 		player.queue_free()
 	spawn_player()
+
+
+func build_expedition_boat(at: Vector3) -> void:
+	# A visual travel vessel makes island-to-island progression feel continuous.
+	var boat := Node3D.new()
+	world.add_child(boat)
+	boat.position = at
+	boat.rotation.y = -0.35
+	Art.box(boat, Vector3.ZERO, Vector3(4.4, 0.7, 2.1), Color("76543d"), true)
+	Art.box(boat, Vector3(0, 0.42, 0), Vector3(3.5, 0.18, 1.55), Color("b88b5f"))
+	Art.box(boat, Vector3(-0.45, 1.05, 0), Vector3(1.35, 0.95, 1.05), Color("45636a"), true)
+	Art.box(boat, Vector3(0.7, 0.95, 0), Vector3(0.12, 3.3, 0.12), Color("543b2d"))
+	var sail := Art.box(boat, Vector3(1.05, 1.9, 0), Vector3(1.35, 1.8, 0.08), Color("e6d7b2"))
+	sail.rotation.z = -0.12
+	Art.box(boat, Vector3(0, 0.72, 1.45), Vector3(5.2, 0.22, 0.3), Color("8b6949"))
+	Art.label(boat, "EXPEDITION BOAT", Vector3(0, 2.7, 0), Color("f2d69a"))
 
 
 func landmark(key: String) -> Node3D:
@@ -326,6 +353,7 @@ func build_landmarks() -> void:
 	portal.material_override = portal_material
 	portal.visible = store.memory().restored
 	Art.label(beacon, "THE SKY BEACON", Vector3(0, 8, 0))
+	build_expedition_boat(terrain.point("gate") + Vector3(6.5, -0.25, 0))
 	add_object("beacon", beacon, "beacon", beacon.position + Vector3(0, 1, 2), 4)
 	# The ridge crossing now spans a real water channel instead of floating over dry land.
 	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
