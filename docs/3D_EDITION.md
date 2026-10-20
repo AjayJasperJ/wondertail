@@ -1,9 +1,9 @@
-# Wondertail 3D — 0.12.0
+# Wondertail 3D — 0.12.1
 
 The 3D action-adventure edition uses Godot **4.4.1**, GDScript and
 procedural environments and bundled Quaternius character/creature models. Flutter
 v0.8 remains in the same repository.
-This document describes implemented behavior, not the entire v0.12.0 blueprint.
+This document describes implemented behavior, not the entire v0.12.1 blueprint.
 
 ## The expedition
 
@@ -227,4 +227,4 @@ frame-pacing measurements remain outstanding.
 
 ## Camera, navigation and collection polish
 
-See [v0.12.0 controls, shipped changes and explicit limits](3D_POLISH_V0.12.md).
+See [v0.12.1 controls, shipped changes and explicit limits](3D_POLISH_V0.12.md).

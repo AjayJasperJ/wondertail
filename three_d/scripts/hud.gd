@@ -6,6 +6,9 @@ var hearts: RichTextLabel
 var page := "lobby"
 var widgets := Control.new()
 var objective: Label
+var quest_title: Label
+var shoulder_button: Button
+var view_button: Button
 var vitals: Label
 var notice: Label
 var health: ProgressBar
@@ -28,15 +31,17 @@ func setup(owner_game) -> void:
 	add_child(widgets)
 	widgets.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var theme := Theme.new()
-	theme.default_font_size = 20
+	theme.default_font_size = 18
 	for type in ["normal", "hover", "pressed", "disabled"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("244954") if type != "pressed" else Color("537c77")
 		style.border_color = Color("79938b")
 		style.set_border_width_all(1)
 		style.set_corner_radius_all(15)
-		style.content_margin_left = 16
-		style.content_margin_right = 16
+		style.content_margin_left = 14
+		style.content_margin_top = 8
+		style.content_margin_bottom = 8
+		style.content_margin_right = 14
 		theme.set_stylebox(type, "Button", style)
 	theme.set_color("font_color", "Button", Color("fff1d5"))
 	theme.set_color("font_hover_color", "Button", Color("ffffff"))
@@ -82,6 +87,7 @@ func button(caption: String, rect: Rect2, callback: Callable) -> Button:
 	b.size = rect.size
 	b.pressed.connect(callback)
 	widgets.add_child(b)
+	b.size = rect.size
 	return b
 
 
@@ -89,13 +95,13 @@ func show_lobby() -> void:
 	page = "lobby"
 	clear()
 	text("A WORLD WORTH WANDERING", Vector2(72, 78), 17, Color("a7d6cb"))
-	text("WONDERTAIL", Vector2(66, 104), 62, title_color)
+	text("WONDERTAIL", Vector2(66, 104), 52, title_color)
 	text("THE SKYBOUND EXPEDITION", Vector2(73, 179), 19, Color("b5d6d2"))
-	text("Beyond the path, something is waiting.", Vector2(74, 237), 22)
+	text("A new horizon is waiting.", Vector2(74, 237), 22)
 	text(
-		"Climb the highlands. Wake an ancient beacon.\nBring a little kindness to the unknown.",
+		"Find a forgotten path. Free a lost friend.\nLeave this island brighter than you found it.",
 		Vector2(74, 278),
-		19
+		17
 	)
 	button("CONTINUE EXPEDITION  →", Rect2(74, 377, 367, 60), game.start_game)
 	button("EXPLORERS", Rect2(74, 453, 174, 51), func(): show_heroes())
@@ -233,60 +239,66 @@ func bar(at: Vector2, color: Color) -> ProgressBar:
 func show_game() -> void:
 	page = "game"
 	clear()
-	objective = text("", Vector2(36, 27), 24, title_color)
-	text("W O N D E R T A I L", Vector2(36, 63), 14, Color("bed6d0"))
-	button("Ⅱ  CAMP", Rect2(1100, 26, 140, 48), game.pause_game)
-	button("BAG", Rect2(1100, 90, 140, 48), game.open_bag)
+	quest_title = text("", Vector2(46, 34), 12, Color("a7cbb9"))
+	objective = text("", Vector2(46, 57), 20, Color("f3edda"))
+	objective.size = Vector2(540, 48)
+	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button("PAUSE", Rect2(972, 26, 88, 48), game.pause_game)
+	button("PACK", Rect2(972, 106, 88, 48), game.open_bag)
 	var radar := Minimap.new()
 	radar.game = game
-	radar.position = Vector2(1060, 158)
+	radar.position = Vector2(1064, 18)
 	widgets.add_child(radar)
-	text("N", Vector2(1141, 146), 14, title_color)
-	camera_label = text("", Vector2(850, 110), 14, Color("bed6d0"))
-	button("VIEW", Rect2(900, 175, 88, 48), func(): game.action("camera_mode"))
-	button("L / R", Rect2(900, 235, 88, 48), func(): game.action("shoulder"))
+	text("N", Vector2(1146, 16), 12, Color("b7cebd"))
+	camera_label = text("", Vector2(1076, 195), 12, Color("d0ddd2"))
+	view_button = button("VIEW", Rect2(1104, 222, 120, 44), func(): game.action("camera_mode"))
+	shoulder_button = button("L / R", Rect2(1006, 222, 78, 44), func(): game.action("shoulder"))
 	hearts = RichTextLabel.new()
-	hearts.position = Vector2(465, 578)
-	hearts.size = Vector2(220, 34)
+	hearts.position = Vector2(472, 599)
+	hearts.size = Vector2(180, 32)
 	hearts.bbcode_enabled = true
 	hearts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hearts.add_theme_font_size_override("normal_font_size", 22)
 	widgets.add_child(hearts)
-	button("CROUCH", Rect2(790, 520, 94, 86), func(): game.action("crouch"))
-	button("AIM", Rect2(1010, 435, 94, 86), func(): game.action("aim"))
 	action_buttons["weapon"] = button(
-		"SWAP", Rect2(900, 520, 94, 86), func(): game.action("weapon")
+		"SWAP", Rect2(696, 594, 108, 42), func(): game.action("weapon")
 	)
-	vitals = text("", Vector2(465, 608), 16)
-	health = bar(Vector2(465, 638), Color("e89e80"))
-	stamina = bar(Vector2(465, 655), Color("91d6c4"))
-	notice = text("", Vector2(302, 682), 16, Color("fff1c7"))
-	prompt = button("", Rect2(465, 540, 330, 51), game.interact)
+	vitals = text("", Vector2(472, 637), 14, Color("dce3d4"))
+	health = bar(Vector2(472, 664), Color("d8a583"))
+	stamina = bar(Vector2(472, 679), Color("7db8a8"))
+	notice = text("", Vector2(339, 484), 16, Color("ece8d4"))
+	notice.size = Vector2(550, 42)
+	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	prompt = button("", Rect2(468, 547, 336, 42), game.interact)
 	var entries := [
-		["JUMP", Vector2(1120, 555), "jump"],
-		["STRIKE", Vector2(1010, 615), "attack"],
-		["DASH", Vector2(1120, 435), "dash"],
-		["RUN", Vector2(900, 615), "sprint"]
+		["JUMP", Vector2(1150, 538), "jump"],
+		["SHOOT", Vector2(1030, 592), "attack"],
+		["DASH", Vector2(1150, 424), "dash"],
+		["RUN", Vector2(911, 606), "sprint"],
+		["CROUCH", Vector2(911, 495), "crouch"],
+		["AIM", Vector2(1030, 480), "aim"]
 	]
 	for entry in entries:
 		var action: String = entry[2]
-		var b := button(entry[0], Rect2(entry[1], Vector2(94, 86)), func(): game.action(action))
-		action_buttons[action] = b
-		if action == "sprint":
-			b.toggle_mode = true
-	# Thumb controls have independent translucent circular hit zones.
-	for child in widgets.get_children():
-		if child is Button and child.position.y >= 435 and child != prompt:
-			for state in ["normal", "hover", "pressed"]:
-				var style := StyleBoxFlat.new()
-				style.bg_color = Color(0.08, 0.19, 0.22, 0.5 if state != "pressed" else 0.85)
-				style.border_color = Color(0.78, 0.87, 0.77, 0.5)
-				style.set_border_width_all(1)
-				style.set_corner_radius_all(42)
-				child.add_theme_stylebox_override(state, style)
-			child.add_theme_font_size_override("font_size", 14)
-	text("DRAG THE SKY TO LOOK", Vector2(920, 384), 14, Color("bfd6ce"))
-	text("F  /  E  •  STRIKE / INTERACT", Vector2(36, 96), 14, Color("bed6d0"))
+		var size := Vector2(88, 88)
+		if action == "attack":
+			size = Vector2(100, 100)
+		var control := button(entry[0], Rect2(entry[1], size), func(): game.action(action))
+		action_buttons[action] = control
+		control.add_theme_font_size_override("font_size", 13)
+		for state in ["normal", "hover", "pressed"]:
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(0.06, 0.13, 0.15, 0.48 if state != "pressed" else 0.85)
+			style.border_color = Color(0.8, 0.85, 0.74, 0.5)
+			style.set_border_width_all(1)
+			style.set_corner_radius_all(48 if action == "attack" else 40)
+			style.content_margin_left = 0
+			style.content_margin_right = 0
+			style.content_margin_top = 0
+			style.content_margin_bottom = 0
+			control.add_theme_stylebox_override(state, style)
+	# Keyboard hints live in Pause, leaving the playing field clear.
 
 
 func show_bag() -> void:
@@ -458,11 +470,15 @@ func _process(dt: float) -> void:
 			var tint := Color("4e6668").lerp(Color("efa88b"), fill)
 			hearts.text += "[color=#%s]♥ [/color]" % tint.to_html(false)
 		camera_label.text = game.player.cameras.MODES[game.player.cameras.mode]
+		shoulder_button.visible = game.player.cameras.mode == 2 or game.player.cameras.aiming
+		action_buttons.aim.modulate = Color("edcf94") if game.player.cameras.aiming else Color.WHITE
+		action_buttons.crouch.modulate = Color("edcf94") if game.player.crouching else Color.WHITE
+		action_buttons.sprint.modulate = Color("edcf94") if game.player.sprinting else Color.WHITE
 		queue_redraw()
 		var ranged: bool = int(game.store.data.bag.weapon) == 1
 		action_buttons.attack.text = "SHOOT" if ranged else "STRIKE"
 		action_buttons.weapon.text = (
-			"BOW %d\nSWAP" % game.store.data.bag.arrows if ranged else "SWORD\nSWAP"
+			"BOW · %d" % game.store.data.bag.arrows if ranged else "SWORD"
 		)
 		health.value = game.player.health / game.player.max_health * 100
 		stamina.value = game.player.stamina
@@ -475,7 +491,11 @@ func _process(dt: float) -> void:
 				game.store.memory().seeds.size()
 			]
 		)
-		objective.text = game.objective()
+		var goal: PackedStringArray = game.objective().split("/")
+		quest_title.text = (
+			"ISLAND %02d  /  %s" % [int(game.store.data.island) + 1, goal[0].strip_edges()]
+		)
+		objective.text = goal[1].strip_edges() if goal.size() > 1 else goal[0]
 		prompt.text = game.interaction_prompt()
 		prompt.visible = not prompt.text.is_empty()
 		notice.text = message if message_time > 0 else ""
@@ -483,19 +503,24 @@ func _process(dt: float) -> void:
 
 func _draw() -> void:
 	if page == "game":
-		draw_style_panel(Rect2(22, 16, 1000, 76), Color(0.05, 0.12, 0.16, 0.82))
-		draw_style_panel(Rect2(450, 596, 360, 80), Color(0.05, 0.12, 0.16, 0.85))
-		draw_style_panel(Rect2(290, 680, 700, 32), Color(0.05, 0.12, 0.16, 0.78))
+		draw_style_panel(Rect2(28, 22, 566, 90), Color(0.035, 0.09, 0.11, 0.82))
+		draw_style_panel(Rect2(456, 628, 364, 70), Color(0.035, 0.09, 0.11, 0.78))
+		if message_time > 0:
+			draw_style_panel(Rect2(326, 475, 576, 52), Color(0.035, 0.09, 0.11, 0.78))
 		if game.player.cameras.aiming or game.player.cameras.mode == 1:
 			draw_arc(Vector2(640, 360), 6, 0, TAU, 20, Color("f5e7c8"), 1, true)
 			draw_line(Vector2(630, 360), Vector2(635, 360), Color("f5e7c8"), 1, true)
 			draw_line(Vector2(645, 360), Vector2(650, 360), Color("f5e7c8"), 1, true)
-		draw_circle(Vector2(150, 575), 86, Color(0.04, 0.13, 0.17, 0.48))
+		draw_circle(Vector2(150, 575), 86, Color(0.035, 0.09, 0.11, 0.30))
 		draw_arc(Vector2(150, 575), 86, 0, TAU, 64, Color(0.79, 0.88, 0.77, 0.5), 2, true)
-		draw_circle(Vector2(150, 575) + stick_delta, 34, Color(0.88, 0.87, 0.68, 0.7))
+		draw_circle(Vector2(150, 575) + stick_delta, 34, Color(0.83, 0.85, 0.72, 0.55))
 	else:
-		draw_rect(Rect2(-1000, -1000, 3300, 2700), Color(0.035, 0.10, 0.14, 0.6))
+		draw_rect(
+			Rect2(-1000, -1000, 3300, 2700),
+			Color(0.035, 0.10, 0.14, 0.18 if page == "lobby" else 0.58)
+		)
 		if page == "lobby":
+			draw_style_panel(Rect2(40, 45, 465, 575), Color(0.035, 0.09, 0.11, 0.90))
 			draw_style_panel(Rect2(830, 86, 390, 220), Color(0.05, 0.14, 0.18, 0.76))
 		else:
 			draw_style_panel(Rect2(60, 40, 1160, 640), Color(0.04, 0.12, 0.16, 0.87))
@@ -504,7 +529,7 @@ func _draw() -> void:
 func draw_style_panel(rect: Rect2, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
-	style.set_corner_radius_all(20)
+	style.set_corner_radius_all(12)
 	style.border_color = Color(0.75, 0.85, 0.72, 0.24)
 	style.set_border_width_all(1)
 	draw_style_box(style, rect)

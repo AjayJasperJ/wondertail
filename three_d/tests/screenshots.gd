@@ -23,11 +23,17 @@ func run() -> void:
 	game.store.data = game.store.fresh()
 	game.store.path = "user://visual_test_only.json"
 	game.build_world()
+	for enemy in game.enemies:
+		enemy.set_physics_process(false)
 	await capture("lobby.png")
 	game.start_game()
 	for i in range(30):
 		await physics_frame
 	await capture("trail.png")
+	game.player.position = game.lava_position + Vector3(0, 1, 7)
+	for i in range(10):
+		await physics_frame
+	await capture("pool.png")
 	game.player.position = game.terrain.point("ruins") + Vector3(0, 0.2, 7)
 	await capture("ruins.png")
 	for mode in range(4):
@@ -41,7 +47,7 @@ func run() -> void:
 	game.player.toggle_crouch()
 	game.enter_cave()
 	await capture("cave.png")
-	game.pause_game()
+	game.return_lobby()
 	game.hud.show_heroes()
 	await capture("explorers.png")
 	game.hud.show_settings()
@@ -57,6 +63,9 @@ func run() -> void:
 		game.player.pivot.rotation = Vector3(-0.15, PI, 0)
 		await capture("character-%d.png" % hero)
 	game.hud.visible = true
+	game.start_game()
+	for i in range(20):
+		await physics_frame
 	root.size = Vector2i(640, 360)
 	await capture("phone-640x360.png")
 	quit()

@@ -2,15 +2,14 @@
 
 An offline floating-island adventure where kindness opens new paths.
 
-**3D version: 0.12.0** · Godot 4.4.1 · `three_d/`
+**3D version: 0.12.1** · Godot 4.4.1 · `three_d/`
 
 **Current version: 0.8.0** · existing Flutter + Flame edition · `lib/`
 
 ## Play in your browser
 
-[Browser preview](https://ajayjasperj.github.io/wondertail/) — available after
-[one-time GitHub Pages activation](docs/LIVE_WEB.md). Successful builds on
-`main` then update this same link automatically. Refresh to test the latest
+[Browser preview](https://ajayjasperj.github.io/wondertail/) — live now. Successful builds on
+`main` update this same link automatically. Refresh to test the latest
 deployment on your phone or computer; no APK installation needed.
 
 ## Play the new 3D edition
@@ -21,7 +20,8 @@ gather three skyseeds, solve the cavern's song, defeat a ridge warden and restor
 the sky beacon to reach the next seeded island. Discoveries and Starlight persist.
 
 - Rigged Quaternius adventurer/farmer characters and animated biome creatures.
-- Smooth terrain shading, blended paths, rounded props and camera-safe leafy canopies.
+- Muted highland terrain, small grass tufts, mixed leafy trees and pines, a timber
+  campsite cabin, rock-framed cave entrance and a recessed shoreline pool.
 - Landscape lobby, three explorers with different bodies and movement stats,
   unlocked-island atlas, sound/graphics/camera settings and themed pause menu.
 - First-person, trailing, shoulder and tactical cameras, milestone reveal pans,
@@ -46,7 +46,7 @@ in-place updates between CI builds may require matching signing keys.
 
 Open `three_d/project.godot` with **Godot 4.4.1**, then press F5 to play.
 Selected models are bundled; no asset downloads, plugins or network services are required.
-[v0.12.0 shipped features and limits](docs/3D_POLISH_V0.12.md) ·
+[Camera/combat features and limits](docs/3D_POLISH_V0.12.md) ·
 [Art credits and source licenses](three_d/assets/ASSET_CREDITS.md) ·
 [Organized original uploads](source_assets/README.md)
 

@@ -1,7 +1,7 @@
 extends Node3D
 const Art = preload("res://scripts/art.gd")
 const PALETTES = [
-	[Color("79ad7c"), Color("3a7966"), Color("476976"), Color("8fced0")],
+	[Color("577d59"), Color("326455"), Color("476976"), Color("8fced0")],
 	[Color("c9af78"), Color("879777"), Color("9c8277"), Color("80bdbb")],
 	[Color("d0e2df"), Color("608c94"), Color("687e94"), Color("a4cedf")],
 	[Color("8a839e"), Color("596e95"), Color("535770"), Color("a2b9d6")],
@@ -89,7 +89,9 @@ func height_at(p: Vector2) -> float:
 	for anchor in anchors.values():
 		distance = minf(distance, p.distance_to(anchor))
 	var trail := smoothstep(1.8, 6.5, distance)
-	return 1.2 + wave + hill * trail + maxf(0, -q.y - 10) * 0.10
+	var elevation := 1.2 + wave + hill * trail + maxf(0, -q.y - 10) * 0.10
+	var pond_distance := p.distance_to(Vector2(-15, 14) * scale_factor)
+	return elevation - 0.7 * (1.0 - smoothstep(2.8, 5.0, pond_distance))
 
 
 func point(key: String) -> Vector3:
@@ -175,9 +177,11 @@ func triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 				. normalized()
 			)
 			var ground: Color = palette[2].lerp(palette[0], smoothstep(0.55, 0.9, n.y))
-			var sand := Color("d9c69b") if index % 6 != 2 else Color("a6bec4")
+			var sand := Color("b3a080") if index % 6 != 2 else Color("a6bec4")
 			ground = ground.lerp(sand, 1 - smoothstep(1.0, 2.2, path_distance(p)))
-			ground = ground.lightened(noise.get_noise_2dv(p * 0.6) * 0.035)
+			ground = ground.lightened(
+				noise.get_noise_2dv(p * 2.3) * 0.09 + noise.get_noise_2dv(p * 0.6) * 0.05
+			)
 			vertex_style[v] = [n, ground]
 		st.set_color(vertex_style[v][1])
 		st.set_normal(vertex_style[v][0])
@@ -187,7 +191,11 @@ func triangle(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
 func decorate() -> void:
 	for i in range(130):
 		var p := Vector2(rng.randf_range(-48, 48), rng.randf_range(-48, 48)) * scale_factor
-		if not walkable(p, 3) or path_distance(p) < 4:
+		if (
+			not walkable(p, 3)
+			or path_distance(p) < 4
+			or p.distance_to(Vector2(-15, 14) * scale_factor) < 7
+		):
 			continue
 		var reserved := false
 		for key in anchors:
@@ -212,19 +220,43 @@ func decorate() -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	var flower_mesh := PrismMesh.new()
-	flower_mesh.size = Vector3(0.18, 0.5, 0.18)
-	flower_mesh.material = Art.material(Color("e6d991"))
+	var grass := SurfaceTool.new()
+	grass.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for blade in range(5):
+		var angle := blade * 2.399
+		var base := Vector3(cos(angle) * 0.09, 0, sin(angle) * 0.09)
+		var side := Vector3(cos(angle), 0, sin(angle)) * 0.04
+		var tip := base + Vector3(sin(angle) * 0.08, 0.16 + blade * 0.025, cos(angle) * 0.06)
+		for v in [base - side, tip, base + side, base + side, tip, base - side]:
+			grass.set_color(Color("9cbb82") if v == tip else Color("557b50"))
+			grass.add_vertex(v)
+	grass.generate_normals()
+	var grass_material := StandardMaterial3D.new()
+	grass_material.vertex_color_use_as_albedo = true
+	grass_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	grass_material.roughness = 1.0
+	grass.set_material(grass_material)
+	var flower_mesh := grass.commit()
+
 	mm.mesh = flower_mesh
-	mm.instance_count = 240
-	for i in range(240):
+	mm.instance_count = 520
+	for i in range(520):
 		var p := Vector2(rng.randf_range(-40, 40), rng.randf_range(-40, 40)) * scale_factor
 		var at := (
-			Vector3(p.x, height_at(p) + 0.2, p.y)
-			if inside(p, 3) and path_distance(p) > 2
+			Vector3(p.x, height_at(p) + 0.015, p.y)
+			if (
+				inside(p, 3)
+				and path_distance(p) > 2
+				and p.distance_to(Vector2(-15, 14) * scale_factor) > 5
+			)
 			else Vector3(0, -40, 0)
 		)
-		mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, at))
-		mm.set_instance_color(i, Color("f7dc9d") if i % 2 == 0 else Color("c1a6d6"))
+		mm.set_instance_transform(
+			i,
+			Transform3D(
+				Basis(Vector3.UP, i * 2.399).scaled(Vector3.ONE * (0.8 + float(i % 4) * 0.15)), at
+			)
+		)
+		mm.set_instance_color(i, Color.WHITE)
 	flowers.multimesh = mm
 	add_child(flowers)

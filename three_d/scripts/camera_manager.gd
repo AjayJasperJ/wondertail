@@ -19,7 +19,7 @@ func cycle() -> void:
 		return
 	mode = (mode + 1) % MODES.size()
 	aiming = false
-	player.pitch = -0.48
+	player.pitch = -0.05 if mode == 1 else (-0.22 if mode == 2 else -0.36)
 
 
 func reveal(at: Vector3) -> void:
@@ -33,21 +33,21 @@ func tick(dt: float) -> void:
 	var first := mode == 1
 	var tactical := mode == 3
 	var shoulder_view := mode == 2 or aiming
-	var length := 0.0 if first else (23.0 if tactical else (3.4 if shoulder_view else 9.5))
+	var length := 0.0 if first else (23.0 if tactical else (4.0 if shoulder_view else 7.2))
 	var target_pitch: float = -1.05 if tactical else player.pitch
-	var offset := Vector3(
-		shoulder * 0.65 if shoulder_view and not first else 0.0,
-		1.05 if player.crouching else 1.65,
-		0
+	var offset := (
+		Basis(Vector3.UP, player.yaw)
+		* Vector3(shoulder * 0.65 if shoulder_view and not first else 0.0, 0, 0)
 	)
+	offset.y = 1.05 if player.crouching else 1.65
+
 	player.pivot.position = player.pivot.position.lerp(offset, 1.0 - exp(-dt * 14))
 	player.arm.spring_length = lerpf(player.arm.spring_length, length, 1.0 - exp(-dt * 12))
 	player.pivot.rotation = Vector3(target_pitch, player.yaw, 0)
-	player.camera.fov = lerpf(player.camera.fov, 48.0 if aiming else 68.0, 1.0 - exp(-dt * 12))
+	player.camera.fov = lerpf(player.camera.fov, 48.0 if aiming else 62.0, 1.0 - exp(-dt * 12))
 	# Hide the complete local model in eye view; collisions are unchanged.
-	player.body.visible = (
-		not first and (player.invulnerable <= 0 or int(player.invulnerable * 14) % 2 == 0)
-	)
+	player.body.visible = not first
+
 	if reveal_remaining > 0:
 		reveal_remaining = maxf(0, reveal_remaining - dt)
 		player.pivot.global_position = reveal_target + Vector3(0, 3, 0)

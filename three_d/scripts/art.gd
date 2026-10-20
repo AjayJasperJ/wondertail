@@ -124,15 +124,16 @@ static func label(
 	var n := Label3D.new()
 	n.text = caption
 	n.position = at
-	n.font_size = 40
+	n.font_size = 28
 	n.pixel_size = 0.001
 	n.fixed_size = true
 	n.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	n.modulate = color
-	n.outline_size = 8
+	n.outline_size = 5
 	n.visibility_range_begin = 2.5
 	n.no_depth_test = false
-	n.visibility_range_end = 40
+	n.visibility_range_end = 20
+	n.add_to_group("landmark_labels")
 	parent.add_child(n)
 	return n
 
@@ -165,6 +166,7 @@ static func tree(
 		var instances := MultiMesh.new()
 		instances.transform_format = MultiMesh.TRANSFORM_3D
 		instances.mesh = leaf_mesh
+		instances.use_colors = true
 		instances.instance_count = 7
 		crowns.multimesh = instances
 		crowns.material_override = leaf_materials[leaf_key]
@@ -179,8 +181,11 @@ static func tree(
 				)
 				branch.rotation = Vector3(sin(angle) * 0.6, angle, cos(angle) * 0.6)
 				branch.add_to_group("polish_detail")
-			var basis := Basis.IDENTITY.scaled(Vector3(1.0, 0.55, 0.85) * h * 0.27)
+			var basis := Basis.IDENTITY.scaled(
+				Vector3(1.0, 0.82 + float(i % 3) * 0.1, 0.9) * h * 0.27
+			)
 			instances.set_instance_transform(i, Transform3D(basis, at_leaf))
+			instances.set_instance_color(i, Color.WHITE.darkened(float(i % 3) * 0.07))
 
 	var foliage := SphereShape3D.new()
 	foliage.radius = h * 0.48
@@ -196,7 +201,7 @@ static func biome_prop(
 	parent: Node3D, at: Vector3, rng: RandomNumberGenerator, biome: int, tint: Color
 ) -> void:
 	if biome == 0 or biome == 2:
-		tree(parent, at, rng, tint, biome == 2)
+		tree(parent, at, rng, tint, biome == 2 or rng.randf() < 0.32)
 		return
 	var n := Node3D.new()
 	n.position = at

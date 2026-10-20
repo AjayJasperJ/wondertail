@@ -26,7 +26,7 @@ var jump_speed := 9.0
 var stick := Vector2.ZERO
 var sprinting := false
 var yaw := 0.0
-var pitch := -0.48
+var pitch := -0.36
 var jumps := 0
 var coyote := 0.0
 var jump_buffer := 0.0
@@ -45,7 +45,7 @@ func setup(owner_game, chosen: int) -> void:
 	speed = [7.0, 8.2, 6.2][hero]
 	jump_speed = [9.0, 10.0, 8.7][hero]
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 5
 	floor_snap_length = 0.4
 	floor_max_angle = deg_to_rad(46)
 	wall_min_slide_angle = 0.1
@@ -75,14 +75,17 @@ func setup(owner_game, chosen: int) -> void:
 	Art.box(sword, Vector3(0, 0, 0), Vector3(0.35, 0.07, 0.12), Color("d4b77b"))
 	bow = Node3D.new()
 	socket.add_child(bow)
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.34
-	ring.outer_radius = 0.39
-	ring.rings = 16
-	ring.ring_segments = 6
-	var frame := Art.mesh(bow, ring, Vector3.ZERO, Color("b89366"))
-	frame.rotation.z = PI / 2
-	Art.box(bow, Vector3.ZERO, Vector3(0.02, 0.8, 0.02), Color("efdfbd"))
+	for segment in range(10):
+		var a := float(segment) * PI / 10
+		var b := float(segment + 1) * PI / 10
+		var start := Vector3(sin(a) * 0.24, cos(a) * 0.6, 0)
+		var finish := Vector3(sin(b) * 0.24, cos(b) * 0.6, 0)
+		var limb := Art.cone(
+			bow, (start + finish) * 0.5, 0.028, 0.025, start.distance_to(finish), Color("926a43")
+		)
+		limb.quaternion = Quaternion(Vector3.UP, (finish - start).normalized())
+	Art.box(bow, Vector3.ZERO, Vector3(0.012, 1.2, 0.012), Color("d2c9ad"))
+
 	refresh_weapon()
 	add_child(pivot)
 	pivot.position.y = 1.6
@@ -178,7 +181,7 @@ func toggle_crouch() -> void:
 		query.transform = Transform3D(
 			Basis.IDENTITY, global_position + Vector3.UP * standing_height * 0.5
 		)
-		query.collision_mask = 1
+		query.collision_mask = 5
 		query.exclude = [get_rid()]
 		if not get_world_3d().direct_space_state.intersect_shape(query).is_empty():
 			return

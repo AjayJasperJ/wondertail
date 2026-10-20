@@ -26,7 +26,8 @@ func point(at: Vector3) -> Vector2:
 func _draw() -> void:
 	if not is_instance_valid(game.player):
 		return
-	draw_circle(CENTER, RADIUS + 4, Color(0.04, 0.12, 0.16, 0.85))
+	draw_circle(CENTER, RADIUS + 4, Color(0.04, 0.10, 0.12, 0.78))
+	draw_circle(CENTER, RADIUS, Color(0.18, 0.29, 0.25, 0.38))
 	draw_arc(CENTER, RADIUS + 4, 0, TAU, 64, Color("a4c8b3"), 1.5, true)
 	# North-up radar, 39m range; rim markers indicate off-radar landmarks.
 	for route in game.terrain.paths:

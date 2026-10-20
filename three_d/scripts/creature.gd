@@ -25,7 +25,7 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 	elite = guardian
 	health = 110 if elite else 60
 	collision_layer = 4
-	collision_mask = 1
+	collision_mask = 7
 	var shape := CapsuleShape3D.new()
 	shape.radius = 0.65 if elite else 0.45
 	shape.height = 1.8 if elite else 1.2
@@ -48,6 +48,7 @@ func setup(owner_game, at: Vector3, guardian: bool = false) -> void:
 		-0.65 if elite else 0.0
 	)
 	health_label = Art.label(self, "", Vector3(0, 2.1 if elite else 1.7, 0), Color("a9e4c5"))
+	health_label.remove_from_group("landmark_labels")
 	health_label.visibility_range_begin = 0
 	health_label.font_size = 32
 	health_label.visible = false

@@ -6,6 +6,6 @@ void vertex() {
  VERTEX.x += sway * max(0.0, VERTEX.y + 0.4);
 }
 void fragment() {
- ALBEDO = tint.rgb;
+ ALBEDO = tint.rgb * COLOR.rgb;
  ROUGHNESS = 0.9;
 }

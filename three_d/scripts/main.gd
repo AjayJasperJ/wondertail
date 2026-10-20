@@ -94,25 +94,25 @@ func setup_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("426f89")
-	sky_material.sky_horizon_color = Color("d6e0cb")
+	sky_material.sky_top_color = Color("527d99")
+	sky_material.sky_horizon_color = Color("d9e4e2")
 	sky_material.ground_bottom_color = Color("4b7b92")
 	sky_material.ground_horizon_color = Color("c5d8d3")
 	sky.sky_material = sky_material
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("c0d6db")
-	env.ambient_light_energy = 0.28
+	env.ambient_light_energy = 0.48
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = 0.85
 	env.fog_enabled = true
 	env.fog_light_color = Color("adcaca")
-	env.fog_density = 0.0025
+	env.fog_density = 0.004
 	environment.environment = env
 	add_child(environment)
 	light.rotation_degrees = Vector3(-48, -35, 0)
-	light.light_color = Color("ffe1ad")
-	light.light_energy = 0.85
+	light.light_color = Color("fff0da")
+	light.light_energy = 0.72
 	light.shadow_enabled = true
 	light.directional_shadow_max_distance = 80
 	add_child(light)
@@ -183,26 +183,84 @@ func landmark(key: String) -> Node3D:
 
 
 func build_landmarks() -> void:
-	var stone := Color("80908a")
-	var gold := Color("edd49b")
+	var stone := Color("737e72")
+	var gold := Color("bba77d")
 	var camp := landmark("camp")
-	Art.box(camp, Vector3(-3, 1.0, 0), Vector3(3.8, 2.0, 3.6), Color("785e49"), true)
-	var roof := Art.cone(camp, Vector3(-3, 3, 0), 3.2, 0, 2.2, Color("d3a273"))
-	roof.rotation_degrees.y = 45
-	for x in [-1, 1]:
-		Art.box(camp, Vector3(x * 0.55, 0.16, 0), Vector3(1.5, 0.22, 0.25), Color("715846"))
-	Art.sphere(camp, Vector3(0, 0.6, 0), 0.45, Color("ffd38b"), 1.3)
+	Art.box(camp, Vector3(-3, 1.0, 0), Vector3(3.8, 2.0, 3.6), Color("8b8270"), true)
+	var gable_shape := PrismMesh.new()
+	gable_shape.size = Vector3(3.8, 1.3, 3.6)
+	var gable := Art.mesh(camp, gable_shape, Vector3(-3, 2.65, 0), Color("8b8270"))
+	gable.create_convex_collision()
+	for side in [-1, 1]:
+		var roof := Art.box(
+			camp, Vector3(-3 + side * 1.05, 2.7, 0), Vector3(2.55, 0.22, 4.25), Color("365e62")
+		)
+		roof.rotation.z = -side * 0.48
+		roof.create_convex_collision()
+		Art.box(camp, Vector3(-3 + side * 1.7, 1, 1.85), Vector3(0.15, 2.1, 0.16), Color("554b3c"))
+		Art.box(
+			camp, Vector3(-3 + side * 1.1, 1.25, 1.82), Vector3(0.65, 0.75, 0.09), Color("4c4a3d")
+		)
+		Art.box(
+			camp, Vector3(-3 + side * 1.1, 1.25, 1.88), Vector3(0.48, 0.58, 0.04), Color("d3b777")
+		)
+		Art.box(
+			camp, Vector3(-3 + side * 1.1, 1.25, 1.92), Vector3(0.045, 0.61, 0.04), Color("554b3c")
+		)
+		Art.box(
+			camp, Vector3(-3 + side * 1.1, 1.25, 1.92), Vector3(0.52, 0.045, 0.04), Color("554b3c")
+		)
+	Art.box(camp, Vector3(-3, 0.85, 1.84), Vector3(0.9, 1.7, 0.12), Color("514b3e"))
+	Art.sphere(camp, Vector3(-2.7, 0.85, 1.94), 0.045, Color("d6b472"))
+	Art.box(camp, Vector3(-3, 0.12, 2.05), Vector3(1.4, 0.24, 0.55), stone)
+	Art.box(camp, Vector3(-4.1, 3.1, -0.65), Vector3(0.65, 1.0, 0.65), Color("6e736c"))
+	# Small hearth rather than an oversized glowing ball.
+	for i in range(7):
+		var at := Vector3(cos(i * TAU / 7) * 0.55, 0.12, sin(i * TAU / 7) * 0.55)
+		var rock := Art.sphere(camp, at, 0.19, Color("747c70"))
+		rock.scale.y = 0.65
+	for side in [-1, 1]:
+		var log := Art.box(
+			camp, Vector3(0, 0.12, side * 0.12), Vector3(0.7, 0.15, 0.15), Color("68503c")
+		)
+		log.rotation.y = side * 0.55
+	var flame := Art.sphere(camp, Vector3(0, 0.3, 0), 0.15, Color("e9ae65"), 0.25)
+	flame.scale = Vector3(0.7, 1.5, 0.7)
 	Art.label(camp, "WAYFARER CAMP", Vector3(-2, 4.8, 0))
+
 	add_object("camp", camp, "camp", camp.position + Vector3(0, 0.5, 0), 3.5)
 	var cave := landmark("cave")
 	for side in [-1, 1]:
-		Art.box(cave, Vector3(side * 2.6, 2.4, 0), Vector3(1.5, 4.8, 3.2), stone, true)
-	Art.box(cave, Vector3(0, 4.8, 0), Vector3(6.7, 1.5, 3.3), stone, true)
+		var arch_wall := Art.box(
+			cave, Vector3(side * 2.6, 2.4, 0), Vector3(1.5, 4.8, 3.2), stone, true
+		)
+		arch_wall.visible = false
+	var arch_top := Art.box(cave, Vector3(0, 4.8, 0), Vector3(6.7, 1.5, 3.3), stone, true)
+	arch_top.visible = false
 	Art.box(cave, Vector3(0, 2, -1.3), Vector3(4, 4, 0.3), Color("203a48"), true)
 	for side in [-1, 1]:
 		Art.sphere(cave, Vector3(side * 1.8, 2.6, 1.7), 0.3, Color("a9dce1"), 0.9)
 	Art.label(cave, "THE ECHO CAVERN", Vector3(0, 6.7, 0))
 	add_object("cave", cave, "enter_cave", cave.position + Vector3(0, 0.8, 2.2), 4.0)
+	for side in [-1, 1]:
+		for level in range(4):
+			var rock := Art.sphere(
+				cave,
+				Vector3(side * (2.6 + sin(level) * 0.25), 0.6 + level * 1.05, 0.65),
+				1.05,
+				Color("667b72").lightened(level * 0.025)
+			)
+			rock.scale = Vector3(0.85, 0.85, 1.4)
+			rock.create_convex_collision()
+	for i in range(5):
+		var rock := Art.sphere(
+			cave,
+			Vector3((i - 2) * 1.1, 4.65 + sin(float(i) / 4 * PI) * 0.35, 0.65),
+			0.95,
+			Color("7d8978")
+		)
+		rock.scale = Vector3(0.85, 0.7, 1.55)
+		rock.create_convex_collision()
 	var ruins := landmark("ruins")
 	for side in [-1, 1]:
 		Art.cone(ruins, Vector3(side * 3.8, 2, 0), 0.6, 0.45, 4, stone)
@@ -267,7 +325,7 @@ func build_landmarks() -> void:
 		)
 	# Water and volcanic hazards are bounded away from every required trail.
 	var pool2: Vector2 = Vector2(-15, 14) * terrain.scale_factor
-	lava_position = Vector3(pool2.x, terrain.height_at(pool2) + 0.07, pool2.y)
+	lava_position = Vector3(pool2.x, terrain.height_at(pool2) + 0.45, pool2.y)
 	var pool := Art.cone(
 		world,
 		lava_position,
@@ -286,6 +344,12 @@ func build_landmarks() -> void:
 		lava_position + Vector3(0, 2.3, 0),
 		Color("d1e3d0")
 	)
+	for i in range(12):
+		var rim := pool2 + Vector2(cos(i * TAU / 12), sin(i * TAU / 12)) * 4.6
+		var pebble := Art.sphere(
+			world, Vector3(rim.x, terrain.height_at(rim) + 0.12, rim.y), 0.28, Color("7f8e7d")
+		)
+		pebble.scale = Vector3(1.3, 0.65, 0.9)
 	var waterfall2: Vector2 = Vector2(-17, 30).normalized() * (terrain.radius(atan2(30, -17)) - 0.3)
 	var top: float = terrain.height_at(waterfall2)
 	for i in range(3):
@@ -330,7 +394,16 @@ func build_collectibles() -> void:
 			"wood":
 				Art.box(node, Vector3(0, 0.3, 0), Vector3(0.9, 0.5, 0.35), Color("a17b55"))
 			"crystal":
-				Art.cone(node, Vector3(0, 0.6, 0), 0.4, 0, 1.2, Color("92ced7"))
+				for j in range(3):
+					var crystal := Art.cone(
+						node,
+						Vector3((j - 1) * 0.18, 0.25 + j * 0.07, 0),
+						0.14,
+						0,
+						0.5 + j * 0.14,
+						Color("6ba9ad")
+					)
+					crystal.rotation.z = (j - 1) * 0.22
 			"herbs":
 				Art.sphere(node, Vector3(0, 0.4, 0), 0.45, Color("80b77d"))
 		add_object(id, node, "resource", node.position + Vector3.UP * 0.6, 2.5, i % 3)
@@ -346,7 +419,7 @@ func build_collectibles() -> void:
 				var n := Node3D.new()
 				world.add_child(n)
 				n.position = Vector3(p.x, terrain.height_at(p) + 1.0, p.y)
-				var coin := Art.cone(n, Vector3.ZERO, 0.28, 0.28, 0.12, Color("f3d888"))
+				var coin := Art.cone(n, Vector3.ZERO, 0.28, 0.28, 0.12, Color("d7b86f"))
 				coin.rotation_degrees.x = 90
 				add_object(id, n, "coin", n.position, 1.5)
 	for i in range(3):
@@ -442,7 +515,7 @@ func start_game() -> void:
 	playing = true
 	player.arm.spring_length = 9.5
 	player.yaw = 0
-	player.pitch = -0.48
+	player.pitch = -0.36
 	player.pivot.rotation = Vector3(player.pitch, 0, 0)
 	hud.show_game()
 	tell("Find the lost cloud at the ruins. Follow the golden trail.")
@@ -463,6 +536,13 @@ func resume_game() -> void:
 
 func return_lobby() -> void:
 	playing = false
+	player.cameras.mode = 0
+	player.cameras.aiming = false
+	player.cameras.reveal_remaining = 0
+	player.body.visible = true
+	player.pivot.position = Vector3(0, 1.65, 0)
+	player.pitch = -0.32
+	player.pivot.rotation.x = player.pitch
 	if in_cave:
 		leave_cave()
 	player.reset_controls()
@@ -870,6 +950,14 @@ func fire_arrow() -> bool:
 		else -player.body.global_basis.z
 	)
 	var direction := forward
+	if player.cameras.aiming or player.cameras.mode in [1, 2]:
+		var eye: Vector3 = player.camera.global_position
+		var aim_point: Vector3 = eye + forward * 50
+		var sight := PhysicsRayQueryParameters3D.create(eye, aim_point, 5)
+		var hit := get_world_3d().direct_space_state.intersect_ray(sight)
+		if not hit.is_empty():
+			aim_point = hit.position
+		direction = (aim_point - at).normalized()
 	var closest := 23.0
 	# Friendly aim assist stays within the facing cone and checks solid scenery.
 	for enemy in enemies:
@@ -911,11 +999,13 @@ func tell(caption: String) -> void:
 
 func _process(dt: float) -> void:
 	clock += dt
+	for label in get_tree().get_nodes_in_group("landmark_labels"):
+		label.visible = playing
 	if not is_instance_valid(player):
 		return
 	if not playing:
 		nav_marker.visible = false
-		if is_instance_valid(hud) and hud.page != "pause":
+		if is_instance_valid(hud) and hud.page in ["lobby", "heroes"]:
 			player.yaw += dt * 0.065
 			player.pivot.rotation.y = player.yaw
 		return

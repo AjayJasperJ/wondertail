@@ -470,5 +470,49 @@ func polish_checks(scene) -> void:
 	)
 	actor.cameras.cycle()
 	check(actor.cameras.reveal_remaining == 0, "Camera control skips cinematic safely")
+	scene.resume_game()
+	actor.cameras.mode = 1
+	actor.cameras.tick(1)
+	check(not actor.body.visible, "Eye view hides explorer")
+	scene.return_lobby()
+	check(
+		actor.body.visible and actor.cameras.mode == 0 and actor.cameras.reveal_remaining == 0,
+		"Leaving eye view restores visible explorer and lobby camera"
+	)
+	scene.start_game()
+	actor.cameras.mode = 0
+	actor.cameras.cycle()
+	check(absf(actor.pitch) < 0.1, "First-person view starts at the horizon")
+	actor.cameras.mode = 2
+	actor.cameras.shoulder = 1
+	actor.yaw = PI / 2
+	actor.cameras.tick(1)
+	check(
+		absf(actor.pivot.position.x) < 0.01 and actor.pivot.position.z < -0.6,
+		"Shoulder offset follows camera yaw"
+	)
+	await process_frame
+	var buttons: Array[Button] = []
+	for child in scene.hud.widgets.get_children():
+		if child is Button and child.visible:
+			buttons.append(child)
+	for i in range(buttons.size()):
+		var rect := Rect2(buttons[i].position, buttons[i].size)
+		check(
+			Rect2(0, 0, 1280, 720).encloses(rect), "Touch control remains inside landscape canvas"
+		)
+		for j in range(i + 1, buttons.size()):
+			check(
+				not rect.intersects(Rect2(buttons[j].position, buttons[j].size)),
+				(
+					"Touch controls do not overlap: %s %s / %s %s"
+					% [
+						buttons[i].text,
+						rect,
+						buttons[j].text,
+						Rect2(buttons[j].position, buttons[j].size)
+					]
+				)
+			)
 	for suffix in ["", ".bak", ".tmp"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(recovered.path + suffix))

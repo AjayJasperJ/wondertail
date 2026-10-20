@@ -4,6 +4,33 @@ User-visible changes for each application version belong here. Flutter versions
 come from `pubspec.yaml`; separate 3D versions come from `three_d/project.godot`.
 Older dates are omitted where they were not recorded in the release history.
 
+## [3D 0.12.1] - 2026-10-20
+
+### Changed
+
+- Softer daylight and terrain colors, small instanced grass tufts instead of tall
+  cone flowers, fuller wind-swaying crowns and mixed forest conifers.
+- Timber camp cabin with pitched roof, windows and chimney; stone-ring hearth,
+  rounded cave entrance rocks, clustered crystals and a curved wooden bow.
+- Recessed pond basin with shoreline stones and a clear scenery exclusion zone.
+- Compact quest card, translucent touch controls, quieter landmark labels and a
+  lobby reading panel that leaves the landscape visible.
+- Closer trailing camera, horizon-facing first-person entry and camera-relative
+  shoulder offsets. Returning to the lobby restores the explorer's visibility.
+
+### Fixed
+
+- Enemies no longer share the player's collision space. Aimed arrows now account
+  for the offset between the shoulder camera and the bow.
+- Removed explorer invulnerability flashing and touch-button style seams.
+- Added camera reset and touch-control layout regression checks. Existing save
+  formats, equipment, quest receipts and progress remain compatible.
+
+### Limits
+
+- Art remains stylized and procedural. Water uses ripple/foam effects rather
+  than physical refraction. Phone frame rates have not been measured.
+
 ## [3D 0.12.0] - 2026-10-20
 
 ### Added
