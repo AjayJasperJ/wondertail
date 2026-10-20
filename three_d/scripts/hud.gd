@@ -586,7 +586,7 @@ func show_bag() -> void:
 				if ingredient != ""
 				else "+"
 			),
-			Rect2(730 + (i % 3) * 82, 274 + (i / 3) * 70, 74, 62),
+			Rect2(730 + (i % 3) * 82, 274 + (i / 3) * 66, 74, 62),
 			func():
 				if craft_grid[index] != "":
 					craft_grid[index] = ""
@@ -611,8 +611,8 @@ func show_bag() -> void:
 			requirements.append("%s %d/%d" % [String(item).capitalize(), carried, needed])
 	text(
 		" • ".join(requirements) if recipe != "" else "Choose a recipe below",
-		Vector2(730, 463),
-		15,
+		Vector2(730, 470),
+		12,
 		title_color if ready else Color("e8b5b5")
 	)
 	text("→", Vector2(990, 322), 32, title_color)
