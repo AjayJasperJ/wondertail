@@ -66,6 +66,22 @@ func run() -> void:
 			)
 	game.open_bag()
 	await process_frame
+	var camp: Vector3 = game.terrain.point("camp")
+	check(game.is_spawn_protected(camp), "Camp center is spawn protected")
+	check(
+		not game.is_spawn_protected(camp + Vector3(20, 0, 0)),
+		"Protection ends outside the spawn radius"
+	)
+	game.player.position = camp + Vector3.UP * 2.0
+	game.player.health = game.player.max_health
+	game.player.invulnerable = 0
+	game.player.apply_fall_damage(8.0)
+	check(game.player.health == game.player.max_health, "Protected camp landing is harmless")
+	game.player.position = camp + Vector3(20, 0, 0)
+	game.player.health = game.player.max_health
+	game.player.invulnerable = 0
+	game.player.apply_fall_damage(8.0)
+	check(game.player.health < game.player.max_health, "High landing applies fall damage")
 	var icon_count := 0
 	for control in game.hud.widgets.get_children():
 		if control is Button:

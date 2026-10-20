@@ -45,6 +45,9 @@ var attack_cooldown := 0.0
 var dash_cooldown := 0.0
 var animation_time := 0.0
 var walking_sound := 0.0
+var fall_tracking := false
+var fall_peak_y := 0.0
+const FALL_SAFE_HEIGHT := 5.5
 
 
 func setup(owner_game, chosen: int) -> void:
@@ -228,6 +231,14 @@ func hurt(amount: float) -> void:
 		game.respawn()
 
 
+func apply_fall_damage(drop_height: float) -> void:
+	if game.is_spawn_protected() or drop_height <= FALL_SAFE_HEIGHT:
+		return
+	var damage := (drop_height - FALL_SAFE_HEIGHT) * 9.0
+	hurt(damage)
+	game.tell("Hard landing: %d damage" % roundi(damage))
+
+
 func toggle_crouch() -> void:
 	if crouching:
 		# Test the standing capsule before expanding into a ceiling.
@@ -359,6 +370,15 @@ func _physics_process(dt: float) -> void:
 		velocity.z = move_toward(velocity.z, direction.z * target_speed, dt * 34)
 	stamina = clampf(stamina + (-22 if running else 16) * dt, 0, 100)
 	move_and_slide()
+	if not is_on_floor():
+		if not fall_tracking:
+			fall_tracking = true
+			fall_peak_y = global_position.y
+		else:
+			fall_peak_y = maxf(fall_peak_y, global_position.y)
+	elif fall_tracking:
+		apply_fall_damage(fall_peak_y - global_position.y)
+		fall_tracking = false
 	if direction.length_squared() > 0.02:
 		body.rotation.y = lerp_angle(
 			body.rotation.y, atan2(-direction.x, -direction.z), 1 - exp(-16 * dt)

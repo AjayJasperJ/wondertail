@@ -119,6 +119,11 @@ func _physics_process(dt: float) -> void:
 	stun = maxf(0, stun - dt)
 	var offset: Vector3 = game.player.global_position - global_position
 	var distance := offset.length()
+	# Hostiles remain peaceful inside the marked spawn camp radius.
+	if game.is_spawn_protected():
+		velocity = Vector3.ZERO
+		body.play(["Idle", "Idle_Neutral"], true)
+		return
 	var alpha := clampf((18.0 - distance) / 3.5, 0, 1)
 	health_label.visible = alpha > 0
 	health_label.modulate.a = alpha

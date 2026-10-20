@@ -915,13 +915,16 @@ func _process(dt: float) -> void:
 		health.value = game.player.health / game.player.max_health * 100
 		stamina.value = game.player.stamina
 		vitals.text = (
-			"%s • %d HP   COINS %d   DIAMONDS %d"
-			% [
-				game.store.HEROES[int(game.store.data.hero)],
-				int(game.player.health),
-				game.store.data.coins,
-				int(game.living.state().diamonds) if game.living != null else 0
-			]
+			("PEACEFUL CAMP • " if game.is_spawn_protected() else "")
+			+ (
+				"%s • %d HP   COINS %d   DIAMONDS %d"
+				% [
+					game.store.HEROES[int(game.store.data.hero)],
+					int(game.player.health),
+					game.store.data.coins,
+					int(game.living.state().diamonds) if game.living != null else 0
+				]
+			)
 		)
 		var goal: PackedStringArray = game.objective().split(" / ", true, 1)
 		quest_title.text = (

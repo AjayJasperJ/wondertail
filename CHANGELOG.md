@@ -10,6 +10,9 @@ Older dates are omitted where they were not recorded in the release history.
   item artwork and carried/required material counts. Previews work without
   ingredients; crafting stays locked until materials and camp access are ready.
   Added real mouse/touch input regression checks for all five recipe buttons.
+- Added a marked 12 m peaceful spawn camp where hostile mobs stop pursuing and
+  cannot damage the player. Added height-based landing damage after falls above
+  5.5 m, with normal jumps and protected camp landings remaining safe.
 - Replaced pack and crafting ingredient text tiles with original item artwork
   and separate counts, selected outlines, equipped highlights and tooltips.
 - Rebuilt the lobby as a winding eight-node island journey with locked previews,

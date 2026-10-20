@@ -63,6 +63,7 @@ var light := DirectionalLight3D.new()
 var environment := WorldEnvironment.new()
 var playing := false
 var in_cave := false
+const SPAWN_PROTECTION_RADIUS := 12.0
 var guardian_defeated := false
 var objects: Array[Dictionary] = []
 var enemies: Array = []
@@ -232,6 +233,24 @@ func build_world() -> void:
 	)
 	world.add_child(terrain)
 	terrain.build()
+	# A clearly marked camp radius gives every expedition a calm starting point.
+	var safe_ring := MeshInstance3D.new()
+	var ring_mesh := TorusMesh.new()
+	ring_mesh.inner_radius = SPAWN_PROTECTION_RADIUS - 0.45
+	ring_mesh.outer_radius = SPAWN_PROTECTION_RADIUS
+	ring_mesh.rings = 48
+	ring_mesh.ring_segments = 12
+	safe_ring.mesh = ring_mesh
+	safe_ring.position = terrain.point("camp") + Vector3.UP * 0.08
+	var ring_material := StandardMaterial3D.new()
+	ring_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_material.albedo_color = Color(0.35, 0.9, 0.86, 0.7)
+	ring_material.emission_enabled = true
+	ring_material.emission = Color("4fd7c8")
+	ring_material.emission_energy_multiplier = 1.4
+	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	safe_ring.material_override = ring_material
+	world.add_child(safe_ring)
 	for resource in get_tree().get_nodes_in_group("harvestable"):
 		if resource.get_meta("harvest_id") in store.memory().picked:
 			resource.visible = false
@@ -281,6 +300,14 @@ func spawn_player() -> void:
 		player.position = terrain.point("camp") + Vector3(forward.x * 8.5, 0.5, forward.y * 8.5)
 	player.position.y = terrain.height_at(Vector2(player.position.x, player.position.z)) + 0.5
 	player.arm.spring_length = 16 if not playing else 9.5
+
+
+func is_spawn_protected(at: Vector3 = player.position) -> bool:
+	return (
+		not in_cave
+		and terrain != null
+		and at.distance_to(terrain.point("camp")) <= SPAWN_PROTECTION_RADIUS
+	)
 
 
 func rebuild_hero() -> void:
