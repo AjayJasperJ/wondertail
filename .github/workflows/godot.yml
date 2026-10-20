@@ -61,6 +61,7 @@ jobs:
           godot --headless --path three_d --export-release Linux
           godot --headless --path three_d --export-release Windows
           godot --headless --path three_d --export-release Web
+      - uses: android-actions/setup-android@v3
       - name: Configure Android toolchain and ephemeral test signing
         run: |
           sdkmanager "platforms;android-34" "build-tools;34.0.0"
@@ -71,7 +72,9 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_HOME"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
-          keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000
+          fi
           echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
           echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=androiddebugkey" >> "$GITHUB_ENV"
           echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=android" >> "$GITHUB_ENV"
