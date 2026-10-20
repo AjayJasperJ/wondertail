@@ -623,6 +623,7 @@ func show_camp() -> void:
 	)
 	for child in widgets.get_children():
 		if child is Button and child.text == "← BACK":
+			child.position = Vector2(1060, 68)
 			child.pressed.disconnect(show_lobby)
 			child.pressed.connect(game.resume_game)
 	text(

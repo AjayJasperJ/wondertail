@@ -71,6 +71,17 @@ func run() -> void:
 	game._process(2.0)
 	check(game.clock == clock, "Menus pause the day-night cycle")
 	game.hud.show_camp()
+	await process_frame
+	for button in game.hud.widgets.get_children():
+		if button is Button and button.text == "← BACK":
+			for other in game.hud.widgets.get_children():
+				if other is Button and other != button:
+					check(
+						not Rect2(button.position, button.size).intersects(
+							Rect2(other.position, other.size)
+						),
+						"Camp back button stays accessible"
+					)
 	game.queue_free()
 	await process_frame
 	print("LIVING WORLD: %d failures" % failures)
