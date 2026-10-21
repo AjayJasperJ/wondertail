@@ -251,6 +251,48 @@ func run() -> void:
 		scene.player.stick == Vector2.ZERO and scene.hud.stick_id == -1,
 		"Menus release touch movement"
 	)
+	scene.resume_game()
+	var touch_origin: Vector2 = scene.hud.position
+	var stick_touch := InputEventScreenTouch.new()
+	stick_touch.index = 11
+	stick_touch.position = touch_origin + Vector2(150, 575)
+	stick_touch.pressed = true
+	scene.hud._input(stick_touch)
+	var camera_touch := InputEventScreenTouch.new()
+	camera_touch.index = 12
+	camera_touch.position = touch_origin + Vector2(940, 360)
+	camera_touch.pressed = true
+	scene.hud._input(camera_touch)
+	await process_frame
+	check(
+		scene.hud.stick_id == 11 and scene.hud.look_id == 12,
+		"Two touch pointers keep separate joystick and camera owners"
+	)
+	var camera_drag := InputEventScreenDrag.new()
+	camera_drag.index = 12
+	camera_drag.position = touch_origin + Vector2(960, 360)
+	scene.hud._input(camera_drag)
+	await process_frame
+	check(
+		scene.hud.touch_points.has(11) and scene.hud.touch_points.has(12),
+		"Multitouch tracks both positions"
+	)
+	var release_stick := InputEventScreenTouch.new()
+	release_stick.index = 11
+	release_stick.position = touch_origin + Vector2(150, 575)
+	release_stick.pressed = false
+	scene.hud._input(release_stick)
+	var release_camera := InputEventScreenTouch.new()
+	release_camera.index = 12
+	release_camera.position = touch_origin + Vector2(960, 360)
+	release_camera.pressed = false
+	scene.hud._input(release_camera)
+	await process_frame
+	check(
+		scene.hud.stick_id == -1 and scene.hud.look_id == -1,
+		"Both touch pointers release independently"
+	)
+	scene.pause_game()
 	var position_before: Vector3 = scene.player.position
 	await physics_frame
 	await physics_frame

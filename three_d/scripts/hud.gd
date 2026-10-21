@@ -19,6 +19,7 @@ var action_buttons: Dictionary = {}
 var stick_id := -1
 var look_id := -1
 var run_id := -1
+var touch_points: Dictionary = {}
 var stick_delta := Vector2.ZERO
 var message := ""
 var message_time := 0.0
@@ -821,6 +822,7 @@ func reset_touch() -> void:
 	stick_id = -1
 	look_id = -1
 	run_id = -1
+	touch_points.clear()
 	stick_delta = Vector2.ZERO
 	if game != null and is_instance_valid(game.player):
 		game.player.reset_controls()
@@ -853,12 +855,15 @@ func _input(event: InputEvent) -> void:
 			if page == "game":
 				if p.distance_to(Vector2(150, 575)) < 135 and stick_id < 0:
 					stick_id = event.index
+					touch_points[event.index] = p
 					game.player.stick_heading = game.player.yaw
 					game.player.stick_engaged = true
 					set_stick(p)
 				elif look_id < 0:
 					look_id = event.index
+					touch_points[event.index] = p
 		else:
+			touch_points.erase(event.index)
 			if event.index == stick_id:
 				stick_id = -1
 				stick_delta = Vector2.ZERO
@@ -869,9 +874,15 @@ func _input(event: InputEvent) -> void:
 				look_id = -1
 	elif page == "game":
 		if event.index == stick_id:
+			touch_points[event.index] = p
 			set_stick(p)
 		elif event.index == look_id:
-			game.player.look(event.relative / unit)
+			var previous: Vector2 = touch_points.get(event.index, p)
+			touch_points[event.index] = p
+			# Use absolute per-finger positions. Web multitouch can report a
+			# shared or stale event.relative value, which makes the camera jump
+			# when the movement thumb is held at the same time.
+			game.player.look((p - previous) * 0.78)
 	get_viewport().set_input_as_handled()
 
 

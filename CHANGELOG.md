@@ -13,6 +13,9 @@ Older dates are omitted where they were not recorded in the release history.
 - Added a marked 12 m peaceful spawn camp where hostile mobs stop pursuing and
   cannot damage the player. Added height-based landing damage after falls above
   5.5 m, with normal jumps and protected camp landings remaining safe.
+- Fixed mobile web two-finger controls by tracking each touch position
+  independently; joystick movement and camera orbit no longer steal or corrupt
+  each other's pointer data.
 - Replaced pack and crafting ingredient text tiles with original item artwork
   and separate counts, selected outlines, equipped highlights and tooltips.
 - Rebuilt the lobby as a winding eight-node island journey with locked previews,
