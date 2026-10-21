@@ -397,6 +397,35 @@ func decorate() -> void:
 			for mesh in resource.find_children("*", "MeshInstance3D", true, false):
 				mesh.add_to_group("vegetation_mesh")
 
+	# Shape the empty spaces into readable landscape pockets. The normal scatter above
+	# deliberately protects routes and landmarks; these small groves restore density
+	# around the island rim without blocking traversal or multiplying every frame's work.
+	for grove in range(42):
+		var angle := float(grove) * TAU / 42.0 + rng.randf_range(-0.08, 0.08)
+		var distance := radius(angle) * rng.randf_range(0.48, 0.82)
+		var centre := Vector2(cos(angle), sin(angle)) * distance
+		for member in range(2 + grove % 2):
+			var p := centre + Vector2(rng.randf_range(-2.4, 2.4), rng.randf_range(-2.4, 2.4))
+			if not walkable(p, 2) or path_distance(p) < 5:
+				continue
+			var prop := Node3D.new()
+			add_child(prop)
+			Art.biome_prop(prop, Vector3(p.x, height_at(p), p.y), rng, index % 6, palette[1])
+			prop.add_to_group("vegetation_cluster")
+
+	# A broken line of low stones along the river banks makes the water read as a
+	# carved channel and visually seats the bridge into the surrounding ground.
+	if layout_version >= 2:
+		for i in range(-34, 35, 2):
+			var x := float(i)
+			var z := river_axis(x)
+			for side in [-1, 1]:
+				var bank_p := Vector2(x, z + side * rng.randf_range(1.65, 2.15))
+				if not inside(bank_p, 1):
+					continue
+				var pebble := Art.sphere(self, Vector3(bank_p.x, height_at(bank_p) + 0.08, bank_p.y), rng.randf_range(0.18, 0.34), Color("707d75"))
+				pebble.scale = Vector3(1.5, 0.55, 0.9)
+
 	# Instanced grasses/flowers avoid hundreds of independently processed nodes.
 	var flowers := MultiMeshInstance3D.new()
 	var mm := MultiMesh.new()
