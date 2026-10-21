@@ -6,6 +6,8 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.18.0] - 2026-10-20
 
+- Grounded bridge fix: the ridge crossing now follows the generated river centreline, with terrain-snapped stone abutments; added shallow foundations to camp, cavern, ruins and beacon so constructions blend into uneven land instead of floating above it.
+
 - Crafting hotfix: explicit recipe selection with deferred UI refresh, output
   item artwork and carried/required material counts. Previews work without
   ingredients; crafting stays locked until materials and camp access are ready.

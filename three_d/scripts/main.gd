@@ -353,10 +353,20 @@ func landmark(key: String) -> Node3D:
 	return n
 
 
+func construction_foundation(parent: Node3D, size: Vector2, material: Color) -> void:
+	# A shallow, irregular-looking plinth hides tiny terrain/mesh gaps at every build site.
+	# It is deliberately thin so the structure still reads as grounded, not elevated.
+	Art.box(parent, Vector3(0, 0.035, 0), Vector3(size.x, 0.07, size.y), material, true)
+	for corner in [Vector2(-0.45, -0.35), Vector2(0.38, -0.28), Vector2(-0.3, 0.34), Vector2(0.46, 0.3)]:
+		var stone := Art.sphere(parent, Vector3(corner.x * size.x, 0.045, corner.y * size.y), 0.16, material)
+		stone.scale = Vector3(1.4, 0.45, 1.0)
+
+
 func build_landmarks() -> void:
 	var stone := Color("737e72")
 	var gold := Color("bba77d")
 	var camp := landmark("camp")
+	construction_foundation(camp, Vector2(5.2, 4.5), Color("5b625a"))
 	if terrain.layout_version >= 2:
 		var forward: Vector2 = (terrain.anchors.ruins - terrain.anchors.camp).normalized()
 		camp.rotation.y = atan2(-forward.y, forward.x)
@@ -414,6 +424,7 @@ func build_landmarks() -> void:
 
 	add_object("camp", camp, "camp", camp.position + Vector3(0, 0.5, 0), 3.5)
 	var cave := landmark("cave")
+	construction_foundation(cave, Vector2(6.2, 4.0), Color("4f5d58"))
 	for side in [-1, 1]:
 		var arch_wall := Art.box(
 			cave, Vector3(side * 2.6, 2.4, 0), Vector3(1.5, 4.8, 3.2), stone, true
@@ -446,6 +457,7 @@ func build_landmarks() -> void:
 		rock.scale = Vector3(0.85, 0.7, 1.55)
 		rock.create_convex_collision()
 	var ruins := landmark("ruins")
+	construction_foundation(ruins, Vector2(8.4, 3.4), Color("59645c"))
 	for side in [-1, 1]:
 		Art.cone(ruins, Vector3(side * 3.8, 2, 0), 0.6, 0.45, 4, stone)
 		var s := CylinderShape3D.new()
@@ -477,6 +489,7 @@ func build_landmarks() -> void:
 	for side in [-1, 1]:
 		Art.sphere(companion, Vector3(side * 0.18, 0, -0.5), 0.05, Color("315365"))
 	beacon = landmark("gate")
+	construction_foundation(beacon, Vector2(6.8, 3.0), Color("59645c"))
 	Art.cone(beacon, Vector3(0, 0.25, 0), 4, 4, 0.5, stone)
 	for side in [-1, 1]:
 		Art.box(beacon, Vector3(side * 2.7, 3.2, 0), Vector3(0.9, 6.4, 1.1), gold, true)
@@ -490,30 +503,16 @@ func build_landmarks() -> void:
 	portal.visible = store.memory().restored
 	Art.label(beacon, "THE SKY BEACON", Vector3(0, 8, 0))
 	add_object("beacon", beacon, "beacon", beacon.position + Vector3(0, 1, 2), 4)
-	# The ridge crossing now spans a real water channel instead of floating over dry land.
-	var bridge_center: Vector3 = terrain.point("ridge") + Vector3(0, 0.15, 5)
-	var channel_center := Vector2(bridge_center.x, bridge_center.z)
-	bridge_center.y = terrain.ground_height(channel_center) + 0.15
-	var channel_y: float = terrain.ground_height(channel_center) - 0.35
-	var channel := Art.box(
-		world,
-		Vector3(channel_center.x, channel_y, channel_center.y),
-		Vector3(5.6, 0.08, 9.5),
-		Color("4eafc4")
-	)
-	var channel_water := ShaderMaterial.new()
-	channel_water.shader = preload("res://shaders/water.gdshader")
-	channel.material_override = channel_water
-	# A pair of irregular banks makes the crossing read as a stream carved through the island.
+	# The river flows along X. Find its actual centreline instead of placing the bridge
+	# beside a landmark; this keeps every generated layout over water, never dry ground.
+	var bridge_x: float = terrain.anchors.ridge.x
+	var channel_center := Vector2(bridge_x, terrain.river_axis(bridge_x))
+	var bridge_center := Vector3(channel_center.x, terrain.ground_height(channel_center) + 0.16, channel_center.y)
+	# Stone abutments are sampled at their own terrain points, so sloped banks meet the deck.
 	for side in [-1, 1]:
-		for i in range(7):
-			var bank_at := Vector3(
-				channel_center.x + side * (3.15 + sin(i * 1.8) * 0.25),
-				terrain.ground_height(channel_center) + 0.02,
-				channel_center.y + (i - 3) * 1.35
-			)
-			var bank := Art.sphere(world, bank_at, 0.45 + float(i % 3) * 0.12, Color("78877f"))
-			bank.scale = Vector3(1.25, 0.7, 0.8)
+		var bank_p := Vector2(channel_center.x, channel_center.y + side * 2.45)
+		var bank := Art.box(world, Vector3(bank_p.x, terrain.height_at(bank_p) + 0.12, bank_p.y), Vector3(4.0, 0.24, 1.2), Color("78877f"), true)
+		bank.rotation.y = 0.08 * side
 	for i in range(10):
 		var at := bridge_center + Vector3(0, 0, i * 0.55 - 2.5)
 		Art.box(world, at, Vector3(3.1, 0.25, 0.5), Color("9e805c"), true)
