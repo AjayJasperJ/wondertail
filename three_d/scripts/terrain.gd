@@ -423,8 +423,31 @@ func decorate() -> void:
 				var bank_p := Vector2(x, z + side * rng.randf_range(1.65, 2.15))
 				if not inside(bank_p, 1):
 					continue
-				var pebble := Art.sphere(self, Vector3(bank_p.x, height_at(bank_p) + 0.08, bank_p.y), rng.randf_range(0.18, 0.34), Color("707d75"))
+				var pebble := Art.sphere(
+					self,
+					Vector3(bank_p.x, height_at(bank_p) + 0.08, bank_p.y),
+					rng.randf_range(0.18, 0.34),
+					Color("707d75")
+				)
 				pebble.scale = Vector3(1.5, 0.55, 0.9)
+
+	# Trail-side story beats break up long empty walks without blocking the route:
+	# small cairns and log piles act as visual breadcrumbs toward the next landmark.
+	for route in paths:
+		for step in range(1, route.size() - 1):
+			var marker_p: Vector2 = route[step]
+			var forward := (route[step + 1] - route[step - 1]).normalized()
+			var side := Vector2(-forward.y, forward.x)
+			for offset in [-1.9, 1.9]:
+				var p := marker_p + side * offset
+				if not walkable(p, 1):
+					continue
+				var cairn := Art.sphere(self, Vector3(p.x, height_at(p) + 0.18, p.y), 0.28, Color("7b877d"))
+				cairn.scale = Vector3(1.35, 0.65, 1.0)
+
+	# Use the existing instanced grass mesh to create subtle biome colour pockets.
+	# This adds richness at very low CPU cost because it does not create scene nodes.
+	var patch_colors := [Color("a5c889"), Color("d6bd76"), Color("8fb7a8"), Color("b49bc8")]
 
 	# Instanced grasses/flowers avoid hundreds of independently processed nodes.
 	var flowers := MultiMeshInstance3D.new()
@@ -450,8 +473,8 @@ func decorate() -> void:
 	var flower_mesh := grass.commit()
 
 	mm.mesh = flower_mesh
-	mm.instance_count = 2600
-	for i in range(2600):
+	mm.instance_count = 3000
+	for i in range(3000):
 		var p := Vector2(rng.randf_range(-40, 40), rng.randf_range(-40, 40)) * scale_factor
 		var at := (
 			Vector3(p.x, height_at(p) + 0.015, p.y)
@@ -468,7 +491,7 @@ func decorate() -> void:
 				Basis(Vector3.UP, i * 2.399).scaled(Vector3.ONE * (0.8 + float(i % 4) * 0.15)), at
 			)
 		)
-		mm.set_instance_color(i, Color.WHITE)
+		mm.set_instance_color(i, patch_colors[int(i / 180) % patch_colors.size()])
 	flowers.multimesh = mm
 	flowers.add_to_group("ground_cover")
 	flowers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
