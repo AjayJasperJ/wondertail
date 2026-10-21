@@ -31,6 +31,7 @@ var level_points: Array[Vector2] = []
 var bag_tab := "craft"
 var craft_grid: Array = ["", "", "", "", "", "", "", "", ""]
 var title_color := Color("f5cc83")
+var status_refresh_timer := 0.0
 
 
 func setup(owner_game) -> void:
@@ -900,17 +901,34 @@ func set_stick(p: Vector2) -> void:
 func _process(dt: float) -> void:
 	if page == "game":
 		message_time = maxf(0, message_time - dt)
+		status_refresh_timer -= dt
 		var ratio: float = game.player.health / game.player.max_health
 		hearts.text = ""
 		for segment in range(3):
 			var fill := clampf(ratio * 3 - segment, 0, 1)
 			var tint := Color("4e6668").lerp(Color("efa88b"), fill)
 			hearts.text += "[color=#%s]♥ [/color]" % tint.to_html(false)
-		camera_label.text = game.player.cameras.MODES[game.player.cameras.mode]
-		shoulder_button.visible = game.player.cameras.mode == 2 or game.player.cameras.aiming
-		action_buttons.aim.modulate = Color("edcf94") if game.player.cameras.aiming else Color.WHITE
-		action_buttons.crouch.modulate = Color("edcf94") if game.player.crouching else Color.WHITE
-		action_buttons.sprint.modulate = Color("edcf94") if game.player.sprinting else Color.WHITE
+		if status_refresh_timer <= 0:
+			status_refresh_timer = 0.08
+			camera_label.text = game.player.cameras.MODES[game.player.cameras.mode]
+			shoulder_button.visible = game.player.cameras.mode == 2 or game.player.cameras.aiming
+			action_buttons.aim.modulate = Color("edcf94") if game.player.cameras.aiming else Color.WHITE
+			action_buttons.crouch.modulate = Color("edcf94") if game.player.crouching else Color.WHITE
+			action_buttons.sprint.modulate = Color("edcf94") if game.player.sprinting else Color.WHITE
+			health.value = game.player.health / game.player.max_health * 100
+			stamina.value = game.player.stamina
+			vitals.text = (
+				("PEACEFUL CAMP • " if game.is_spawn_protected() else "")
+				+ (
+					"%s • %d HP   COINS %d   DIAMONDS %d"
+					% [
+						game.store.HEROES[int(game.store.data.hero)],
+						int(game.player.health),
+						game.store.data.coins,
+						int(game.living.state().diamonds) if game.living != null else 0
+					]
+				)
+			)
 		queue_redraw()
 		var ranged: bool = int(game.store.data.bag.weapon) != 0
 		action_buttons.attack.text = "SHOOT" if ranged else "STRIKE"
@@ -922,20 +940,6 @@ func _process(dt: float) -> void:
 			)
 			if ranged
 			else "SWORD"
-		)
-		health.value = game.player.health / game.player.max_health * 100
-		stamina.value = game.player.stamina
-		vitals.text = (
-			("PEACEFUL CAMP • " if game.is_spawn_protected() else "")
-			+ (
-				"%s • %d HP   COINS %d   DIAMONDS %d"
-				% [
-					game.store.HEROES[int(game.store.data.hero)],
-					int(game.player.health),
-					game.store.data.coins,
-					int(game.living.state().diamonds) if game.living != null else 0
-				]
-			)
 		)
 		var goal: PackedStringArray = game.objective().split(" / ", true, 1)
 		quest_title.text = (

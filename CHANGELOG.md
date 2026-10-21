@@ -16,6 +16,9 @@ Older dates are omitted where they were not recorded in the release history.
 - Fixed mobile web two-finger controls by tracking each touch position
   independently; joystick movement and camera orbit no longer steal or corrupt
   each other's pointer data.
+- Mobile performance pass: throttled solar lighting, landmark label visibility,
+  ground-object visibility and HUD status refreshes to reduce battery and GPU/CPU
+  work while keeping movement, camera input and visual effects full-rate.
 - Replaced pack and crafting ingredient text tiles with original item artwork
   and separate counts, selected outlines, equipped highlights and tooltips.
 - Rebuilt the lobby as a winding eight-node island journey with locked previews,

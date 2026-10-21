@@ -88,6 +88,9 @@ var vessel: Node3D
 var sailing := false
 var sailing_return := Vector3.ZERO
 var harvest_tool := ""
+var lighting_timer := 0.0
+var world_visibility_timer := 0.0
+var labels_visibility_timer := 0.0
 
 
 func harvest() -> void:
@@ -1440,12 +1443,16 @@ func tell(caption: String) -> void:
 func _process(dt: float) -> void:
 	if playing:
 		clock += dt
-	# A slow solar cycle keeps the island alive without interrupting the expedition.
-	var daylight := clampf(sin(clock * TAU / 720.0 + 0.6) * 0.65 + 0.45, 0.0, 1.0)
-	light.rotation_degrees = Vector3(-12.0 - daylight * 55.0, -35.0 + clock * 0.018, 0)
-	light.light_energy = lerpf(0.18, 1.0, daylight)
-	light.light_color = Color("91b5df").lerp(Color("ffe4b0"), daylight)
-	environment.environment.ambient_light_energy = lerpf(0.28, 0.55, daylight)
+	# Lighting and visibility do not need a full-rate update. Updating them at
+	# 12 Hz removes needless mobile GPU/CPU work while preserving smooth motion.
+	lighting_timer -= dt
+	if lighting_timer <= 0:
+		lighting_timer = 0.08
+		var daylight := clampf(sin(clock * TAU / 720.0 + 0.6) * 0.65 + 0.45, 0.0, 1.0)
+		light.rotation_degrees = Vector3(-12.0 - daylight * 55.0, -35.0 + clock * 0.018, 0)
+		light.light_energy = lerpf(0.18, 1.0, daylight)
+		light.light_color = Color("91b5df").lerp(Color("ffe4b0"), daylight)
+		environment.environment.ambient_light_energy = lerpf(0.28, 0.55, daylight)
 	for i in range(pickup_effects.size() - 1, -1, -1):
 		var effect: Dictionary = pickup_effects[i]
 		if not is_instance_valid(effect.node):
@@ -1458,8 +1465,11 @@ func _process(dt: float) -> void:
 		if effect.time <= 0:
 			effect.node.queue_free()
 			pickup_effects.remove_at(i)
-	for label in get_tree().get_nodes_in_group("landmark_labels"):
-		label.visible = playing
+	labels_visibility_timer -= dt
+	if labels_visibility_timer <= 0:
+		labels_visibility_timer = 0.25
+		for label in get_tree().get_nodes_in_group("landmark_labels"):
+			label.visible = playing
 	if not is_instance_valid(player):
 		return
 	if not playing:
@@ -1468,12 +1478,15 @@ func _process(dt: float) -> void:
 			player.yaw += dt * 0.065
 			player.pivot.rotation.y = player.yaw
 		return
-	for object in objects:
-		if object.kind == "ground" and is_instance_valid(object.node):
-			object.node.visible = (
-				store.memory().ground.has(object.id)
-				and store.memory().ground[object.id].cave == in_cave
-			)
+	world_visibility_timer -= dt
+	if world_visibility_timer <= 0:
+		world_visibility_timer = 0.12
+		for object in objects:
+			if object.kind == "ground" and is_instance_valid(object.node):
+				object.node.visible = (
+					store.memory().ground.has(object.id)
+					and store.memory().ground[object.id].cave == in_cave
+				)
 	if use_expeditions and expedition != null:
 		expedition.tick(dt)
 	nav_marker.visible = not in_cave
