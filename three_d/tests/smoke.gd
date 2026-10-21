@@ -268,6 +268,11 @@ func run() -> void:
 		scene.hud.stick_id == 11 and scene.hud.look_id == 12,
 		"Two touch pointers keep separate joystick and camera owners"
 	)
+	var stick_drag := InputEventScreenDrag.new()
+	stick_drag.index = 11
+	stick_drag.position = touch_origin + Vector2(210, 575)
+	scene.hud._input(stick_drag)
+	check(scene.player.stick.x > 0.5, "Joystick drag produces movement input")
 	var camera_drag := InputEventScreenDrag.new()
 	camera_drag.index = 12
 	camera_drag.position = touch_origin + Vector2(960, 360)
