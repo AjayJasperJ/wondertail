@@ -44,19 +44,38 @@ func setup(owner_game) -> void:
 	var ui_font := SystemFont.new()
 	ui_font.font_names = PackedStringArray(["DejaVu Sans", "Noto Sans", "Arial"])
 	theme.default_font = ui_font
+	var button_colors := {
+		"normal": Color("29263f"),
+		"hover": Color("3b3154"),
+		"pressed": Color("514062"),
+		"disabled": Color("201f31")
+	}
+	var button_borders := {
+		"normal": Color("8b6d68"),
+		"hover": Color("d4a968"),
+		"pressed": Color("ffd27c"),
+		"disabled": Color("555064")
+	}
 	for type in ["normal", "hover", "pressed", "disabled"]:
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color("302b51") if type != "pressed" else Color("585282")
-		style.border_color = Color("8f88bc")
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(15)
-		style.content_margin_left = 14
+		style.bg_color = button_colors[type]
+		style.border_color = button_borders[type]
+		style.set_border_width_all(2 if type != "disabled" else 1)
+		style.set_corner_radius_all(8)
+		style.shadow_color = Color(0.02, 0.01, 0.06, 0.72)
+		style.shadow_size = 5
+		style.shadow_offset = Vector2(0, 2)
+		style.content_margin_left = 12
 		style.content_margin_top = 8
 		style.content_margin_bottom = 8
 		style.content_margin_right = 14
 		theme.set_stylebox(type, "Button", style)
 	theme.set_color("font_color", "Button", Color("e2f4f5"))
-	theme.set_color("font_hover_color", "Button", Color("ffffff"))
+	theme.set_color("font_hover_color", "Button", Color("fff2cf"))
+	theme.set_color("font_pressed_color", "Button", Color("fff8e5"))
+	theme.set_color("font_disabled_color", "Button", Color("777386"))
+	theme.set_color("font_outline_color", "Button", Color("140f24"))
+	theme.set_constant("outline_size", "Button", 2)
 	widgets.theme = theme
 	get_viewport().size_changed.connect(resize)
 	resize()
@@ -991,10 +1010,19 @@ func _draw() -> void:
 func draw_style_panel(rect: Rect2, color: Color) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
-	style.set_corner_radius_all(12)
-	style.border_color = Color(0.75, 0.85, 0.72, 0.24)
-	style.set_border_width_all(1)
+	style.set_corner_radius_all(9)
+	style.border_color = Color("a98567")
+	style.set_border_width_all(2)
+	style.shadow_color = Color(0.02, 0.01, 0.06, 0.62)
+	style.shadow_size = 10
+	style.shadow_offset = Vector2(0, 3)
 	draw_style_box(style, rect)
+	var inner := style.duplicate() as StyleBoxFlat
+	inner.bg_color = Color(0, 0, 0, 0)
+	inner.border_color = Color(0.95, 0.76, 0.42, 0.26)
+	inner.set_border_width_all(1)
+	inner.shadow_size = 0
+	draw_style_box(inner, rect.grow(-5))
 
 
 func show_brief() -> void:
