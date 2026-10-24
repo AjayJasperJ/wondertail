@@ -9,6 +9,10 @@ Older dates are omitted where they were not recorded in the release history.
 - Fixed the custom explorer picker so the card is visible and tappable on the
   lobby canvas, persists the selection, and returns to the lobby immediately.
 - Normalized the supplied custom character GLB for Godot runtime loading.
+- Removed the importer-incompatible SWAT runtime copy from the shipped asset
+  set; the Custom Explorer slot now uses the compatible hooded rig fallback so
+  selecting it cannot break gameplay or menu rendering. The original SWAT GLB
+  remains preserved in `source_assets/characters/` for a future re-export.
 
 ## [3D 0.18.0] - 2026-10-20
 

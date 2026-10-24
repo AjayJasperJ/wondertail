@@ -2,7 +2,7 @@ extends Control
 const Minimap = preload("res://scripts/minimap.gd")
 const ItemIcon = preload("res://scripts/item_icon.gd")
 const ModelActor = preload("res://scripts/model_actor.gd")
-const CUSTOM_EXPLORER_MODEL := "res://assets/models/characters/custom_explorer.glb"
+const CUSTOM_EXPLORER_MODEL := "res://assets/models/characters/hooded_adventurer.glb"
 var game
 var camera_label: Label
 var hearts: RichTextLabel
@@ -301,7 +301,7 @@ func select_custom_explorer() -> void:
 func show_custom_explorer() -> void:
 	page = "custom_explorer"
 	clear()
-	header("CUSTOM EXPLORER", "A separate lobby preview. Your active expedition character is unchanged.")
+	header("CUSTOM EXPLORER", "Custom slot equipped. Preview uses the compatible runtime rig until the supplied SWAT container is re-exported.")
 	text("RIGGED MODEL", Vector2(100, 205), 18, Color("f5cc83"))
 	text(
 		"This character is loaded from a GLB with a humanoid skeleton.\n"
