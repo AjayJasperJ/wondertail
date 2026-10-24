@@ -9,10 +9,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'source_assets'
 OUTPUT = ROOT / 'three_d/assets/models'
 KEEP = {'Idle', 'Idle_Neutral', 'Walk', 'Run', 'Sword_Slash', 'Gun_Shoot', 'HitRecieve',
-        'Flying_Idle', 'Fast_Flying', 'Bite_Front', 'Headbutt', 'HitReact', 'Punch'}
+        'Flying_Idle', 'Fast_Flying', 'Bite_Front', 'Headbutt', 'HitReact', 'Punch',
+        # The custom lobby explorer keeps its tactical preview clips as well.
+        'Death', 'Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot', 'Interact',
+        'Roll', 'Run_Shoot'}
 SELECTION = [
  ('characters/adventurer.glb', None, 'characters/adventurer.glb'),
  ('characters/hooded_adventurer.glb', None, 'characters/hooded_adventurer.glb'),
+ ('characters/swat.glb', None, 'characters/custom_explorer.glb'),
  ('packs/ultimate_modular_men_glb.zip', 'Farmer.glb', 'characters/farmer.glb'),
  ('packs/ultimate_monsters_glb.zip', 'Mushnub.glb', 'creatures/mushnub.glb'),
  ('packs/ultimate_monsters_glb.zip', 'Cactoro.glb', 'creatures/cactoro.glb'),
