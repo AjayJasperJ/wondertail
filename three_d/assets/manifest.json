@@ -1,5 +1,23 @@
 [
   {
+    "runtime": "three_d/assets/models/characters/custom_explorer.glb",
+    "source": "source_assets/characters/swat.glb",
+    "archive_member": null,
+    "source_sha256": "a835107bac833eb916c494e10997ae1709e85957ea6f6c59ace3c9a66f6d1fec",
+    "runtime_sha256": "a835107bac833eb916c494e10997ae1709e85957ea6f6c59ace3c9a66f6d1fec",
+    "source_bytes": 1560900,
+    "runtime_bytes": 1560900,
+    "animations": [
+      "CharacterArmature|Death", "CharacterArmature|Gun_Shoot",
+      "CharacterArmature|HitRecieve", "CharacterArmature|Idle",
+      "CharacterArmature|Idle_Gun", "CharacterArmature|Idle_Gun_Pointing",
+      "CharacterArmature|Idle_Gun_Shoot", "CharacterArmature|Idle_Neutral",
+      "CharacterArmature|Interact", "CharacterArmature|Roll",
+      "CharacterArmature|Run", "CharacterArmature|Run_Shoot",
+      "CharacterArmature|Sword_Slash", "CharacterArmature|Walk"
+    ]
+  },
+  {
     "runtime": "three_d/assets/models/characters/adventurer.glb",
     "source": "characters/adventurer.glb",
     "archive_member": null,

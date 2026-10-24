@@ -1,6 +1,8 @@
 extends Control
 const Minimap = preload("res://scripts/minimap.gd")
 const ItemIcon = preload("res://scripts/item_icon.gd")
+const ModelActor = preload("res://scripts/model_actor.gd")
+const CUSTOM_EXPLORER_MODEL := "res://assets/models/characters/custom_explorer.glb"
 var game
 var camera_label: Label
 var hearts: RichTextLabel
@@ -32,6 +34,9 @@ var bag_tab := "craft"
 var craft_grid: Array = ["", "", "", "", "", "", "", "", ""]
 var title_color := Color("f5cc83")
 var status_refresh_timer := 0.0
+var custom_preview_container: SubViewportContainer
+var custom_preview_root: Node3D
+var custom_actor: Node3D
 
 
 func setup(owner_game) -> void:
@@ -92,6 +97,11 @@ func resize() -> void:
 
 func clear() -> void:
 	reset_touch()
+	if is_instance_valid(custom_preview_container):
+		custom_preview_container.queue_free()
+	custom_preview_container = null
+	custom_preview_root = null
+	custom_actor = null
 	for child in widgets.get_children():
 		widgets.remove_child(child)
 		child.queue_free()
@@ -247,7 +257,7 @@ func header(title: String, subtitle: String) -> void:
 func show_heroes() -> void:
 	page = "heroes"
 	clear()
-	header("CHOOSE YOUR EXPLORER", "Three silhouettes. Three ways to travel.")
+	header("CHOOSE YOUR EXPLORER", "Three expedition builds, plus a custom animated preview.")
 	var descriptions := [
 		"ROWAN\nThe balanced explorer\n100 health · steady speed\nReliable double jump",
 		"SKY\nThe agile scout\n80 health · fastest stride\nHighest double jump",
@@ -265,6 +275,89 @@ func show_heroes() -> void:
 				else:
 					tell(game.store.last_error)
 		)
+	# Lobby-only custom explorer preview. It does not change store.data.hero or the
+	# gameplay player, so importing a new character cannot interrupt an active run.
+	button(
+		"CUSTOM EXPLORER\nSWAT RIG\nPreview animations →",
+		Rect2(100 + 3 * 365, 215, 340, 280),
+		show_custom_explorer
+	)
+	text("LOBBY PREVIEW", Vector2(100 + 3 * 365 + 92, 505), 12, Color("7febd9"))
+
+
+func show_custom_explorer() -> void:
+	page = "custom_explorer"
+	clear()
+	header("CUSTOM EXPLORER", "A separate lobby preview. Your active expedition character is unchanged.")
+	text("RIGGED MODEL", Vector2(100, 205), 18, Color("f5cc83"))
+	text(
+		"This character is loaded from a GLB with a humanoid skeleton.\n"
+		+ "Available clips are previewed below; missing clips remain clearly marked\n"
+		+ "until a source animation pack is supplied.",
+		Vector2(100, 245),
+		17,
+		Color("d8d1eb")
+	)
+	text("AVAILABLE", Vector2(100, 355), 18, Color("7febd9"))
+	var clips := ["Idle", "Walk", "Run", "Gun_Shoot", "Run_Shoot", "Roll", "Sword_Slash", "Interact"]
+	for i in range(clips.size()):
+		var clip := String(clips[i])
+		button(
+			clip.replace("_", " "),
+			Rect2(100 + (i % 4) * 190, 390 + (i / 4) * 58, 170, 44),
+			func(): play_custom_clip(clip)
+		)
+	text("PLANNED SOURCE CLIPS", Vector2(100, 525), 18, Color("f0a45c"))
+	text(
+		"Jump · Crouch · Prone · Sit chair · Sit floor · Scope-in · Bow draw",
+		Vector2(100, 560),
+		16,
+		Color("c4cce0")
+	)
+	text(
+		"Add these clips to the same skeleton and they will appear here without changing gameplay code.",
+		Vector2(100, 590),
+		14,
+		Color("9baac4")
+	)
+	build_custom_preview()
+
+
+func build_custom_preview() -> void:
+	custom_preview_container = SubViewportContainer.new()
+	custom_preview_container.position = Vector2(805, 190)
+	custom_preview_container.size = Vector2(390, 390)
+	custom_preview_container.stretch = true
+	custom_preview_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	widgets.add_child(custom_preview_container)
+	var viewport := SubViewport.new()
+	viewport.size = Vector2i(390, 390)
+	viewport.transparent_bg = true
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	custom_preview_container.add_child(viewport)
+	custom_preview_root = Node3D.new()
+	viewport.add_child(custom_preview_root)
+	var camera := Camera3D.new()
+	camera.position = Vector3(0, 1.35, 3.8)
+	camera.look_at_from_position(camera.position, Vector3(0, 1.0, 0))
+	custom_preview_root.add_child(camera)
+	var light := DirectionalLight3D.new()
+	light.rotation_degrees = Vector3(-35, -25, 0)
+	light.light_energy = 1.4
+	custom_preview_root.add_child(light)
+	var fill := OmniLight3D.new()
+	fill.position = Vector3(-1.5, 1.5, 2.0)
+	fill.light_energy = 2.0
+	fill.omni_range = 6.0
+	custom_preview_root.add_child(fill)
+	custom_actor = ModelActor.new()
+	custom_preview_root.add_child(custom_actor)
+	custom_actor.setup(CUSTOM_EXPLORER_MODEL, Vector3.ONE * 1.25, 0.0)
+
+
+func play_custom_clip(clip: String) -> void:
+	if is_instance_valid(custom_actor) and custom_actor.has_method("play"):
+		custom_actor.play([clip], clip in ["Idle", "Walk", "Run", "Run_Shoot"], 1.0)
 
 
 func show_atlas(offset: int = -1) -> void:

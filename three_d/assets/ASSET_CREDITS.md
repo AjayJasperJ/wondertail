@@ -9,6 +9,7 @@ runtime sizes. `tool/prepare_3d_assets.py` reproduces the selected subset.
 ## Used models
 
 - Rowan: Adventurer. Sky: Hooded Adventurer. Fern: Farmer from Modular Men.
+- Custom Explorer lobby preview: SWAT rig from the user-supplied character pack.
 - Forest/moon/volcanic/cloud hunters: Mushnub. Desert: Cactoro. Winter: Yeti.
 - Ridge guardian: Goleling Evolved, a hovering stone creature.
 
@@ -32,7 +33,8 @@ unchanged. Additional loose GLBs and the Survival/armor/saved archives remain
 unshipped pending individual provenance and runtime suitability checks.
 
 Terrain, structures, cloud companion, bow/arrow geometry and synthesized audio
-remain Wondertail procedural assets. The runtime excludes the unused SWAT model,
-whole source ZIPs and unused gun models. Equipment/nature subsets are generated
+remain Wondertail procedural assets. The runtime includes SWAT only as a lobby
+preview; it does not replace the active gameplay heroes. Whole source ZIPs and
+unused gun models remain excluded. Equipment/nature subsets are generated
 by `tool/prepare_3d_assets.py` before import, with hashes in the manifest.
 

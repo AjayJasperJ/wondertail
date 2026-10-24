@@ -6,6 +6,11 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.18.0] - 2026-10-20
 
+- Added an isolated Custom Explorer lobby preview using the supplied SWAT GLB.
+  It previews the model's available idle, walk, run, shooting, roll, sword and
+  interaction clips without changing the active gameplay hero or save data.
+  Missing jump/crouch/prone/sitting/scope/bow-draw clips are labelled honestly
+  as planned source clips until a compatible animation pack is provided.
 - Added bright Colour Archive mural panels at the ruins and colour-coded beacon
   pennants as visual anchors for the upcoming persistent painting activity.
 - Added trail cairns, biome colour pockets, river-bank stones and deterministic
