@@ -3,13 +3,12 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dcustomexplorer01"
-path="res://.godot/imported/custom_explorer.glb-3b5e4ad6d4f92d5a.scn"
+path="res://.godot/imported/custom_explorer.glb-29204c842278aaa9b11eaec894b5bc9d.scn"
 
 [deps]
 
 source_file="res://assets/models/characters/custom_explorer.glb"
-dest_files=["res://.godot/imported/custom_explorer.glb-3b5e4ad6d4f92d5a.scn"]
+dest_files=["res://.godot/imported/custom_explorer.glb-29204c842278aaa9b11eaec894b5bc9d.scn"]
 
 [params]
 
