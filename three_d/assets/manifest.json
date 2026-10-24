@@ -40,9 +40,9 @@
     "source": "characters/swat.glb",
     "archive_member": null,
     "source_sha256": "a835107bac833eb916c494e10997ae1709e85957ea6f6c59ace3c9a66f6d1fec",
-    "runtime_sha256": "a0533abdcc45532bee6f10697c081a25f71685a66bf25cb64348b8dac57fbee1",
+    "runtime_sha256": "a835107bac833eb916c494e10997ae1709e85957ea6f6c59ace3c9a66f6d1fec",
     "source_bytes": 1560900,
-    "runtime_bytes": 1236508,
+    "runtime_bytes": 1560900,
     "animations": [
       "CharacterArmature|Death",
       "CharacterArmature|Gun_Shoot",
