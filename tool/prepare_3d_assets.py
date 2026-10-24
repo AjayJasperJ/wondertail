@@ -15,7 +15,6 @@ CUSTOM_KEEP = KEEP | {'Death', 'Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot'
 SELECTION = [
  ('characters/adventurer.glb', None, 'characters/adventurer.glb'),
  ('characters/hooded_adventurer.glb', None, 'characters/hooded_adventurer.glb'),
- ('characters/swat.glb', None, 'characters/custom_explorer.glb'),
  ('packs/ultimate_modular_men_glb.zip', 'Farmer.glb', 'characters/farmer.glb'),
  ('packs/ultimate_monsters_glb.zip', 'Mushnub.glb', 'creatures/mushnub.glb'),
  ('packs/ultimate_monsters_glb.zip', 'Cactoro.glb', 'creatures/cactoro.glb'),
@@ -169,6 +168,19 @@ def extra_assets(records):
 
 def main():
     records = []
+    # The custom explorer is a deliberately hand-packed lobby preview. Keep its
+    # committed GLB and manifest record intact; the compacting pass is reserved
+    # for the reproducible gameplay subset above.
+    previous_manifest = ROOT / 'three_d/assets/manifest.json'
+    custom_record = None
+    if previous_manifest.exists():
+        try:
+            custom_record = next(
+                item for item in json.loads(previous_manifest.read_text())
+                if item.get('runtime') == 'three_d/assets/models/characters/custom_explorer.glb'
+            )
+        except (StopIteration, json.JSONDecodeError):
+            custom_record = None
     for source, member, destination in SELECTION:
         if member:
             with zipfile.ZipFile(SOURCE / source) as archive:
@@ -186,6 +198,8 @@ def main():
                         'source_bytes': len(raw), 'runtime_bytes': len(packed), 'animations': animations})
         print(destination, len(raw), '->', len(packed))
     extra_assets(records)
+    if custom_record is not None:
+        records.insert(2, custom_record)
     for target in sorted((OUTPUT / 'shared').glob('*')):
         if target.suffix not in ['.png', '.jpg']:
             continue
