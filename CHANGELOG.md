@@ -6,6 +6,10 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.18.0] - 2026-10-20
 
+- Added bright Colour Archive mural panels at the ruins and colour-coded beacon
+  pennants as visual anchors for the upcoming persistent painting activity.
+- Added trail cairns, biome colour pockets, river-bank stones and deterministic
+  vegetation groves to reduce empty stretches without adding heavy per-frame work.
 - Grounded bridge fix: the ridge crossing now follows the generated river centreline, with terrain-snapped stone abutments; added shallow foundations to camp, cavern, ruins and beacon so constructions blend into uneven land instead of floating above it.
 
 - Crafting hotfix: explicit recipe selection with deferred UI refresh, output

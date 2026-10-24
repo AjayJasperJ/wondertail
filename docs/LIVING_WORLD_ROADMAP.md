@@ -42,6 +42,21 @@ Use Custom at 100% resolution for sharper edges, at additional GPU cost.
 
 ## Approved roadmap and honest status
 
+### Next visual/gameplay milestone: Colour Archives
+
+The 3D edition now includes bright painted mural panels at the ruins and
+colour-coded pennants at the beacon. These are visual anchors for the next
+world-mutation activity, not a finished painting game yet. The intended loop is:
+
+1. Find three faded colour waystones on an island.
+2. Gather natural pigments from flowers, crystals, and biome materials.
+3. Paint a mural by matching a simple pattern or palette challenge.
+4. Persist the restored colour in the island save and reveal a nearby discovery.
+
+Painting should alter the world locally (new flowers, warmer lights, opened
+shortcuts, or a friendly creature) so it has gameplay value. It should not be a
+detached colouring screen or a repetitive tap-for-reward task.
+
 | Priority | Feature | Current status and remaining work |
 | --- | --- | --- |
 | 1 | Short varied contracts | Deliveries, hunt, rescue repeatable; defense, escort, bridge repair and optional timed cave runs remain planned |

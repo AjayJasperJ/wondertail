@@ -503,6 +503,7 @@ func build_landmarks() -> void:
 	portal.visible = store.memory().restored
 	Art.label(beacon, "THE SKY BEACON", Vector3(0, 8, 0))
 	add_object("beacon", beacon, "beacon", beacon.position + Vector3(0, 1, 2), 4)
+	build_colour_accents(ruins, beacon)
 	# The river flows along X. Find its actual centreline instead of placing the bridge
 	# beside a landmark; this keeps every generated layout over water, never dry ground.
 	var bridge_x: float = terrain.anchors.ridge.x
@@ -568,6 +569,42 @@ func build_landmarks() -> void:
 			Vector3(0.52, 25, 0.3),
 			Color("87c5c9")
 		)
+
+
+func build_colour_accents(ruins: Node3D, beacon_node: Node3D) -> void:
+	# Bright, low-cost painted surfaces give each island a readable visual identity.
+	# These are intentionally authored as world props now; the next interaction pass
+	# will let players repaint them and persist the resulting island mutation.
+	var paints := [Color("f29b83"), Color("79c9c0"), Color("f0cb73"), Color("aa98df")]
+	for i in range(4):
+		var mural := Art.box(
+			ruins,
+			Vector3((i - 1.5) * 1.15, 1.55, 1.72),
+			Vector3(0.82, 1.55, 0.08),
+			paints[i]
+		)
+		var mural_material := StandardMaterial3D.new()
+		mural_material.albedo_color = paints[i]
+		mural_material.emission_enabled = true
+		mural_material.emission = paints[i].lightened(0.15)
+		mural_material.emission_energy_multiplier = 0.45
+		mural.material_override = mural_material
+		mural.rotation.y = (i - 1.5) * 0.05
+	Art.label(ruins, "COLOUR ARCHIVE", Vector3(0, 3.55, 1.7), Color("f3d994"))
+	for i in range(4):
+		Art.box(
+			beacon_node,
+			Vector3((i - 1.5) * 1.4, 1.1, 1.55),
+			Vector3(0.10, 2.2, 0.10),
+			Color("72543f")
+		)
+		var pennant := Art.box(
+			beacon_node,
+			Vector3((i - 1.5) * 1.4 + 0.3, 1.65, 1.55),
+			Vector3(0.58, 0.62, 0.045),
+			paints[(i + 1) % paints.size()]
+		)
+		pennant.rotation.z = -0.12 if i % 2 == 0 else 0.12
 
 
 func add_object(
