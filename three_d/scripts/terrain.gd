@@ -436,10 +436,10 @@ func decorate() -> void:
 	for route in paths:
 		for step in range(1, route.size() - 1):
 			var marker_p: Vector2 = route[step]
-			var forward := (route[step + 1] - route[step - 1]).normalized()
-			var side := Vector2(-forward.y, forward.x)
+			var forward: Vector2 = (route[step + 1] - route[step - 1]).normalized()
+			var side: Vector2 = Vector2(-forward.y, forward.x)
 			for offset in [-1.9, 1.9]:
-				var p := marker_p + side * offset
+				var p: Vector2 = marker_p + side * float(offset)
 				if not walkable(p, 1):
 					continue
 				var cairn := Art.sphere(self, Vector3(p.x, height_at(p) + 0.18, p.y), 0.28, Color("7b877d"))
