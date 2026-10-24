@@ -1,7 +1,7 @@
 extends RefCounted
 ## Independent 3D slot. The Flutter application and its data are never touched.
 const PATH := "user://expedition_3d_v1.json"
-const HEROES := ["Rowan", "Sky", "Fern"]
+const HEROES := ["Rowan", "Sky", "Fern", "Custom Explorer"]
 const RECIPES := {
 	"bow": {"wood": 3, "crystal": 2},
 	"arrows": {"wood": 1},
@@ -117,7 +117,7 @@ static func valid(value: Variant) -> bool:
 			return false
 	if (
 		value.hero < 0
-		or value.hero > 2
+		or value.hero > 3
 		or value.island < 0
 		or value.island > value.unlocked
 		or value.coins < 0

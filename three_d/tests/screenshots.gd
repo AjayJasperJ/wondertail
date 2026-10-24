@@ -102,7 +102,7 @@ func run() -> void:
 	game.hud.visible = true
 	game.hud.show_game()
 	game.hud.visible = false
-	for hero in range(3):
+	for hero in range(4):
 		game.store.data.hero = hero
 		game.rebuild_hero()
 		game.player.arm.spring_length = 3.8

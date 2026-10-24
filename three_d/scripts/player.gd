@@ -53,10 +53,10 @@ const FALL_SAFE_HEIGHT := 5.5
 func setup(owner_game, chosen: int) -> void:
 	game = owner_game
 	hero = chosen
-	max_health = [100.0, 80.0, 135.0][hero]
+	max_health = [100.0, 80.0, 135.0, 110.0][hero]
 	health = max_health
-	speed = [7.0, 8.2, 6.2][hero]
-	jump_speed = [9.0, 10.0, 8.7][hero]
+	speed = [7.0, 8.2, 6.2, 7.2][hero]
+	jump_speed = [9.0, 10.0, 8.7, 9.4][hero]
 	collision_layer = 2
 	collision_mask = 5
 	floor_snap_length = 0.4
@@ -65,8 +65,8 @@ func setup(owner_game, chosen: int) -> void:
 	max_slides = 6
 	safe_margin = 0.025
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = [0.35, 0.29, 0.43][hero]
-	capsule.height = [1.9, 2.05, 1.85][hero]
+	capsule.radius = [0.35, 0.29, 0.43, 0.36][hero]
+	capsule.height = [1.9, 2.05, 1.85, 1.9][hero]
 	var col := CollisionShape3D.new()
 	col.shape = capsule
 	col.position.y = capsule.height * 0.5
@@ -76,10 +76,10 @@ func setup(owner_game, chosen: int) -> void:
 	body = ModelActor.new()
 	body.controller = game
 	add_child(body)
-	var paths := ["adventurer", "hooded_adventurer", "farmer"]
+	var paths := ["adventurer", "hooded_adventurer", "farmer", "custom_explorer"]
 	body.setup(
 		"res://assets/models/characters/" + paths[hero] + ".glb",
-		[Vector3(1, 1.05, 1), Vector3(0.94, 1.1, 0.94), Vector3(1.17, 1.02, 1.17)][hero]
+		[Vector3(1, 1.05, 1), Vector3(0.94, 1.1, 0.94), Vector3(1.17, 1.02, 1.17), Vector3.ONE][hero]
 	)
 	var socket: Node3D = body.weapon_socket()
 	socket.add_child(tool_model)
@@ -190,7 +190,7 @@ func attack() -> void:
 		return
 	stamina -= 9
 	attack_cooldown = 0.42
-	game.strike(global_position + Vector3.UP, -body.global_basis.z, [28, 23, 39][hero])
+	game.strike(global_position + Vector3.UP, -body.global_basis.z, [28, 23, 39, 31][hero])
 
 
 func refresh_weapon() -> void:

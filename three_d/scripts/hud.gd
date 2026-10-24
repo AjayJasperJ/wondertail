@@ -275,14 +275,26 @@ func show_heroes() -> void:
 				else:
 					tell(game.store.last_error)
 		)
-	# Lobby-only custom explorer preview. It does not change store.data.hero or the
-	# gameplay player, so importing a new character cannot interrupt an active run.
+	# Custom explorer is a real fourth hero. Selecting it persists immediately and
+	# returns to the lobby; gameplay rebuilds the player from the same saved value.
 	button(
-		"CUSTOM EXPLORER\nSWAT RIG\nPreview animations →",
+		("CUSTOM EXPLORER\nSWAT RIG\nEQUIPPED ✓" if int(game.store.data.hero) == 3
+		else "CUSTOM EXPLORER\nSWAT RIG\nSELECT & EQUIP"),
 		Rect2(100 + 3 * 365, 215, 340, 280),
-		show_custom_explorer
+		select_custom_explorer
 	)
-	text("LOBBY PREVIEW", Vector2(100 + 3 * 365 + 92, 505), 12, Color("7febd9"))
+	button("PREVIEW CLIPS", Rect2(100 + 3 * 365 + 82, 505, 175, 38), show_custom_explorer)
+
+
+func select_custom_explorer() -> void:
+	if int(game.store.data.hero) == 3:
+		show_lobby()
+		return
+	if game.store.transact(func(): game.store.data.hero = 3):
+		game.rebuild_hero()
+		show_lobby()
+	else:
+		tell(game.store.last_error)
 
 
 func show_custom_explorer() -> void:

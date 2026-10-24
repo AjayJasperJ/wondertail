@@ -6,6 +6,10 @@ Older dates are omitted where they were not recorded in the release history.
 
 ## [3D 0.18.0] - 2026-10-20
 
+- Fixed Custom Explorer selection: the card now persists hero 4, rebuilds the
+  gameplay model, and automatically returns to the lobby instead of leaving
+  the player trapped in the explorer menu. Added a separate preview-clips
+  button for inspecting the custom rig without equipping it.
 - Added an isolated Custom Explorer lobby preview using the supplied SWAT GLB.
   It previews the model's available idle, walk, run, shooting, roll, sword and
   interaction clips without changing the active gameplay hero or save data.
