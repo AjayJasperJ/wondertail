@@ -76,7 +76,10 @@ func setup(owner_game, chosen: int) -> void:
 	body = ModelActor.new()
 	body.controller = game
 	add_child(body)
-	var paths := ["adventurer", "hooded_adventurer", "farmer", "custom_explorer"]
+	# The supplied SWAT source is retained under source_assets for future importer
+	# work; until Godot accepts that container, the custom slot uses the compatible
+	# hooded runtime rig so selecting it never breaks gameplay or rendering.
+	var paths := ["adventurer", "hooded_adventurer", "farmer", "hooded_adventurer"]
 	body.setup(
 		"res://assets/models/characters/" + paths[hero] + ".glb",
 		[Vector3(1, 1.05, 1), Vector3(0.94, 1.1, 0.94), Vector3(1.17, 1.02, 1.17), Vector3.ONE][hero]
