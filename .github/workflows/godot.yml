@@ -2,7 +2,7 @@ name: Wondertail 3D
 on:
   push:
     branches: [main]
-    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'docs/LIVE_WEB.md', 'tool/prepare_web_preview.py', 'README.md', 'CHANGELOG.md']
+    paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'docs/LIVE_WEB.md', 'tool/prepare_web_preview.py', 'tool/prepare_3d_assets.py', 'README.md', 'CHANGELOG.md']
   pull_request:
     paths: ['three_d/**', '.github/workflows/godot.yml', 'docs/3D_EDITION.md', 'docs/LIVE_WEB.md', 'tool/prepare_web_preview.py']
   workflow_dispatch:
