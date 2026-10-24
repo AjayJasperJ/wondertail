@@ -9,10 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'source_assets'
 OUTPUT = ROOT / 'three_d/assets/models'
 KEEP = {'Idle', 'Idle_Neutral', 'Walk', 'Run', 'Sword_Slash', 'Gun_Shoot', 'HitRecieve',
-        'Flying_Idle', 'Fast_Flying', 'Bite_Front', 'Headbutt', 'HitReact', 'Punch',
-        # The custom lobby explorer keeps its tactical preview clips as well.
-        'Death', 'Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot', 'Interact',
-        'Roll', 'Run_Shoot'}
+        'Flying_Idle', 'Fast_Flying', 'Bite_Front', 'Headbutt', 'HitReact', 'Punch'}
+CUSTOM_KEEP = KEEP | {'Death', 'Idle_Gun', 'Idle_Gun_Pointing', 'Idle_Gun_Shoot',
+                      'Interact', 'Roll', 'Run_Shoot'}
 SELECTION = [
  ('characters/adventurer.glb', None, 'characters/adventurer.glb'),
  ('characters/hooded_adventurer.glb', None, 'characters/hooded_adventurer.glb'),
@@ -26,7 +25,7 @@ SELECTION = [
 ]
 
 
-def compact(raw):
+def compact(raw, allowed=None):
     assert raw[:4] == b'glTF' and struct.unpack_from('<I', raw, 4)[0] == 2
     length, kind = struct.unpack_from('<II', raw, 12)
     assert kind == 0x4E4F534A
@@ -35,7 +34,8 @@ def compact(raw):
     binary_size, binary_kind = struct.unpack_from('<II', raw, 20+length)
     assert binary_kind == 0x004E4942
     binary = raw[28+length:28+length+binary_size]
-    doc['animations'] = [a for a in doc.get('animations', []) if a['name'].split('|')[-1] in KEEP]
+    doc['animations'] = [a for a in doc.get('animations', [])
+                         if a['name'].split('|')[-1] in (KEEP if allowed is None else allowed)]
     used = set()
     for mesh in doc['meshes']:
         for primitive in mesh['primitives']:
@@ -175,7 +175,8 @@ def main():
                 raw = archive.read(member)
         else:
             raw = (SOURCE / source).read_bytes()
-        packed, animations = compact(external_textures(raw) if destination.startswith("equipment/") else raw)
+        allowed = CUSTOM_KEEP if destination == 'characters/custom_explorer.glb' else None
+        packed, animations = compact(external_textures(raw) if destination.startswith("equipment/") else raw, allowed)
         target = OUTPUT / destination
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(packed)
